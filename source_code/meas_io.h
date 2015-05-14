@@ -34,6 +34,7 @@ void enable_ldo(void);
 void disable_ldo(void);
 void disable_res_mux(void);
 void enable_res_mux(uint8_t val);
+void disable_measurement_mode_io(void);
 void set_measurement_mode_io(uint8_t res);
 
 #endif /* IO_H_ */

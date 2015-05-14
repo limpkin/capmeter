@@ -13,6 +13,7 @@
 #include "meas_io.h"
 #include "serial.h"
 #include "dac.h"
+#include "adc.h"
 
 
 /*
@@ -40,9 +41,11 @@ int main(void)
     _delay_ms(1000);                                // Wait for power to settle
     init_serial_port();                             // Initialize serial port    
     init_dac();                                     // Init DAC
+    init_adc();                                     // Init ADC
     init_ios();                                     // Init IOs
     enable_interrupts();                            // Enable interrupts
     calibrate_vup_vlow();                           // Calibrate vup vlow
+    //measure_opamp_internal_resistance();            // Measure the opamp internal resistance
     
     set_measurement_frequency(FREQ_1HZ);            // Set measurement frequency
     set_measurement_mode_io(RES_270);

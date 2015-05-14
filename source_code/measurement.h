@@ -32,6 +32,7 @@ enum mes_mode_t     {MES_OFF = 0, MES_CONT = 1};
     
 // prototypes
 void measurement_loop(uint8_t mes_mode);
+void measure_opamp_internal_resistance(void);
 void set_measurement_frequency(uint16_t freq);
 void enable_bias_voltage(uint16_t val);
 void disable_bias_voltage(void);

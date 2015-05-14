@@ -21,9 +21,11 @@
 #define MEAS_PRINTF
 // Dac debug printf
 #define DAC_PRINTF
+// Adc debug printf
+#define ADC_PRINTF
 
 // Check if we need to enable printf
-#if defined(IO_PRINTF) || defined(SERIAL_PRINTF) || defined(MEAS_PRINTF) || defined(DAC_PRINTF)
+#if defined(IO_PRINTF) || defined(SERIAL_PRINTF) || defined(MEAS_PRINTF) || defined(DAC_PRINTF) || defined(ADC_PRINTF)
     #define PRINTF_ENABLED
 #endif
 

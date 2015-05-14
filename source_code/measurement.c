@@ -13,6 +13,7 @@
  #include "meas_io.h"
  #include "main.h"
  #include "dac.h"
+ #include "adc.h"
  // To indicate the number of timer overflows
  volatile uint8_t nb_overflows;
  // Last counter value
@@ -151,7 +152,7 @@ void calibrate_vup_vlow(void)
     // Set bias voltage above vcc so Q1 comes into play if there's a cap between the terminals
     disable_feedback_mos();
     _delay_ms(10);
-    enable_bias_voltage(DAC_MIN_VAL/2);
+    enable_bias_voltage(DAC_MAX_VAL/2);
     
     // Leave time for a possible cap to charge
     _delay_ms(1000);
@@ -178,6 +179,32 @@ void calibrate_vup_vlow(void)
     }
     
     measdprintf("Vlow found: %d, approx %umV\r\n", calib_vlow, (calib_vlow*10)/33);
+    disable_opampin_dac();
+    disable_bias_voltage();
+}
+
+
+/*
+ * Measure the opamp internal resistance
+ */
+void measure_opamp_internal_resistance(void)
+{
+    measdprintf_P(PSTR("Measuring opamp internal resistance\r\n"));
+                
+    configure_adc_channel(ADC_CHANNEL_COMPOUT);     // Configure ADC to measure the opamp output
+    disable_feedback_mos();                         // Disable feedback mosfet
+    _delay_ms(10);                                  // Wait before enabling bias
+    enable_bias_voltage((DAC_MAX_VAL/5)*4);         // Enable bias voltage
+    enable_res_mux(RES_270);                        // Enable resistor mux to 270R
+    setup_opampin_dac(calib_vup+100);               // Force opamp output to 0
+    
+    while(1)
+    {
+        start_and_wait_for_adc_conversion();
+        _delay_ms(10);
+    }
+    
+    disable_res_mux();
     disable_opampin_dac();
     disable_bias_voltage();
 }
