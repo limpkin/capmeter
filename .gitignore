@@ -8,3 +8,11 @@ source_code/Release/
 *.o
 .DS_Store
 *.pyc
+*.sym
+*.lst
+*.lss
+*.map
+.dep/
+.settings/
+.project
+.cproject
