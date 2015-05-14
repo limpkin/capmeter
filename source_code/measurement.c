@@ -166,7 +166,7 @@ void calibrate_vup_vlow(void)
         _delay_us(10);
     }
     
-    measdprintf("Vhigh found: %d\r\n", calib_vup);
+    measdprintf("Vhigh found: %d, approx %umV\r\n", calib_vup, (calib_vup*10)/33);
     update_opampin_dac(calib_vlow);
     _delay_us(10);
         
@@ -177,7 +177,7 @@ void calibrate_vup_vlow(void)
         _delay_us(10);
     }
     
-    measdprintf("Vlow found: %d\r\n", calib_vlow);
+    measdprintf("Vlow found: %d, approx %umV\r\n", calib_vlow, (calib_vlow*10)/33);
     disable_opampin_dac();
     disable_bias_voltage();
 }
