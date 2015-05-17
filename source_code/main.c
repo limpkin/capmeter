@@ -45,7 +45,7 @@ int main(void)
     init_ios();                                     // Init IOs
     enable_interrupts();                            // Enable interrupts
     calibrate_vup_vlow();                           // Calibrate vup vlow
-    //measure_opamp_internal_resistance();            // Measure the opamp internal resistance
+    measure_opamp_internal_resistance();            // Measure the opamp internal resistance
     
     set_measurement_frequency(FREQ_1HZ);            // Set measurement frequency
     set_measurement_mode_io(RES_270);

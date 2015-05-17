@@ -19,7 +19,7 @@ void setup_vbias_dac(uint16_t val)
     PORTB_DIRSET = PIN3_bm;
     DACB.CTRLA |= DAC_CH1EN_bm;
     DACB.CH1DATA = val;
-    dacdprintf("Initializing DAC Val for Vbias to %d\r\n", val);
+    dacdprintf("Initializing DAC Val for Vbias to %u\r\n", val);
 }
 
 /*
@@ -50,7 +50,7 @@ void setup_opampin_dac(uint16_t val)
     PORTB_DIRSET = PIN2_bm;
     DACB.CTRLA |= DAC_CH0EN_bm;    
     DACB.CH0DATA = val;
-    dacdprintf("Setting DAC Val for opampin to %d\r\n", val);
+    dacdprintf("Setting DAC Val for opampin to %u\r\n", val);
 }
 
 /*
@@ -77,6 +77,8 @@ void disable_opampin_dac(void)
  */
 void init_dac(void)
 {
+    dacdprintf_P(PSTR("-----------------------\r\n"));
+    dacdprintf_P(PSTR("DAC init\r\n"));
     disable_vbias_dac();                // Disable VBIAS output
     disable_opampin_dac();              // Disable OPAMPIN output
     DACB.CTRLA = DAC_ENABLE_bm;         // Enable DAC

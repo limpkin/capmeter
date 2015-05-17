@@ -20,7 +20,7 @@
     #define adcprintf_P
 #endif
 
-enum adc_channel_t     {ADC_CHANNEL_COMPOUT = 0};
+enum adc_channel_t     {ADC_CHANNEL_COMPOUT = 0, ADC_CHANNEL_VBIAS = 1, ADC_CHANNEL_GND_EXT = 2};
 
 uint16_t start_and_wait_for_adc_conversion(void);
 void configure_adc_channel(uint8_t channel);

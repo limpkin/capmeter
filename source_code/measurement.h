@@ -31,10 +31,11 @@ enum mes_freq_t     {FREQ_1HZ = (32768-1), FREQ_32HZ = ((32768/32)-1), FREQ_64HZ
 enum mes_mode_t     {MES_OFF = 0, MES_CONT = 1};
     
 // prototypes
+uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint8_t max_pp, uint8_t debug);
 void measurement_loop(uint8_t mes_mode);
 void measure_opamp_internal_resistance(void);
 void set_measurement_frequency(uint16_t freq);
-void enable_bias_voltage(uint16_t val);
+uint16_t enable_bias_voltage(uint16_t val_mv);
 void disable_bias_voltage(void);
 void calibrate_vup_vlow(void);
 

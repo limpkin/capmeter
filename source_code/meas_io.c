@@ -168,6 +168,8 @@ void disable_measurement_mode_io(void)
  */
 void init_ios(void)
 {
+    iodprintf_P(PSTR("-----------------------\r\n"));
+    iodprintf_P(PSTR("IO init\r\n"));
     disable_cur_meas_mos();                                 // Disable cur measurement mosfet
     disable_feedback_mos();                                 // Disable opamp feedback
     disable_res_mux();                                      // Disable resistor mux
