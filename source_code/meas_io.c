@@ -8,7 +8,18 @@
 #include <avr/io.h>
 #include <stdio.h>
 #include "meas_io.h"
+// current res mux
+uint8_t cur_res_mux;
 
+
+/*
+ * Get current res mux
+ * @return  The res mux
+ */
+uint8_t get_cur_res_mux(void)
+{
+    return cur_res_mux;
+}
 
 /*
  * Enable the current measurement mosfet
@@ -99,6 +110,7 @@ void disable_res_mux(void)
  */
 void enable_res_mux(uint8_t val)
 {
+    cur_res_mux = val;
     PORTA_OUTSET = PIN4_bm;
     if (val & 0x01)
     {

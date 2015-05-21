@@ -4,38 +4,38 @@
  * Created: 26/04/2015 11:37:49
  *  Author: limpkin
  */
- #include <avr/interrupt.h>
- #include <avr/pgmspace.h>
- #include <util/delay.h>
- #include <avr/io.h>
- #include <stdio.h>
- #include "measurement.h"
- #include "meas_io.h"
- #include "main.h"
- #include "dac.h"
- #include "adc.h"
- // To indicate the number of timer overflows
- volatile uint8_t nb_overflows;
- // Last counter value
- volatile uint16_t last_counter_val;
- // Counter values
- volatile uint16_t last_measured_value;
- // Chosen resistor for measure
- uint8_t chosen_res = RES_100K;
- // New measurement value
- volatile uint8_t new_val_flag;
- // Current set bias voltage
- uint16_t cur_set_vbias_voltage;
- // Current vbias dac_val
- uint16_t cur_vbias_dac_val;
- // Calibrated vup
- uint16_t calib_vup;
- // Calibrated vlow
- uint16_t calib_vlow;
- // Opamp 0v output voltage when no load
- uint16_t opamp_0v_output_no_load;
- // Opamp 0v output voltages at vbias 3.3v depending on rout
- uint16_t opamp_0v_outputs_for_3v[4];
+#include <avr/interrupt.h>
+#include <avr/pgmspace.h>
+#include <util/delay.h>
+#include <avr/io.h>
+#include <stdio.h>
+#include "measurement.h"
+#include "meas_io.h"
+#include "main.h"
+#include "dac.h"
+#include "adc.h"
+// To indicate the number of timer overflows
+volatile uint8_t nb_overflows;
+// Last counter value
+volatile uint16_t last_counter_val;
+// Counter values
+volatile uint16_t last_measured_value;
+// New measurement value
+volatile uint8_t new_val_flag;
+// Current set bias voltage
+uint16_t cur_set_vbias_voltage;
+// Current vbias dac_val
+uint16_t cur_vbias_dac_val;
+// Calibrated vup
+uint16_t calib_vup;
+// Calibrated vlow
+uint16_t calib_vlow;
+// Opamp 0v output voltage when no load
+uint16_t opamp_0v_output_no_load;
+// Opamp 0v output voltages at vbias 3.3v depending on rout
+uint16_t opamp_0v_outputs_for_3v[4];
+// Current measurement frequency
+uint16_t cur_freq_meas;
 
 /*
  * Timer overflow interrupt
@@ -143,6 +143,7 @@ uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint8_t max_pp
  */
 void set_measurement_frequency(uint16_t freq)
 {    
+    cur_freq_meas = freq;
     RTC.PER = freq;                                     // Set correct RTC timer freq
     RTC.CTRL = RTC_PRESCALER_DIV1_gc;                   // Keep the 32kHz base clock
     EVSYS.CH1MUX = EVSYS_CHMUX_RTC_OVF_gc;              // Event line 1 for RTC overflow
@@ -361,7 +362,50 @@ void measure_opamp_internal_resistance(void)
     disable_res_mux();
     disable_opampin_dac();
     disable_bias_voltage();
-    while(1);
+}
+
+/*
+ * Get value for freq measurement define
+ * @param   define  The define
+ * @return  the value
+ */
+uint16_t get_val_for_freq_define(uint16_t define)
+{
+    switch(define)
+    {
+        case FREQ_1HZ:      return 1;
+        case FREQ_32HZ:     return 32;
+        case FREQ_64HZ:     return 64;
+        case FREQ_128HZ:    return 128;
+    }
+    return 0;
+}
+
+/*
+ * Get value for res mux measurement define
+ * @param   define  The define
+ * @return  the value divider by two
+ */
+uint16_t get_half_val_for_res_mux_define(uint16_t define)
+{
+    switch(define)
+    {
+        case RES_270:       return 135;
+        case RES_100K:      return 50000;
+        case RES_1K:        return 500;
+        case RES_10K:       return 5000;
+    }
+    return 0;
+}
+
+/*
+ * Print the formulate to compute the capacitance
+ * @param   nb_ticks     Number of ticks
+ */
+void print_compute_c_formula(uint16_t nb_ticks)
+{
+    // C = 1 / 2 * half_r * freq_measurement * nb_ticks * (ln(3300-Vl/3300-vh) + ln(vh/vl))
+    measdprintf("Formula to compute C: 1 / (2 * %u * %u * %u * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_half_val_for_res_mux_define(get_cur_res_mux()), get_val_for_freq_define(cur_freq_meas), nb_ticks, (calib_vlow*10)/33, (calib_vup*10)/33, (calib_vup*10)/33, (calib_vlow*10)/33);
 }
 
 /*
@@ -374,6 +418,7 @@ void measurement_loop(uint8_t mes_mode)
     if (new_val_flag == TRUE)
     {
         new_val_flag = FALSE;
-        printf("%u ", last_measured_value);
+        print_compute_c_formula(last_measured_value);
+        measdprintf("%u\r\n", last_measured_value);
     }
 }

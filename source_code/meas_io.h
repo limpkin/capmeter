@@ -24,6 +24,7 @@ enum res_mux_t     {RES_270 = 0, RES_100K = 1, RES_1K = 2, RES_10K = 3};
     
 // prototypes
 void init_ios(void);
+uint8_t get_cur_res_mux(void);
 void enable_cur_meas_mos(void);
 void disable_cur_meas_mos(void);
 void enable_feedback_mos(void);

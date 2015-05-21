@@ -49,7 +49,7 @@ int main(void)
     
     set_measurement_frequency(FREQ_1HZ);            // Set measurement frequency
     set_measurement_mode_io(RES_270);
-    enable_bias_voltage(VBIAS_MAX_DAC_VAL);
+    enable_bias_voltage(2000);
     
     while(1)
     {
