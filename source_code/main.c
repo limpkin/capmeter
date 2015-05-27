@@ -47,11 +47,22 @@ int main(void)
     calibrate_vup_vlow();                           // Calibrate vup vlow
     measure_opamp_internal_resistance();            // Measure the opamp internal resistance
     
+    // Current mes
+    _delay_ms(1000);
+    enable_bias_voltage(3300);
+    set_current_measurement_mode(CUR_MES_1X);
+    while(1)
+    {
+        quiescent_cur_measurement_loop(0);
+        _delay_ms(1000);
+    }
+    
+    // Freq mes
     set_measurement_frequency(FREQ_1HZ);            // Set measurement frequency
     set_measurement_mode_io(RES_270);
     enable_bias_voltage(2000);
     
-    while(1)
+    while(1);
     {
         measurement_loop(0);
     }

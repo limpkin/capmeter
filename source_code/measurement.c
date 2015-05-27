@@ -220,7 +220,7 @@ uint16_t update_bias_voltage(uint16_t val_mv)
         while ((measured_vbias > val_mv) && (cur_vbias_dac_val != DAC_MAX_VAL))
         {
             update_vbias_dac(cur_vbias_dac_val++);
-            _delay_us(10);
+            _delay_us(30);
             measured_vbias = get_averaged_stabilized_adc_value(3, 4, FALSE);
             temp_val = (measured_vbias * 16 / 182);
             measured_vbias = (measured_vbias * 4) + temp_val;
@@ -234,7 +234,7 @@ uint16_t update_bias_voltage(uint16_t val_mv)
         while ((measured_vbias < val_mv) && (cur_vbias_dac_val != 0)) 
         {
             update_vbias_dac(cur_vbias_dac_val--);
-            _delay_us(10);
+            _delay_us(30);
             measured_vbias = get_averaged_stabilized_adc_value(3, 4, FALSE);
             temp_val = (measured_vbias * 16 / 182);
             measured_vbias = (measured_vbias * 4) + temp_val;
@@ -257,7 +257,7 @@ uint16_t enable_bias_voltage(uint16_t val_mv)
 {    
     cur_vbias_dac_val = VBIAS_MIN_DAC_VAL;              // Set min vbias voltage by default
     cur_set_vbias_voltage = 0;                          // Set min vbias voltage by default
-    configure_adc_channel(ADC_CHANNEL_VBIAS);           // Enable ADC for vbias monitoring
+    configure_adc_channel(ADC_CHANNEL_VBIAS,0);         // Enable ADC for vbias monitoring
     enable_stepup();                                    // Enable stepup
     setup_vbias_dac(VBIAS_MIN_DAC_VAL);                 // Start with lowest voltage possible
     _delay_ms(10);                                      // Step up start takes around 1.5ms (oscilloscope)
@@ -329,7 +329,7 @@ void measure_opamp_internal_resistance(void)
     measdprintf_P(PSTR("-----------------------\r\n"));
     measdprintf_P(PSTR("Measuring opamp internal resistance\r\n"));
                 
-    configure_adc_channel(ADC_CHANNEL_COMPOUT);                                         // Configure ADC to measure the opamp output
+    configure_adc_channel(ADC_CHANNEL_COMPOUT,0);                                       // Configure ADC to measure the opamp output
     disable_feedback_mos();                                                             // Disable feedback mosfet
     disable_res_mux();                                                                  // Disable resistor mux
     _delay_ms(10);                                                                      // Wait before test
@@ -339,7 +339,7 @@ void measure_opamp_internal_resistance(void)
     
     // Vbias should be short with the other terminal here
     enable_bias_voltage(3300);                                                          // Enable vbias at 3.3v to know its resistance during oscillations!
-    configure_adc_channel(ADC_CHANNEL_COMPOUT);                                         // Required as setting vbias uses the adc
+    configure_adc_channel(ADC_CHANNEL_COMPOUT,0);                                       // Required as setting vbias uses the adc
     for (uint8_t i = 0; i < 4; i++)
     {
         enable_res_mux(i);                                                              // Try all resistors
@@ -421,4 +421,27 @@ void measurement_loop(uint8_t mes_mode)
         print_compute_c_formula(last_measured_value);
         measdprintf("%u\r\n", last_measured_value);
     }
+}
+
+/*
+ * Set quiescent current measurement mode
+ * @param   mes_mode     Our measurement mode (see enum_cur_mes_mode_t)
+ */
+void set_current_measurement_mode(uint8_t mes_mode)
+{
+    disable_feedback_mos();
+    disable_res_mux();
+    enable_cur_meas_mos();
+    configure_adc_channel(ADC_CHANNEL_CUR, mes_mode);
+    start_and_wait_for_adc_conversion();
+}
+
+/*
+ * Our main current measurement loop
+ * @param   mes_mode     Our measurement mode (see enum_cur_mes_mode_t)
+ */
+void quiescent_cur_measurement_loop(uint8_t mes_mode)
+{
+    uint16_t cur_val = get_averaged_stabilized_adc_value(4, 8, FALSE);
+    measdprintf("Quiescent current: %u, approx %u*10/%unA\r\n", cur_val, ((cur_val)*31)/51, 1 << mes_mode);
 }

@@ -164,6 +164,7 @@ void set_measurement_mode_io(uint8_t res)
 {
     enable_res_mux(res);
     enable_feedback_mos();
+    disable_cur_meas_mos();
 }
 
 /*
