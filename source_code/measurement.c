@@ -216,12 +216,12 @@ uint16_t update_bias_voltage(uint16_t val_mv)
     {
         measured_vbias = 0xFFFF;
         
-        // Our voltage increasing loop (takes 40ms to reach vmax)
+        // Our voltage decreasing loop (takes 40ms to reach vmax)
         while ((measured_vbias > val_mv) && (cur_vbias_dac_val != DAC_MAX_VAL))
         {
             update_vbias_dac(cur_vbias_dac_val++);
-            _delay_us(30);
-            measured_vbias = get_averaged_stabilized_adc_value(3, 4, FALSE);
+            _delay_us(20);
+            measured_vbias = get_averaged_stabilized_adc_value(8, 8, FALSE);
             temp_val = (measured_vbias * 16 / 182);
             measured_vbias = (measured_vbias * 4) + temp_val;
         }
@@ -234,8 +234,8 @@ uint16_t update_bias_voltage(uint16_t val_mv)
         while ((measured_vbias < val_mv) && (cur_vbias_dac_val != 0)) 
         {
             update_vbias_dac(cur_vbias_dac_val--);
-            _delay_us(30);
-            measured_vbias = get_averaged_stabilized_adc_value(3, 4, FALSE);
+            _delay_us(20);
+            measured_vbias = get_averaged_stabilized_adc_value(8, 8, FALSE);
             temp_val = (measured_vbias * 16 / 182);
             measured_vbias = (measured_vbias * 4) + temp_val;
         }
@@ -443,5 +443,5 @@ void set_current_measurement_mode(uint8_t mes_mode)
 void quiescent_cur_measurement_loop(uint8_t mes_mode)
 {
     uint16_t cur_val = get_averaged_stabilized_adc_value(4, 8, FALSE);
-    measdprintf("Quiescent current: %u, approx %u*10/%unA\r\n", cur_val, ((cur_val)*31)/51, 1 << mes_mode);
+    measdprintf("Quiescent current: %u, approx %u*10/%unA\r\n", cur_val, ((cur_val)*20)/33, 1 << mes_mode);
 }

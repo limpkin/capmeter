@@ -70,6 +70,6 @@ void init_serial_port(void)
     USARTC0.BAUDCTRLB = 0xD0;                               // 115k2 baudrate
     USARTC0.CTRLC = USART_CHSIZE_8BIT_gc;                   // Asynchronous 8N1 mode
     USARTC0.CTRLB = USART_RXEN_bm | USART_TXEN_bm;          // Enable USARTC0 TX & RX
-    serialdprintf_P(PSTR("-----------------------\r\n"));
+    serialdprintf_P(PSTR("-----------------------\r\n"));   // Debug string
     serialdprintf_P(PSTR("Serial port initialized\r\n"));   // Debug string
 }

@@ -30,6 +30,7 @@ void switch_to_32MHz_clock(void)
     OSC.CTRL |= OSC_XOSCEN_bm;                      // Enable external oscillator
     while((OSC.STATUS & OSC_XOSCRDY_bm) == 0);      // Wait for stable 32kHz clock
     OSC.DFLLCTRL = OSC_RC32MCREF_XOSC32K_gc;        // Select the 32kHz clock as calibration ref for our 32M
+    DFLLRC32M.CTRL = DFLL_ENABLE_bm;                // Enable DFLL for RC32M
 }
 
 /*
@@ -47,6 +48,7 @@ int main(void)
     calibrate_vup_vlow();                           // Calibrate vup vlow
     measure_opamp_internal_resistance();            // Measure the opamp internal resistance
     
+    while(1);
     // Current mes
     _delay_ms(1000);
     enable_bias_voltage(3300);
