@@ -36,6 +36,8 @@ uint16_t opamp_0v_output_no_load;
 uint16_t opamp_0v_outputs_for_3v[4];
 // Current measurement frequency
 uint16_t cur_freq_meas;
+// 0nA ADC values for different amplications
+int16_t zero_na_outputs[7];
 
 /*
  * Timer overflow interrupt
@@ -320,12 +322,45 @@ void calibrate_vup_vlow(void)
     disable_bias_voltage();
 }
 
+/*
+ * Find 0nA point
+ */
+void calibrate_cur_mos_0nA(void)
+{
+    int16_t cur_0nA_val = INT16_MAX;
+    uint8_t cur_ampl = CUR_MES_1X;
+    
+    measdprintf_P(PSTR("-----------------------\r\n"));
+    measdprintf_P(PSTR("Measuring 0nA outputs\r\n"));
+    
+    // Calibrate all 0nA points for different amplifications, start with the smaller ampl
+    set_current_measurement_mode(cur_ampl);
+    while(1)
+    {
+        cur_0nA_val = get_averaged_stabilized_adc_value(4, 8, FALSE);
+        if (cur_0nA_val < 40)
+        {
+            // Only possible because of the ampl registers
+            measdprintf("Zero quiescent current for ampl %u: %u, approx %u*10/%unA\r\n", 1 << cur_ampl, cur_0nA_val, ((cur_0nA_val)*20)/33, 1 << cur_ampl);
+            zero_na_outputs[cur_ampl++] = cur_0nA_val;
+            if (cur_ampl <= CUR_MES_64X)
+            {
+                set_current_measurement_mode(cur_ampl);
+            }
+            else
+            {
+                return;
+            }
+        }
+    }
+}
 
 /*
  * Measure the opamp internal resistance
  */
 void measure_opamp_internal_resistance(void)
-{    
+{
+    uint8_t cur_cal_res_mux = RES_270;    
     measdprintf_P(PSTR("-----------------------\r\n"));
     measdprintf_P(PSTR("Measuring opamp internal resistance\r\n"));
                 
@@ -339,23 +374,30 @@ void measure_opamp_internal_resistance(void)
     
     // Vbias should be short with the other terminal here
     enable_bias_voltage(3300);                                                          // Enable vbias at 3.3v to know its resistance during oscillations!
+    enable_res_mux(cur_cal_res_mux);                                                    // Try all resistors one by one
     configure_adc_channel(ADC_CHANNEL_COMPOUT,0);                                       // Required as setting vbias uses the adc
-    for (uint8_t i = 0; i < 4; i++)
+    while (cur_cal_res_mux <= RES_10K)
     {
-        enable_res_mux(i);                                                              // Try all resistors
-        opamp_0v_outputs_for_3v[i] = get_averaged_stabilized_adc_value(7, 8, FALSE);    // Measure
-        measdprintf("Opamp 0v output at 3.3V: %u, approx %umV\r\n", opamp_0v_outputs_for_3v[i], ((opamp_0v_outputs_for_3v[i])*10)/33);
-        #ifdef MEAS_PRINTF
-        uint16_t voltage_mv = ((opamp_0v_outputs_for_3v[i])*10)/33;
-        if (i == RES_270)
+        opamp_0v_outputs_for_3v[cur_cal_res_mux] = get_averaged_stabilized_adc_value(7, 8, FALSE);  // Measure
+        
+        // Only pass through if the user shorted the terminals
+        if (!((cur_cal_res_mux == RES_270) && (opamp_0v_outputs_for_3v[cur_cal_res_mux] < 300)) && !((cur_cal_res_mux == RES_1K) && (opamp_0v_outputs_for_3v[cur_cal_res_mux] < 80)))
         {
-            measdprintf("Approx R of %umOhms\r\n", (voltage_mv*270) / (3300 - voltage_mv));
-        }
-        if (i == RES_1K)
-        {
-            measdprintf("Approx R of %umOhms\r\n", (voltage_mv*1000) / (3300 - voltage_mv));
-        }
-        #endif
+            measdprintf("Opamp 0v output at 3.3V: %u, approx %umV\r\n", opamp_0v_outputs_for_3v[cur_cal_res_mux], ((opamp_0v_outputs_for_3v[cur_cal_res_mux])*10)/33);
+            enable_res_mux(++cur_cal_res_mux);  
+            
+            #ifdef MEAS_PRINTF
+                uint16_t voltage_mv = ((opamp_0v_outputs_for_3v[cur_cal_res_mux])*10)/33;
+                if (cur_cal_res_mux == RES_270)
+                {
+                    measdprintf("Approx R of %umOhms\r\n", (voltage_mv*270) / (3300 - voltage_mv));
+                }
+                else if (cur_cal_res_mux == RES_1K)
+                {
+                    measdprintf("Approx R of %umOhms\r\n", (voltage_mv*1000) / (3300 - voltage_mv));
+                }
+            #endif
+        }        
     }
 
     // We're done    

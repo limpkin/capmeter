@@ -46,16 +46,18 @@ int main(void)
     init_ios();                                     // Init IOs
     enable_interrupts();                            // Enable interrupts
     calibrate_vup_vlow();                           // Calibrate vup vlow
+    //calibrate_cur_mos_0nA();                        // Calibrate 0nA point
     measure_opamp_internal_resistance();            // Measure the opamp internal resistance
     
     while(1);
     // Current mes
     _delay_ms(1000);
-    enable_bias_voltage(3300);
-    set_current_measurement_mode(CUR_MES_1X);
+    //enable_bias_voltage(3300);
+    enable_cur_meas_mos();
+    set_current_measurement_mode(CUR_MES_64X);
     while(1)
     {
-        quiescent_cur_measurement_loop(0);
+        quiescent_cur_measurement_loop(CUR_MES_64X);
         _delay_ms(1000);
     }
     

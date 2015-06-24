@@ -112,5 +112,5 @@ void init_adc(void)
     adcprintf_P(PSTR("Measuring external 0V value, single ended...\r\n"));
     configure_adc_channel(ADC_CHANNEL_GND_EXT, 0);
     calib_0v_value_se = get_averaged_stabilized_adc_value(10, 8, FALSE);
-    adcprintf("0V ADC value: %u, approx %umV\r\n", calib_0v_value_se, (calib_0v_value_se*10)/33);
+    adcprintf("0V ADC value: %u (should be 180), approx %umV\r\n", calib_0v_value_se, (calib_0v_value_se*10)/33);
 }
