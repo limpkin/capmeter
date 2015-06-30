@@ -45,6 +45,7 @@ int main(void)
     init_adc();                                     // Init ADC
     init_ios();                                     // Init IOs
     enable_interrupts();                            // Enable interrupts
+    wait_for_1v_bias();                             // Wait for 1v bias
     calibrate_vup_vlow();                           // Calibrate vup vlow
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point
     measure_opamp_internal_resistance();            // Measure the opamp internal resistance

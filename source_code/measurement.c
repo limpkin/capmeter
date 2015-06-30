@@ -197,7 +197,9 @@ uint16_t update_bias_voltage(uint16_t val_mv)
 {
     measdprintf("Vbias call for %umV\r\n", val_mv);
     uint16_t measured_vbias = 0, temp_val;
+    uint8_t peak_peak = 14;
     
+    /******************* MATHS *******************/
     // Vadc = Vbias * 1.2 / (1.2+15)
     // Vadc = Vbias * 1.2 / 16.2
     // Vbias = Vadc * 16.2 / 1.2
@@ -207,6 +209,30 @@ uint16_t update_bias_voltage(uint16_t val_mv)
     // Vbias(mV) = VALadc * 4,0879120879120879120879120879121
     // Vbias(mV) = VALadc * (4 + 0,0879120879120879120879120879121)
     // Vbias(mV) = VALadc * 4 + VALadc * 16 / 182
+    /******************* MEASUREMENTS *******************/
+    // On fluke45, one set (to be automatized)
+    // 1500mV  => 1506mV   => 0.4%
+    // 2000mV  => 2004mV   => 0.2%
+    // 3000mV  => 3004mV   => 0.13%
+    // 4000mV  => 3996mV   => 0.1%
+    // 5000mV  => 4998mV   => 0.04%
+    // 6000mV  => 5997mV   => 0.05%
+    // 7000mV  => 6998mV   => 0.03%
+    // 8000mV  => 7990mV   => 0.125%
+    // 9000mV  => 8988mV   => 0.13%
+    // 10000mV => 9984mV   => 0.16%
+    // 11000mV => 10983mV  => 0.15%
+    // 12000mV => 11982mV  => 0.15%
+    // 13000mV => 12985mV  => 0.11%
+    // 14000mV => 13980mV  => 0.14%
+    // 15000mV => 14977mV  => 0.15%
+    
+    // Check that value isn't too low...
+    if (val_mv < VBIAS_MIN_V)
+    {
+        measdprintf_P(PSTR("Value too low, setting it to 1250mV!\r\n"));
+        val_mv = VBIAS_MIN_V;
+    }
     
     // Ramp up or ramp low depending on currently set vbias
     if (cur_set_vbias_voltage == val_mv)
@@ -218,28 +244,54 @@ uint16_t update_bias_voltage(uint16_t val_mv)
     {
         measured_vbias = 0xFFFF;
         
+        // Check if we need to deactivate the stepup
+        if ((cur_set_vbias_voltage >= STEPUP_ACTIV_V) && (val_mv < STEPUP_ACTIV_V))
+        {
+            disable_stepup();                                   // Disable stepup
+            _delay_ms(1);                                       // Wait a bit
+        }
+        
         // Our voltage decreasing loop (takes 40ms to reach vmax)
         while ((measured_vbias > val_mv) && (cur_vbias_dac_val != DAC_MAX_VAL))
         {
             update_vbias_dac(cur_vbias_dac_val++);
             _delay_us(20);
-            measured_vbias = get_averaged_stabilized_adc_value(8, 8, FALSE);
+            measured_vbias = get_averaged_stabilized_adc_value(8, peak_peak, FALSE);
             temp_val = (measured_vbias * 16 / 182);
             measured_vbias = (measured_vbias * 4) + temp_val;
+            
+            // Adjust peak-peak depending on how close we are
+            if ((val_mv - measured_vbias) < 300)
+            {
+                peak_peak = 0;
+            }
         }
     } 
     else
     {
         measured_vbias = 0;
         
+        // Check if we need to activate the stepup
+        if ((cur_set_vbias_voltage < STEPUP_ACTIV_V) && (val_mv >= STEPUP_ACTIV_V))
+        {            
+            enable_stepup();                                    // Enable stepup
+            _delay_ms(10);                                      // Step up start takes around 1.5ms (oscilloscope)
+        }
+        
         // Our voltage increasing loop (takes 40ms to reach vmax)
         while ((measured_vbias < val_mv) && (cur_vbias_dac_val != 0)) 
         {
             update_vbias_dac(cur_vbias_dac_val--);
             _delay_us(20);
-            measured_vbias = get_averaged_stabilized_adc_value(8, 8, FALSE);
+            measured_vbias = get_averaged_stabilized_adc_value(8, peak_peak, FALSE);
             temp_val = (measured_vbias * 16 / 182);
             measured_vbias = (measured_vbias * 4) + temp_val;
+            
+            // Adjust peak-peak depending on how close we are
+            if ((measured_vbias - val_mv) < 300)
+            {
+                peak_peak = 0;
+            }
         }
     }
     
@@ -251,22 +303,59 @@ uint16_t update_bias_voltage(uint16_t val_mv)
 }
 
 /*
+ * To measure set voltages
+ */
+void bias_voltage_test(void)
+{
+    enable_bias_voltage(1500);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(2000);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(3000);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(4000);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(5000);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(6000);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(7000);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(8000);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(9000);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(10000);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(11000);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(12000);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(13000);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(14000);_delay_ms(5000);disable_bias_voltage();
+    enable_bias_voltage(15000);_delay_ms(5000);disable_bias_voltage();    
+}
+
+/*
  * Enable bias voltage
- * @param   val     bias voltage in mV
+ * @param   val     bias voltage in mV (min 1250mv, max 15300mV)
  * @return  Actual mV value set
  */
 uint16_t enable_bias_voltage(uint16_t val_mv)
-{    
-    cur_vbias_dac_val = VBIAS_MIN_DAC_VAL;              // Set min vbias voltage by default
+{
     cur_set_vbias_voltage = 0;                          // Set min vbias voltage by default
-    configure_adc_channel(ADC_CHANNEL_VBIAS,0);         // Enable ADC for vbias monitoring
-    enable_stepup();                                    // Enable stepup
+    cur_vbias_dac_val = VBIAS_MIN_DAC_VAL;              // Set min vbias voltage by default
+    configure_adc_channel(ADC_CHANNEL_VBIAS, 0);        // Enable ADC for vbias monitoring
     setup_vbias_dac(VBIAS_MIN_DAC_VAL);                 // Start with lowest voltage possible
-    _delay_ms(10);                                      // Step up start takes around 1.5ms (oscilloscope)
-    enable_ldo();                                       // Enable ldo
-    _delay_ms(10);                                      // Soft start on the LDO takes around 1ms (oscilloscope)  
+    enable_ldo();                                       // Enable ldo   
+    _delay_ms(100);                                     // Soft start wait
+    return update_bias_voltage(val_mv);                 // Return the actual voltage that was set
+}
+
+
+/*
+ * Wait for 1v bias
+ */
+void wait_for_1v_bias(void)
+{
+    uint16_t measured_vbias = 2000;
     
-    return update_bias_voltage(val_mv);
+    // Wait for bias voltage to be under ~1000mV
+    configure_adc_channel(ADC_CHANNEL_VBIAS, 0);
+    while (measured_vbias > 245)
+    {
+        measured_vbias = get_averaged_stabilized_adc_value(6, 8, FALSE);
+    }
+    
+    measdprintf_P(PSTR("Bias voltage at 1V\r\n"));    
 }
 
 /*
@@ -274,10 +363,11 @@ uint16_t enable_bias_voltage(uint16_t val_mv)
  */
 void disable_bias_voltage(void)
 {
-    disable_ldo();              // Disable LDO
-    disable_stepup();           // Disable stepup
-    disable_vbias_dac();        // Disable DAC controlling the ldo
-    _delay_ms(2500);            // It takes around 1.5 sec for vbias to decrease!
+    measdprintf_P(PSTR("Disabling bias voltage\r\n"));  // Debug
+    disable_ldo();                                      // Disable LDO
+    disable_stepup();                                   // Disable stepup
+    disable_vbias_dac();                                // Disable DAC controlling the ldo
+    wait_for_1v_bias();                                 // Wait bias voltage to be at 1v
 }
 
 /*

@@ -21,10 +21,12 @@
 #endif
 
 // defines
-#define DAC_MAX_VAL         0x0FFF
-#define DAC_MIN_VAL         0x0000
-#define VBIAS_MIN_DAC_VAL   DAC_MAX_VAL
-#define VBIAS_MAX_DAC_VAL   DAC_MIN_VAL
+#define DAC_MAX_VAL         0x0FFF              // 12 bits DAC
+#define DAC_MIN_VAL         0x0000              // Obviously...
+#define VBIAS_MIN_DAC_VAL   DAC_MAX_VAL - 200   // Approx 1200mV
+#define VBIAS_MAX_DAC_VAL   DAC_MIN_VAL         // Around 15440mV
+#define STEPUP_ACTIV_V      4300                // Technically 4500mV should work
+#define VBIAS_MIN_V         1250                // TPS datasheet mentions 1212mV
 
 // enums
 enum mes_freq_t     {FREQ_1HZ = (32768-1), FREQ_32HZ = ((32768/32)-1), FREQ_64HZ = ((32768/64)-1), FREQ_128HZ = ((32768/128)-1)};
@@ -42,5 +44,6 @@ void measurement_loop(uint8_t mes_mode);
 void calibrate_cur_mos_0nA(void);
 void disable_bias_voltage(void);
 void calibrate_vup_vlow(void);
+void wait_for_1v_bias(void);
 
 #endif /* MEASUREMENT_H_ */

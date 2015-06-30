@@ -11,7 +11,7 @@
 #include "measurement.h"
 #include "adc.h"
 // Calibration 0V value
-uint16_t calib_0v_value_se;
+uint16_t calib_0v_value_se = 0;
  
 void configure_adc_channel(uint8_t channel, uint8_t ampl)
 {
@@ -111,6 +111,6 @@ void init_adc(void)
     // Calibrate 0V
     adcprintf_P(PSTR("Measuring external 0V value, single ended...\r\n"));
     configure_adc_channel(ADC_CHANNEL_GND_EXT, 0);
-    calib_0v_value_se = get_averaged_stabilized_adc_value(10, 8, FALSE);
+    calib_0v_value_se = get_averaged_stabilized_adc_value(10, 10, TRUE);
     adcprintf("0V ADC value: %u (should be 180), approx %umV\r\n", calib_0v_value_se, (calib_0v_value_se*10)/33);
 }
