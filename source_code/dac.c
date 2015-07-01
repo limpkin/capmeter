@@ -83,6 +83,6 @@ void init_dac(void)
     disable_opampin_dac();              // Disable OPAMPIN output
     DACB.CTRLA = DAC_ENABLE_bm;         // Enable DAC
     DACB.CTRLB = DAC_CHSEL_DUAL_gc;     // Enable both channels
-    DACB.CTRLC = DAC_REFSEL_AREFB_gc;   // Use external VREF (1.25V)
+    DACB.CTRLC = DAC_REFSEL_AREFB_gc;   // Use external VREF (1.24V)
     dacdprintf_P(PSTR("DAC initialized\r\n"));
 }

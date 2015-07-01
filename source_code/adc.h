@@ -23,7 +23,9 @@
 enum adc_channel_t     {ADC_CHANNEL_COMPOUT = 0, ADC_CHANNEL_VBIAS = 1, ADC_CHANNEL_GND_EXT = 2, ADC_CHANNEL_CUR = 3};
 
 void configure_adc_channel(uint8_t channel, uint8_t ampl);
-uint16_t start_and_wait_for_adc_conversion(void);
+uint16_t get_averaged_adc_value(uint8_t avg_bit_shift);
+int16_t start_and_wait_for_adc_conversion(void);
+void calibrate_cur_mos_0nA(void);
 void init_adc(void);
 
 #endif /* ADC_H_ */

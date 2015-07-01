@@ -36,8 +36,6 @@ uint16_t opamp_0v_output_no_load;
 uint16_t opamp_0v_outputs_for_3v[4];
 // Current measurement frequency
 uint16_t cur_freq_meas;
-// 0nA ADC values for different amplications
-int16_t zero_na_outputs[7];
 
 /*
  * Timer overflow interrupt
@@ -70,73 +68,6 @@ ISR(TCC0_CCA_vect)
     
     // Set Flag
     new_val_flag = TRUE;
-}
-
-/*
- * Wait for a stabilized adc value
- * @param   avg_bit_shift   Bit shift for our averaging (1 for 2 samples, 2 for 4, etc etc)
- * @param   max_pp          Max peak to peak value we accept
- */
-uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint8_t max_pp, uint8_t debug)
-{
-    uint16_t min_val = 0, max_val = 0, temp_val;
-    uint8_t loop_running = TRUE;
-    uint32_t avg = 0;
-    
-    if (debug == TRUE)
-    {
-        adcprintf("Getting averaged value for %u samples, with less than %u LSB pp\r\n", (1 << avg_bit_shift), max_pp);
-    }
-        
-    while (loop_running == TRUE)
-    {
-        for (uint16_t i = 0; i < (1 << (uint16_t)avg_bit_shift); i++)
-        {
-            // Get one val
-            temp_val = start_and_wait_for_adc_conversion();
-            
-            // If it is the first iteration
-            if (i == 0)
-            {
-                min_val = temp_val;
-                max_val = temp_val;
-                avg = 0;
-            }
-            
-            // Add sample
-            avg += temp_val;
-            
-            // Check min/max
-            if (temp_val > max_val)
-            {
-                max_val = temp_val;
-            }
-            else if (temp_val < min_val)
-            {
-                min_val = temp_val;
-            }
-            
-            // Check current peak to peak, leave loop
-            if ((max_val - min_val) > max_pp)
-            {
-                i = 0xFFFF;
-            }
-        }
-        
-        // Loop over, check peak to peak
-        if ((max_val - min_val) <= max_pp)
-        {
-            loop_running = FALSE;
-        }
-    }
-    
-    if (debug == TRUE)
-    {
-        adcprintf("Averaged value found: %u, pp of %u LSB\r\n", (uint16_t)(avg >> avg_bit_shift), (max_val - min_val));
-    }
-    
-    // return avged value
-    return (uint16_t)(avg >> avg_bit_shift);
 }
 
 /*
@@ -226,6 +157,7 @@ uint16_t update_bias_voltage(uint16_t val_mv)
     // 13000mV => 12985mV  => 0.11%
     // 14000mV => 13980mV  => 0.14%
     // 15000mV => 14977mV  => 0.15%
+    // Which is quite awesome when you notice than one ADC LSB actually is 4mV!
     
     // Check that value isn't too low...
     if (val_mv < VBIAS_MIN_V)
@@ -334,12 +266,11 @@ uint16_t enable_bias_voltage(uint16_t val_mv)
     cur_set_vbias_voltage = 0;                          // Set min vbias voltage by default
     cur_vbias_dac_val = VBIAS_MIN_DAC_VAL;              // Set min vbias voltage by default
     configure_adc_channel(ADC_CHANNEL_VBIAS, 0);        // Enable ADC for vbias monitoring
-    setup_vbias_dac(VBIAS_MIN_DAC_VAL);                 // Start with lowest voltage possible
+    setup_vbias_dac(cur_vbias_dac_val);                 // Start with lowest voltage possible
     enable_ldo();                                       // Enable ldo   
     _delay_ms(100);                                     // Soft start wait
     return update_bias_voltage(val_mv);                 // Return the actual voltage that was set
 }
-
 
 /*
  * Wait for 1v bias
@@ -347,6 +278,8 @@ uint16_t enable_bias_voltage(uint16_t val_mv)
 void wait_for_1v_bias(void)
 {
     uint16_t measured_vbias = 2000;
+    
+    measdprintf_P(PSTR("Waiting for low bias voltage...\r\n"));
     
     // Wait for bias voltage to be under ~1000mV
     configure_adc_channel(ADC_CHANNEL_VBIAS, 0);
@@ -392,7 +325,7 @@ void calibrate_vup_vlow(void)
     // Ramp up, wait for toggle
     while((PORTA_IN & PIN6_bm) != 0)
     {
-        update_opampin_dac(calib_vup++);
+        update_opampin_dac(++calib_vup);
         _delay_us(10);
     }
     
@@ -403,46 +336,13 @@ void calibrate_vup_vlow(void)
     // Ramp low, wait for toggle
     while((PORTA_IN & PIN6_bm) == 0)
     {
-        update_opampin_dac(calib_vlow--);
+        update_opampin_dac(--calib_vlow);
         _delay_us(10);
     }
     
     measdprintf("Vlow found: %u, approx %umV\r\n", calib_vlow, (calib_vlow*10)/33);
     disable_opampin_dac();
     disable_bias_voltage();
-}
-
-/*
- * Find 0nA point
- */
-void calibrate_cur_mos_0nA(void)
-{
-    int16_t cur_0nA_val = INT16_MAX;
-    uint8_t cur_ampl = CUR_MES_1X;
-    
-    measdprintf_P(PSTR("-----------------------\r\n"));
-    measdprintf_P(PSTR("Measuring 0nA outputs\r\n"));
-    
-    // Calibrate all 0nA points for different amplifications, start with the smaller ampl
-    set_current_measurement_mode(cur_ampl);
-    while(1)
-    {
-        cur_0nA_val = get_averaged_stabilized_adc_value(4, 8, FALSE);
-        if (cur_0nA_val < 40)
-        {
-            // Only possible because of the ampl registers
-            measdprintf("Zero quiescent current for ampl %u: %u, approx %u*10/%unA\r\n", 1 << cur_ampl, cur_0nA_val, ((cur_0nA_val)*20)/33, 1 << cur_ampl);
-            zero_na_outputs[cur_ampl++] = cur_0nA_val;
-            if (cur_ampl <= CUR_MES_64X)
-            {
-                set_current_measurement_mode(cur_ampl);
-            }
-            else
-            {
-                return;
-            }
-        }
-    }
 }
 
 /*
@@ -459,7 +359,7 @@ void measure_opamp_internal_resistance(void)
     disable_res_mux();                                                                  // Disable resistor mux
     _delay_ms(10);                                                                      // Wait before test
     setup_opampin_dac(calib_vup+100);                                                   // Force opamp output to 0 by setting IN- above IN+
-    opamp_0v_output_no_load = get_averaged_stabilized_adc_value(8, 8, FALSE);           // Run averaging on 128 samples, max 3 lsb peak to peak noise    
+    opamp_0v_output_no_load = get_averaged_stabilized_adc_value(8, 8, FALSE);           // Run averaging on 128 samples, max 8 lsb peak to peak noise    
     measdprintf("Opamp 0v output: %u, approx %umV\r\n", opamp_0v_output_no_load, (opamp_0v_output_no_load*10)/33);
     
     // Vbias should be short with the other terminal here
@@ -474,7 +374,6 @@ void measure_opamp_internal_resistance(void)
         if (!((cur_cal_res_mux == RES_270) && (opamp_0v_outputs_for_3v[cur_cal_res_mux] < 300)) && !((cur_cal_res_mux == RES_1K) && (opamp_0v_outputs_for_3v[cur_cal_res_mux] < 80)))
         {
             measdprintf("Opamp 0v output at 3.3V: %u, approx %umV\r\n", opamp_0v_outputs_for_3v[cur_cal_res_mux], ((opamp_0v_outputs_for_3v[cur_cal_res_mux])*10)/33);
-            enable_res_mux(++cur_cal_res_mux);  
             
             #ifdef MEAS_PRINTF
                 uint16_t voltage_mv = ((opamp_0v_outputs_for_3v[cur_cal_res_mux])*10)/33;
@@ -487,6 +386,8 @@ void measure_opamp_internal_resistance(void)
                     measdprintf("Approx R of %umOhms\r\n", (voltage_mv*1000) / (3300 - voltage_mv));
                 }
             #endif
+            
+            enable_res_mux(++cur_cal_res_mux);
         }        
     }
 
@@ -544,7 +445,7 @@ void print_compute_c_formula(uint16_t nb_ticks)
  * Our main measurement loop
  * @param   mes_mode     Our measurement mode (see enum_mes_mode_t)
  */
-void measurement_loop(uint8_t mes_mode)
+void measurement_loop(uint8_t ampl)
 {
     // If we received a new measurement
     if (new_val_flag == TRUE)
@@ -557,23 +458,39 @@ void measurement_loop(uint8_t mes_mode)
 
 /*
  * Set quiescent current measurement mode
- * @param   mes_mode     Our measurement mode (see enum_cur_mes_mode_t)
+ * @param   ampl        Our measurement amplification (see enum_cur_mes_mode_t)
  */
-void set_current_measurement_mode(uint8_t mes_mode)
+void set_current_measurement_ampl(uint8_t ampl)
 {
     disable_feedback_mos();
     disable_res_mux();
     enable_cur_meas_mos();
-    configure_adc_channel(ADC_CHANNEL_CUR, mes_mode);
+    configure_adc_channel(ADC_CHANNEL_CUR, ampl);
     start_and_wait_for_adc_conversion();
 }
 
 /*
- * Our main current measurement loop
- * @param   mes_mode     Our measurement mode (see enum_cur_mes_mode_t)
+ * Disable current measurement mode
  */
-void quiescent_cur_measurement_loop(uint8_t mes_mode)
+void disable_current_measurement_mode(void)
+{    
+    disable_cur_meas_mos();
+}
+
+/*
+ * Our main current measurement loop
+ * @param   ampl        Our measurement amplification (see enum_cur_mes_mode_t)
+ */
+void quiescent_cur_measurement_loop(uint8_t ampl)
 {
-    uint16_t cur_val = get_averaged_stabilized_adc_value(4, 8, FALSE);
-    measdprintf("Quiescent current: %u, approx %u*10/%unA\r\n", cur_val, ((cur_val)*20)/33, 1 << mes_mode);
+    // Vadc = I(A) * 1k * 100 * ampl
+    // Vadc = I(A) * 100k * ampl
+    // I(A) = Vadc / (100k * ampl)
+    // I(A) = Val(ADC) * (1.24 / 2048) / (100k * ampl)
+    // I(A) = Val(ADC) * 1.24 / (204.8M * ampl)
+    // I(nA) = Val(ADC) * 1.24 / (0.2048 * ampl)
+    // I(nA) = Val(ADC) * 6,0546875 / ampl
+    
+    uint16_t cur_val = get_averaged_adc_value(18);
+    measdprintf("Quiescent current: %u, approx %u*10/%unA\r\n", cur_val, ((cur_val)*23)/38, 1 << ampl);
 }
