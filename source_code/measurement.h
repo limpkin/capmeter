@@ -44,6 +44,8 @@ void disable_current_measurement_mode(void);
 void measurement_loop(uint8_t ampl);
 void disable_bias_voltage(void);
 void calibrate_vup_vlow(void);
+void bias_voltage_test(void);
 void wait_for_1v_bias(void);
+void init_measurement(void);
 
 #endif /* MEASUREMENT_H_ */

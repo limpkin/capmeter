@@ -20,7 +20,11 @@
     #define adcprintf_P
 #endif
 
+// enums
 enum adc_channel_t     {ADC_CHANNEL_COMPOUT = 0, ADC_CHANNEL_VBIAS = 1, ADC_CHANNEL_GND_EXT = 2, ADC_CHANNEL_CUR = 3};
+    
+// defines
+#define MAX_ADC_VAL     4096
 
 void configure_adc_channel(uint8_t channel, uint8_t ampl);
 uint16_t get_averaged_adc_value(uint8_t avg_bit_shift);

@@ -6,9 +6,11 @@
  */
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
+#include <avr/eeprom.h>
 #include <util/delay.h>
 #include <avr/io.h>
 #include <stdio.h>
+#include "eeprom_addresses.h"
 #include "measurement.h"
 #include "meas_io.h"
 #include "main.h"
@@ -117,6 +119,23 @@ void set_measurement_frequency(uint16_t freq)
         }
         default: break;
     }
+}
+
+/*
+ * Init measurement
+ */
+void init_measurement(void)
+{
+    measdprintf_P(PSTR("-----------------------\r\n"));
+    measdprintf_P(PSTR("Measurement Init\r\n"));
+    
+    // Fetch vup vlow calibration data if stored
+    if (eeprom_read_byte((uint8_t*)CALIB_VUP_VLOW_BOOL) == EEPROM_BOOL_OK_VAL)
+    {
+        calib_vup = eeprom_read_word((uint16_t*)CALIB_VUP);
+        calib_vlow = eeprom_read_word((uint16_t*)CALIB_VDOWN);
+        measdprintf_P(PSTR("Vup/Vlow calibration values fetched from EEPROM\r\n"));
+    }    
 }
 
 /*
@@ -279,6 +298,7 @@ void wait_for_1v_bias(void)
 {
     uint16_t measured_vbias = 2000;
     
+    measdprintf_P(PSTR("-----------------------\r\n"));
     measdprintf_P(PSTR("Waiting for low bias voltage...\r\n"));
     
     // Wait for bias voltage to be under ~1000mV
@@ -341,6 +361,12 @@ void calibrate_vup_vlow(void)
     }
     
     measdprintf("Vlow found: %u, approx %umV\r\n", calib_vlow, (calib_vlow*10)/33);
+    
+    eeprom_write_word((uint16_t*)CALIB_VUP, calib_vup);
+    eeprom_write_word((uint16_t*)CALIB_VDOWN, calib_vlow);
+    eeprom_write_byte((uint8_t*)CALIB_VUP_VLOW_BOOL, EEPROM_BOOL_OK_VAL);
+    measdprintf_P(PSTR("Values stored in EEPROM\r\n"));
+    
     disable_opampin_dac();
     disable_bias_voltage();
 }
@@ -492,5 +518,8 @@ void quiescent_cur_measurement_loop(uint8_t ampl)
     // I(nA) = Val(ADC) * 6,0546875 / ampl
     
     uint16_t cur_val = get_averaged_adc_value(18);
-    measdprintf("Quiescent current: %u, approx %u*10/%unA\r\n", cur_val, ((cur_val)*23)/38, 1 << ampl);
+    #ifdef MEAS_PRINTF
+        uint16_t debug_val = ((cur_val)*23)/38;
+        measdprintf("Quiescent current: %u, approx %u/%unA\r\n", cur_val, debug_val*10, 1 << ampl);
+    #endif
 }

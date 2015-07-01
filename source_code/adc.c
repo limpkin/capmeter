@@ -5,9 +5,12 @@
  *  Author: limpkin
  */
 #include <avr/pgmspace.h>
+#include <avr/eeprom.h>
 #include <util/delay.h>
+#include <string.h>
 #include <avr/io.h>
 #include <stdio.h>
+#include "eeprom_addresses.h"
 #include "measurement.h"
 #include "adc.h"
 // 0nA ADC values for different amplifications
@@ -27,8 +30,15 @@ void init_adc(void)
     // Calibrate 0V, average on more than 1/50Hz
     adcprintf_P(PSTR("Measuring external 0V value, single ended...\r\n"));
     configure_adc_channel(ADC_CHANNEL_GND_EXT, 0);
-    calib_0v_value_se = get_averaged_stabilized_adc_value(10, 10, TRUE);
+    calib_0v_value_se = get_averaged_stabilized_adc_value(12, 12, TRUE);
     adcprintf("0V ADC value: %u (should be 180), approx %umV\r\n", calib_0v_value_se, (calib_0v_value_se*10)/33);
+    
+    // Fetch differential calibration data if stored
+    if (eeprom_read_byte((uint8_t*)CALIB_DIFF_DATA_BOOL) == EEPROM_BOOL_OK_VAL)
+    {
+        eeprom_read_block((void*)zero_na_outputs, (void*)CALIB_DIFF_VAL_START, sizeof(zero_na_outputs));
+        adcprintf_P(PSTR("Differential calibration values fetched from EEPROM\r\n"));
+    }
 }
  
 
@@ -154,14 +164,27 @@ int16_t start_and_wait_for_adc_conversion(void)
 uint16_t get_averaged_adc_value(uint8_t avg_bit_shift)
 {
     uint32_t i = (1UL << avg_bit_shift);
+    uint16_t return_value;
     int32_t avg = 0;
     
+    // Add to avg until we looped enough times
     while(i--)
     {
         avg += start_and_wait_for_adc_conversion();
     }
     
-    return (uint16_t)(avg >> avg_bit_shift);
+    // Compute return value
+    return_value = (uint16_t)(avg >> avg_bit_shift);
+    
+    // Don't return a negative value
+    if (return_value > MAX_ADC_VAL)
+    {
+        return 0;
+    } 
+    else
+    {
+        return return_value;
+    }
 }
 
 /*
@@ -174,6 +197,7 @@ uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint16_t max_p
 {
     int16_t min_val = 0, max_val = 0, temp_val;
     uint8_t loop_running = TRUE;
+    uint16_t return_value;
     int32_t avg = 0;
     
     if (debug == TRUE)
@@ -229,8 +253,18 @@ uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint16_t max_p
         adcprintf("Averaged value found: %u, pp of %u LSB\r\n", (uint16_t)(avg >> avg_bit_shift), (max_val - min_val));
     }
     
-    // return averaged value (should be positive heh)
-    return (uint16_t)(avg >> avg_bit_shift);
+    // Compute return value
+    return_value = (uint16_t)(avg >> avg_bit_shift);
+    
+    // Don't return a negative value
+    if (return_value > MAX_ADC_VAL)
+    {
+        return 0;
+    }
+    else
+    {
+        return return_value;
+    }
 }
 
 /*
@@ -244,6 +278,9 @@ void calibrate_cur_mos_0nA(void)
     adcprintf(PSTR("-----------------------\r\n"));
     adcprintf(PSTR("Measuring 0nA outputs\r\n"));
     
+    // Clear current values
+    memset((void*)zero_na_outputs, 0x00, sizeof(zero_na_outputs));
+    
     // Set a bias voltage to make sure that nothing is connected between the leads
     enable_bias_voltage(4000);
     
@@ -252,7 +289,7 @@ void calibrate_cur_mos_0nA(void)
     while(1)
     {        
         // Average on more than 1/50Hz
-        cur_0nA_val = get_averaged_stabilized_adc_value(10, 20*(1 << cur_ampl), TRUE);
+        cur_0nA_val = get_averaged_adc_value(18);
         // Only take result into account when nothing is connected to the leads
         if (cur_0nA_val < (16*(1 << cur_ampl)))
         {
@@ -270,6 +307,11 @@ void calibrate_cur_mos_0nA(void)
             }
         }
     }
+    
+    // Store values in eeprom
+    eeprom_write_block((void*)zero_na_outputs, (void*)CALIB_DIFF_VAL_START, sizeof(zero_na_outputs));
+    eeprom_write_byte((void*)CALIB_DIFF_DATA_BOOL, EEPROM_BOOL_OK_VAL);
+    adcprintf(PSTR("Values stored in EEPROM\r\n"));
     
     disable_current_measurement_mode();
     disable_bias_voltage();

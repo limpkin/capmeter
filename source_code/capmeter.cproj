@@ -121,6 +121,9 @@
     <Compile Include="dac.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="eeprom_addresses.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="interrupts.h">
       <SubType>compile</SubType>
     </Compile>

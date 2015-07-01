@@ -44,16 +44,18 @@ int main(void)
     init_dac();                                     // Init DAC
     init_adc();                                     // Init ADC
     init_ios();                                     // Init IOs
+    init_measurement();                             // Init measurement
     enable_interrupts();                            // Enable interrupts
     wait_for_1v_bias();                             // Wait for 1v bias
+    //bias_voltage_test();
     //calibrate_vup_vlow();                           // Calibrate vup vlow
-    calibrate_cur_mos_0nA();                        // Calibrate 0nA point
+    //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
     //measure_opamp_internal_resistance();            // Measure the opamp internal resistance (so low it is useless)
     
     //while(1);
     // Current mes
     _delay_ms(1000);
-    enable_bias_voltage(14000);
+    enable_bias_voltage(10000);
 //     while(1)
 //     {
 //         for (uint8_t i = 0; i <= CUR_MES_64X; i++)
@@ -63,10 +65,10 @@ int main(void)
 //             quiescent_cur_measurement_loop(i);
 //         }        
 //     }
-    set_current_measurement_ampl(CUR_MES_32X);
+    set_current_measurement_ampl(CUR_MES_1X);
     while(1)
     {
-        quiescent_cur_measurement_loop(CUR_MES_32X);
+        quiescent_cur_measurement_loop(CUR_MES_1X);
     }
     
     // Freq mes
