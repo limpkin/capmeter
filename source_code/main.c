@@ -47,7 +47,7 @@ int main(void)
     init_measurement();                             // Init measurement
     enable_interrupts();                            // Enable interrupts
     wait_for_1v_bias();                             // Wait for 1v bias
-    //bias_voltage_test();
+    bias_voltage_test();
     //calibrate_vup_vlow();                           // Calibrate vup vlow
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
     //measure_opamp_internal_resistance();            // Measure the opamp internal resistance (so low it is useless)
@@ -55,7 +55,7 @@ int main(void)
     //while(1);
     // Current mes
     _delay_ms(1000);
-    enable_bias_voltage(10000);
+    enable_bias_voltage(2000);
     while(1)
     {
         for (uint8_t i = 0; i <= CUR_MES_64X; i++)

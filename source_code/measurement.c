@@ -205,7 +205,7 @@ uint16_t update_bias_voltage(uint16_t val_mv)
         // Our voltage decreasing loop (takes 40ms to reach vmax)
         while ((measured_vbias > val_mv) && (cur_vbias_dac_val != DAC_MAX_VAL))
         {
-            update_vbias_dac(cur_vbias_dac_val++);
+            update_vbias_dac(++cur_vbias_dac_val);
             _delay_us(20);
             measured_vbias = get_averaged_stabilized_adc_value(8, peak_peak, FALSE);
             temp_val = (measured_vbias * 16 / 182);
@@ -232,7 +232,7 @@ uint16_t update_bias_voltage(uint16_t val_mv)
         // Our voltage increasing loop (takes 40ms to reach vmax)
         while ((measured_vbias < val_mv) && (cur_vbias_dac_val != 0)) 
         {
-            update_vbias_dac(cur_vbias_dac_val--);
+            update_vbias_dac(--cur_vbias_dac_val);
             _delay_us(20);
             measured_vbias = get_averaged_stabilized_adc_value(8, peak_peak, FALSE);
             temp_val = (measured_vbias * 16 / 182);
@@ -258,21 +258,22 @@ uint16_t update_bias_voltage(uint16_t val_mv)
  */
 void bias_voltage_test(void)
 {
-    enable_bias_voltage(1500);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(2000);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(3000);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(4000);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(5000);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(6000);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(7000);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(8000);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(9000);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(10000);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(11000);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(12000);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(13000);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(14000);_delay_ms(5000);disable_bias_voltage();
-    enable_bias_voltage(15000);_delay_ms(5000);disable_bias_voltage();    
+    enable_bias_voltage(1500);_delay_ms(5000);
+    update_bias_voltage(2000);_delay_ms(5000);
+    update_bias_voltage(3000);_delay_ms(5000);
+    update_bias_voltage(4000);_delay_ms(5000);
+    update_bias_voltage(5000);_delay_ms(5000);
+    update_bias_voltage(6000);_delay_ms(5000);
+    update_bias_voltage(7000);_delay_ms(5000);
+    update_bias_voltage(8000);_delay_ms(5000);
+    update_bias_voltage(9000);_delay_ms(5000);
+    update_bias_voltage(10000);_delay_ms(5000);
+    update_bias_voltage(11000);_delay_ms(5000);
+    update_bias_voltage(12000);_delay_ms(5000);
+    update_bias_voltage(13000);_delay_ms(5000);
+    update_bias_voltage(14000);_delay_ms(5000);
+    update_bias_voltage(15000);_delay_ms(5000);
+    disable_bias_voltage();
 }
 
 /*
@@ -517,7 +518,7 @@ void quiescent_cur_measurement_loop(uint8_t ampl)
     // I(nA) = Val(ADC) * 1.24 / (0.2048 * ampl)
     // I(nA) = Val(ADC) * 6,0546875 / ampl
     
-    uint16_t cur_val = get_averaged_adc_value(18);
+    uint16_t cur_val = get_averaged_adc_value(17);
     #ifdef MEAS_PRINTF
         uint16_t debug_val = ((cur_val)*23)/38;
         measdprintf("Quiescent current: %u, approx %u/%unA\r\n", cur_val, debug_val*10, 1 << ampl);
