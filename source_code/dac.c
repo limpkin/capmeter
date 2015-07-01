@@ -7,6 +7,7 @@
 #include <avr/pgmspace.h>
 #include <avr/io.h>
 #include <stdio.h>
+#include "utils.h"
 #include "dac.h"
 
 
@@ -79,10 +80,16 @@ void init_dac(void)
 {
     dacdprintf_P(PSTR("-----------------------\r\n"));
     dacdprintf_P(PSTR("DAC init\r\n"));
-    disable_vbias_dac();                // Disable VBIAS output
-    disable_opampin_dac();              // Disable OPAMPIN output
-    DACB.CTRLA = DAC_ENABLE_bm;         // Enable DAC
-    DACB.CTRLB = DAC_CHSEL_DUAL_gc;     // Enable both channels
-    DACB.CTRLC = DAC_REFSEL_AREFB_gc;   // Use external VREF (1.24V)
+    
+    DACB.CH0GAINCAL = ReadCalibrationByte(PROD_SIGNATURES_START + DACB0GAINCAL_offset);     // Set correct calibration values
+    DACB.CH0OFFSETCAL = ReadCalibrationByte(PROD_SIGNATURES_START + DACB0OFFCAL_offset);    // Set correct calibration values
+    DACB.CH1GAINCAL = ReadCalibrationByte(PROD_SIGNATURES_START + DACB1GAINCAL_offset);     // Set correct calibration values
+    DACB.CH1OFFSETCAL = ReadCalibrationByte(PROD_SIGNATURES_START + DACB1OFFCAL_offset);    // Set correct calibration values
+    disable_vbias_dac();                                                                    // Disable VBIAS output
+    disable_opampin_dac();                                                                  // Disable OPAMPIN output
+    DACB.CTRLA = DAC_ENABLE_bm;                                                             // Enable DAC
+    DACB.CTRLB = DAC_CHSEL_DUAL_gc;                                                         // Enable both channels
+    DACB.CTRLC = DAC_REFSEL_AREFB_gc;                                                       // Use external VREF (1.24V)
+    
     dacdprintf_P(PSTR("DAC initialized\r\n"));
 }

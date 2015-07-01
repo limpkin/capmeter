@@ -20,6 +20,16 @@
     #define dacdprintf_P
 #endif
 
+// Defines
+#define DACA0OFFCAL_offset  0x30
+#define DACA0GAINCAL_offset 0x31
+#define DACB0OFFCAL_offset  0x32
+#define DACB0GAINCAL_offset 0x33
+#define DACA1OFFCAL_offset  0x34
+#define DACA1GAINCAL_offset 0x35
+#define DACB1OFFCAL_offset  0x36
+#define DACB1GAINCAL_offset 0x37
+
 // Prototypes
 void update_opampin_dac(uint16_t val);
 void update_vbias_dac(uint16_t val);

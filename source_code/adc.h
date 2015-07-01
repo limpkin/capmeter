@@ -25,6 +25,10 @@ enum adc_channel_t     {ADC_CHANNEL_COMPOUT = 0, ADC_CHANNEL_VBIAS = 1, ADC_CHAN
     
 // defines
 #define MAX_ADC_VAL     4096
+#define ADCACAL0_offset 0x20
+#define ADCACAL1_offset 0x21
+#define ADCBCAL0_offset 0x24
+#define ADCBCAL1_offset 0x25
 
 void configure_adc_channel(uint8_t channel, uint8_t ampl);
 uint16_t get_averaged_adc_value(uint8_t avg_bit_shift);

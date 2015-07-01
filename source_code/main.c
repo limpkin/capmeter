@@ -56,19 +56,19 @@ int main(void)
     // Current mes
     _delay_ms(1000);
     enable_bias_voltage(10000);
-//     while(1)
-//     {
-//         for (uint8_t i = 0; i <= CUR_MES_64X; i++)
-//         {
-//             set_current_measurement_ampl(i);
-//             _delay_ms(1000);
-//             quiescent_cur_measurement_loop(i);
-//         }        
-//     }
-    set_current_measurement_ampl(CUR_MES_1X);
     while(1)
     {
-        quiescent_cur_measurement_loop(CUR_MES_1X);
+        for (uint8_t i = 0; i <= CUR_MES_64X; i++)
+        {
+            set_current_measurement_ampl(i);
+            _delay_ms(1000);
+            quiescent_cur_measurement_loop(i);
+        }        
+    }
+    set_current_measurement_ampl(CUR_MES_16X);
+    while(1)
+    {
+        quiescent_cur_measurement_loop(CUR_MES_16X);
     }
     
     // Freq mes

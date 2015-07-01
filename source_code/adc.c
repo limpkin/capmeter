@@ -12,17 +12,22 @@
 #include <stdio.h>
 #include "eeprom_addresses.h"
 #include "measurement.h"
+#include "utils.h"
 #include "adc.h"
 // 0nA ADC values for different amplifications
 int16_t zero_na_outputs[7];
 // Calibration 0V value
 uint16_t calib_0v_value_se = 0;
 
+
 /*
  * Initialize ADC
  */
 void init_adc(void)
 {
+    /* Get ADCACAL0 from production signature . */
+    ADCA.CALL = ReadCalibrationByte(PROD_SIGNATURES_START + ADCACAL0_offset);   // Set correct calibration values
+    ADCA.CALH = ReadCalibrationByte(PROD_SIGNATURES_START + ADCACAL1_offset);   // Set correct calibration values
     ADCA.CTRLA = ADC_ENABLE_bm;                                                 // Enable ADC
     adcprintf_P(PSTR("-----------------------\r\n"));
     adcprintf_P(PSTR("ADC Init\r\n"));
@@ -291,7 +296,7 @@ void calibrate_cur_mos_0nA(void)
         // Average on more than 1/50Hz
         cur_0nA_val = get_averaged_adc_value(18);
         // Only take result into account when nothing is connected to the leads
-        if (cur_0nA_val < (16*(1 << cur_ampl)))
+        if (cur_0nA_val <= (16*(1 << cur_ampl)))
         {
             // Only possible because of the ampl registers
             adcprintf("Zero quiescent current for ampl %u: %d, approx %d*10/%unA\r\n", 1 << cur_ampl, cur_0nA_val, ((cur_0nA_val)*20)/33, 1 << cur_ampl);
