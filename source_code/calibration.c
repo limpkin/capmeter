@@ -145,6 +145,7 @@ void current_measurement_calibration(void)
     // Correcting for gain on ADC for current:
     // VAL(ADCcur) * 6,0546875 * X / ampl = (VAL(ADCbias) * 4 + VAL(ADCbias) * 16 / 182) / 1.01
     // X = (VAL(ADCbias) * 4 + VAL(ADCbias) * 16 / 182) * ampl / (1.01 * VAL(ADCcur) * 6,057645335)
+    // X = compute_vbias_for_adc_value(VAL(ADCbias)) * ampl / (1.01 * compute_cur_mes_numerator_from_adc_val(VAL(ADCcur)))
     
     calibprintf_P(PSTR("-----------------------\r\n"));
     calibprintf_P(PSTR("Advanced current calibration\r\n"));
@@ -168,7 +169,7 @@ void current_measurement_calibration(void)
             // Set ADC channel to vbias measurement
             configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
             // Compute vbias
-            uint16_t measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(9, 10, FALSE));
+            uint16_t measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(14, 12 + (CUR_MES_16X - current_cur_mes_mode), FALSE));
             // Stored measured current
             adc_cur_values_for_gain_correction[current_cur_mes_mode] = cur_measure;
             // Store measured vbias
@@ -177,7 +178,8 @@ void current_measurement_calibration(void)
             #ifdef CALIB_PRINTF
                 calibprintf("Found max value for ampl %u at dac value %u\r\n", 1 << current_cur_mes_mode, dac_val);
                 calibprintf("Quiescent ADC value: %u, approx %u/%unA at approx %umV\r\n", cur_measure, compute_cur_mes_numerator_from_adc_val(cur_measure), 1 << current_cur_mes_mode, measured_vbias);
-                //_delay_ms(5000);
+                calibprintf("Additional gain factor: %u / (1.01 * %u)\r\n", measured_vbias * (1 << current_cur_mes_mode), compute_cur_mes_numerator_from_adc_val(cur_measure));
+                _delay_ms(5000);
             #endif
             // Check if we are at the min amplification
             if (current_cur_mes_mode == CUR_MES_1X)

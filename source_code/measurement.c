@@ -65,7 +65,7 @@ ISR(TCC0_CCA_vect)
  * Compute current measurement numerator from adc value (den is the ampl)
  * @param   adc_val     ADC value
  * @return  numerator
- * @note    Only precise at 0.05%
+ * @note    Only precise at 0.118%
  */
 uint16_t compute_cur_mes_numerator_from_adc_val(uint16_t adc_val)
 {    
@@ -76,12 +76,12 @@ uint16_t compute_cur_mes_numerator_from_adc_val(uint16_t adc_val)
     // I(A) = Val(ADC) * (1.24 / 2047) / (100k * ampl)
     // I(A) = Val(ADC) * 1.24 / (204.7M * ampl)
     // I(nA) = Val(ADC) * 1.24 / (0.2047 * ampl)
-    // I(nA) = Val(ADC) * 6.057645335 / ampl
-    //
-    // For 6.057645335 we use 20/33 which is 0,6060606060606...
+    // I(nA) = Val(ADC) * 6,057645335 / ampl
+    // I(nA) = Val(ADC)*5 + Val(ADC)*1,057645335 / ampl
+    // I(nA) ~ Val(ADC)*5 + Val(ADC)*(18/17) / ampl
     
-    uint16_t return_value = (adc_val * 20) / 33;
-    return_value += (adc_val * 6);
+    uint16_t return_value = (adc_val * 18) / 17;
+    return_value += (adc_val * 5);
     return return_value;
 }
 
@@ -235,11 +235,7 @@ uint16_t quiescent_cur_measurement_loop(uint8_t avg_bitshift)
     }
     
     uint16_t cur_val = get_averaged_adc_value(avg_bitshift);
-    
-    #ifdef MEAS_PRINTF
-        uint16_t debug_val = ((cur_val)*20)/33;
-        measdprintf("Quiescent current: %u, approx %u/%unA\r\n", cur_val, debug_val*10, 1 << get_configured_adc_ampl());
-    #endif
+    measdprintf("Quiescent current: %u, approx %u/%unA\r\n", cur_val, compute_cur_mes_numerator_from_adc_val(cur_val), 1 << get_configured_adc_ampl());
     
     return cur_val;
 }
