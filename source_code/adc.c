@@ -11,13 +11,14 @@
 #include <avr/io.h>
 #include <stdio.h>
 #include "eeprom_addresses.h"
+#include "calibration.h"
 #include "measurement.h"
 #include "utils.h"
 #include "adc.h"
-// 0nA ADC values for different amplifications
-int16_t zero_na_outputs[7];
-// Calibration 0V value
-uint16_t calib_0v_value_se = 0;
+// Currently configured channel
+uint8_t current_channel;
+// Current ampl
+uint8_t current_ampl;
 
 
 /*
@@ -28,32 +29,50 @@ void init_adc(void)
     /* Get ADCACAL0 from production signature . */
     ADCA.CALL = ReadCalibrationByte(PROD_SIGNATURES_START + ADCACAL0_offset);   // Set correct calibration values
     ADCA.CALH = ReadCalibrationByte(PROD_SIGNATURES_START + ADCACAL1_offset);   // Set correct calibration values
+    adcprintf_P(PSTR("-----------------------\r\n"));                           // Debug
+    adcprintf_P(PSTR("ADC Init\r\n"));                                          // Debug
     ADCA.CTRLA = ADC_ENABLE_bm;                                                 // Enable ADC
-    adcprintf_P(PSTR("-----------------------\r\n"));
-    adcprintf_P(PSTR("ADC Init\r\n"));
-    
-    // Calibrate 0V, average on more than 1/50Hz
-    adcprintf_P(PSTR("Measuring external 0V value, single ended...\r\n"));
-    configure_adc_channel(ADC_CHANNEL_GND_EXT, 0);
-    calib_0v_value_se = get_averaged_stabilized_adc_value(12, 12, TRUE);
-    adcprintf("0V ADC value: %u (should be 180), approx %umV\r\n", calib_0v_value_se, (calib_0v_value_se*10)/33);
-    
-    // Fetch differential calibration data if stored
-    if (eeprom_read_byte((uint8_t*)CALIB_DIFF_DATA_BOOL) == EEPROM_BOOL_OK_VAL)
-    {
-        eeprom_read_block((void*)zero_na_outputs, (void*)CALIB_DIFF_VAL_START, sizeof(zero_na_outputs));
-        adcprintf_P(PSTR("Differential calibration values fetched from EEPROM\r\n"));
-    }
 }
- 
+
+/*
+ * Get configured channel
+ * @return  the channel
+ */
+uint8_t get_configured_adc_channel(void)
+{
+    return current_channel;
+}
+
+/*
+ * Get configured amplification
+ * @return  the amplification
+ */
+uint8_t get_configured_adc_ampl(void)
+{
+    return current_ampl;
+}
+
+/*
+ * Get the max value for the differential channel
+ * @param   ampl    The amplification used
+ * @return  the ADC value
+ */
+uint16_t get_max_value_for_diff_channel(uint8_t ampl)
+{
+    return MAX_DIFF_ADC_VAL - get_differential_offset_for_ampl(ampl);
+}
 
 /*
  * Configure an ADC channel
  * @param   channel     The channel (see defines)
  * @param   ampl        The amplification (see defines)
+ * @param   debug       If we want the debug info
  */
-void configure_adc_channel(uint8_t channel, uint8_t ampl)
+void configure_adc_channel(uint8_t channel, uint8_t ampl, uint8_t debug)
 {
+    current_ampl = ampl;                                                            // Store current channel
+    current_channel = channel;                                                      // Store current amplification
+    
     if (channel == ADC_CHANNEL_COMPOUT)
     {
         ADCA.CTRLB = 0;                                                             // No current limit, high impedance, unsigned mode, 12-bit right adjusted
@@ -62,7 +81,10 @@ void configure_adc_channel(uint8_t channel, uint8_t ampl)
         ADCA.CH0.CTRL = ADC_CH_GAIN_1X_gc | ADC_CH_INPUTMODE_SINGLEENDED_gc;        // Single ended input, no gain
         ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN6_gc;                                   // Channel 6
         PORTA.PIN6CTRL = PORT_ISC_INPUT_DISABLE_gc;                                 // Disable digital input buffer
-        adcprintf_P(PSTR("ADC COMPOUT channel set\r\n"));
+        if (debug)
+        {
+            adcprintf_P(PSTR("ADC COMPOUT channel set\r\n"));
+        }
     }
     else if (channel == ADC_CHANNEL_VBIAS)
     {
@@ -72,7 +94,10 @@ void configure_adc_channel(uint8_t channel, uint8_t ampl)
         ADCA.CH0.CTRL = ADC_CH_GAIN_1X_gc | ADC_CH_INPUTMODE_SINGLEENDED_gc;        // Single ended input, no gain
         ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN7_gc;                                   // Channel 7
         PORTA.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;                                 // Disable digital input buffer
-        adcprintf_P(PSTR("ADC VBIAS channel set\r\n"));
+        if (debug)
+        {
+            adcprintf_P(PSTR("ADC VBIAS channel set\r\n"));
+        }
     }
     else if (channel == ADC_CHANNEL_GND_EXT)
     {
@@ -82,7 +107,10 @@ void configure_adc_channel(uint8_t channel, uint8_t ampl)
         ADCA.CH0.CTRL = ADC_CH_GAIN_1X_gc | ADC_CH_INPUTMODE_SINGLEENDED_gc;        // Single ended input, no gain
         ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN5_gc;                                   // Channel 5
         PORTA.PIN5CTRL = PORT_ISC_INPUT_DISABLE_gc;                                 // Disable digital input buffer
-        adcprintf_P(PSTR("ADC GND EXT channel set\r\n"));
+        if (debug)
+        {
+            adcprintf_P(PSTR("ADC GND EXT channel set\r\n"));
+        }
     }
     else if (channel == ADC_CHANNEL_CUR)
     {
@@ -92,7 +120,10 @@ void configure_adc_channel(uint8_t channel, uint8_t ampl)
         ADCA.CH0.CTRL = (ampl << ADC_CH_GAIN_gp) | ADC_CH_INPUTMODE_DIFFWGAIN_gc;   // Differential input with gain
         ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN1_gc | ADC_CH_MUXNEG_PIN5_gc;           // Channel 1 pos, Channel 5 neg
         PORTA.PIN1CTRL = PORT_ISC_INPUT_DISABLE_gc;                                 // Disable digital input buffer
-        adcprintf("ADC quiesc cur channel set, gain %uX\r\n", 1 << ampl);
+        if (debug)
+        {
+            adcprintf("ADC quiesc cur channel set, gain %uX\r\n", 1 << ampl);
+        }
     }
     
     // Launch dummy conversion
@@ -133,28 +164,18 @@ int16_t start_and_wait_for_adc_conversion(void)
     if ((ADCA.CH0.CTRL & ADC_CH_INPUTMODE_gm) == ADC_CH_INPUTMODE_SINGLEENDED_gc)
     {
         // Single ended, check we're not under 0v
-        if (return_value < calib_0v_value_se)
+        if (return_value < get_single_ended_offset())
         {
             return 0;
         } 
         else
         {
-            return return_value-calib_0v_value_se;
+            return return_value - get_single_ended_offset();
         }
     }
     else if ((ADCA.CH0.CTRL & ADC_CH_INPUTMODE_gm) == ADC_CH_INPUTMODE_DIFFWGAIN_gc)
-    {
-        uint8_t current_ampl = (ADCA.CH0.CTRL & ADC_CH_GAIN_gm) >> ADC_CH_GAIN_gp;
-        
-        // Differential with gain, check we're not under 0v and that it isn't the max val
-        if (return_value == 2047)
-        {
-            return return_value;
-        }
-        else
-        {
-            return return_value-zero_na_outputs[current_ampl];
-        }
+    {        
+        return return_value - get_differential_offset_for_ampl(current_ampl);
     }
     else
     {
@@ -178,7 +199,8 @@ uint16_t get_averaged_adc_value(uint8_t avg_bit_shift)
         avg += start_and_wait_for_adc_conversion();
     }
     
-    // Compute return value
+    // Add 0.5 of LSB to total, compute return value
+    avg += (1UL << (uint16_t)(avg_bit_shift-1));
     return_value = (uint16_t)(avg >> avg_bit_shift);
     
     // Don't return a negative value
@@ -253,13 +275,14 @@ uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint16_t max_p
         }
     }
     
+    // Add 0.5 of LSB to total, compute return value
+    avg += (1 << (uint16_t)(avg_bit_shift-1));
+    return_value = (uint16_t)(avg >> avg_bit_shift);
+    
     if (debug == TRUE)
     {
-        adcprintf("Averaged value found: %u, pp of %u LSB\r\n", (uint16_t)(avg >> avg_bit_shift), (max_val - min_val));
+        adcprintf("Averaged value found: %u, pp of %u LSB\r\n", return_value, (max_val - min_val));
     }
-    
-    // Compute return value
-    return_value = (uint16_t)(avg >> avg_bit_shift);
     
     // Don't return a negative value
     if (return_value > MAX_ADC_VAL)
@@ -270,54 +293,4 @@ uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint16_t max_p
     {
         return return_value;
     }
-}
-
-/*
- * Find 0nA point
- */
-void calibrate_cur_mos_0nA(void)
-{
-    int16_t cur_0nA_val = INT16_MAX;
-    uint8_t cur_ampl = CUR_MES_1X;
-    
-    adcprintf(PSTR("-----------------------\r\n"));
-    adcprintf(PSTR("Measuring 0nA outputs\r\n"));
-    
-    // Clear current values
-    memset((void*)zero_na_outputs, 0x00, sizeof(zero_na_outputs));
-    
-    // Set a bias voltage to make sure that nothing is connected between the leads
-    enable_bias_voltage(4000);
-    
-    // Calibrate all 0nA points for different amplifications, start with the smaller ampl
-    set_current_measurement_ampl(cur_ampl);
-    while(1)
-    {        
-        // Average on more than 1/50Hz
-        cur_0nA_val = get_averaged_adc_value(18);
-        // Only take result into account when nothing is connected to the leads
-        if (cur_0nA_val <= (16*(1 << cur_ampl)))
-        {
-            // Only possible because of the ampl registers
-            adcprintf("Zero quiescent current for ampl %u: %d, approx %d*10/%unA\r\n", 1 << cur_ampl, cur_0nA_val, ((cur_0nA_val)*20)/33, 1 << cur_ampl);
-            zero_na_outputs[cur_ampl++] = cur_0nA_val;
-            if (cur_ampl <= CUR_MES_64X)
-            {
-                set_current_measurement_ampl(cur_ampl);
-                _delay_ms(10);
-            }
-            else
-            {
-                break;
-            }
-        }
-    }
-    
-    // Store values in eeprom
-    eeprom_write_block((void*)zero_na_outputs, (void*)CALIB_DIFF_VAL_START, sizeof(zero_na_outputs));
-    eeprom_write_byte((void*)CALIB_DIFF_DATA_BOOL, EEPROM_BOOL_OK_VAL);
-    adcprintf(PSTR("Values stored in EEPROM\r\n"));
-    
-    disable_current_measurement_mode();
-    disable_bias_voltage();
 }

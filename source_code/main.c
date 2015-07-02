@@ -9,9 +9,11 @@
 #include <avr/io.h>
 #include <stdio.h>
 #include "measurement.h"
+#include "calibration.h"
 #include "interrupts.h"
 #include "meas_io.h"
 #include "serial.h"
+#include "vbias.h"
 #include "dac.h"
 #include "adc.h"
 
@@ -44,31 +46,48 @@ int main(void)
     init_dac();                                     // Init DAC
     init_adc();                                     // Init ADC
     init_ios();                                     // Init IOs
-    init_measurement();                             // Init measurement
+    init_calibration();                             // Init calibration
     enable_interrupts();                            // Enable interrupts
-    wait_for_1v_bias();                             // Wait for 1v bias
-    bias_voltage_test();
+    wait_for_0v_bias();                             // Wait for 0v bias
+    //bias_voltage_test();
     //calibrate_vup_vlow();                           // Calibrate vup vlow
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
-    //measure_opamp_internal_resistance();            // Measure the opamp internal resistance (so low it is useless)
+    //calibrate_opamp_internal_resistance();          // Measure the opamp internal resistance (so low it is useless)
+    current_measurement_calibration();
     
-    //while(1);
+    while(1);
+    uint16_t cur_measure = 0;
+    uint16_t dac_val = 1200;
+    enable_bias_voltage(11500);    
+    //update_vbias_dac(--dac_val);while(1);
+    set_current_measurement_ampl(CUR_MES_1X);
+    while ((cur_measure < get_max_value_for_diff_channel(CUR_MES_1X)) && (dac_val >= VBIAS_MAX_DAC_VAL))
+    {
+        update_vbias_dac(--dac_val);
+        _delay_us(20);
+        //cur_measure = get_averaged_stabilized_adc_value(8, 4, TRUE);
+        cur_measure = get_averaged_adc_value(11);
+        uint16_t debug_val = ((cur_measure)*23)/38;
+        measdprintf("Quiescent current: %u, approx %u/%unA\r\n", cur_measure, debug_val*10, 1 << get_configured_adc_ampl());
+    }
+    while(1);
+    
     // Current mes
     _delay_ms(1000);
-    enable_bias_voltage(2000);
+    enable_bias_voltage(3200);
     while(1)
     {
         for (uint8_t i = 0; i <= CUR_MES_64X; i++)
         {
             set_current_measurement_ampl(i);
             _delay_ms(1000);
-            quiescent_cur_measurement_loop(i);
+            quiescent_cur_measurement_loop(17);
         }        
     }
     set_current_measurement_ampl(CUR_MES_16X);
     while(1)
     {
-        quiescent_cur_measurement_loop(CUR_MES_16X);
+        quiescent_cur_measurement_loop(16);
     }
     
     // Freq mes

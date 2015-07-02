@@ -115,6 +115,12 @@
     <Compile Include="adc.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="calibration.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="calibration.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="dac.c">
       <SubType>compile</SubType>
     </Compile>
@@ -158,6 +164,12 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="utils.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="vbias.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="vbias.h">
       <SubType>compile</SubType>
     </Compile>
   </ItemGroup>

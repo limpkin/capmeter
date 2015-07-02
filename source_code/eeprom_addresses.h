@@ -13,10 +13,10 @@
 #define EEPROM_BOOL_OK_VAL      0xBA
 
 // Addresses
-#define CALIB_DIFF_VAL_START    0
-#define CALIB_DIFF_DATA_BOOL    14
-#define CALIB_VUP_VLOW_BOOL     15
-#define CALIB_VUP               16
-#define CALIB_VDOWN             18
+#define CALIB_DIFF_OFFS_VAL_START   0
+#define CALIB_DIFF_OFFS_DATA_BOOL   14
+#define CALIB_VUP_VLOW_BOOL         15
+#define CALIB_VUP                   16
+#define CALIB_VDOWN                 18
 
 #endif /* EEPROM_ADDRESSES_H_ */

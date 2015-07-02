@@ -23,9 +23,13 @@
 #define DAC_PRINTF
 // Adc debug printf
 #define ADC_PRINTF
+// Calib debug printf
+#define CALIB_PRINTF
+// Vbias debug printf
+#define VBIAS_PRINTF
 
 // Check if we need to enable printf
-#if defined(IO_PRINTF) || defined(SERIAL_PRINTF) || defined(MEAS_PRINTF) || defined(DAC_PRINTF) || defined(ADC_PRINTF)
+#if defined(IO_PRINTF) || defined(VBIAS_PRINTF) || defined(CALIB_PRINTF) || defined(SERIAL_PRINTF) || defined(MEAS_PRINTF) || defined(DAC_PRINTF) || defined(ADC_PRINTF)
     #define PRINTF_ENABLED
 #endif
 

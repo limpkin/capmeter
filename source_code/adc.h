@@ -24,16 +24,21 @@
 enum adc_channel_t     {ADC_CHANNEL_COMPOUT = 0, ADC_CHANNEL_VBIAS = 1, ADC_CHANNEL_GND_EXT = 2, ADC_CHANNEL_CUR = 3};
     
 // defines
-#define MAX_ADC_VAL     4096
-#define ADCACAL0_offset 0x20
-#define ADCACAL1_offset 0x21
-#define ADCBCAL0_offset 0x24
-#define ADCBCAL1_offset 0x25
+#define MAX_ADC_VAL         4095
+#define MAX_DIFF_ADC_VAL    2047    
+#define ADCACAL0_offset     0x20
+#define ADCACAL1_offset     0x21
+#define ADCBCAL0_offset     0x24
+#define ADCBCAL1_offset     0x25
 
-void configure_adc_channel(uint8_t channel, uint8_t ampl);
+// prototypes
+uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint16_t max_pp, uint8_t debug);
+void configure_adc_channel(uint8_t channel, uint8_t ampl, uint8_t debug);
 uint16_t get_averaged_adc_value(uint8_t avg_bit_shift);
+uint16_t get_max_value_for_diff_channel(uint8_t ampl);
 int16_t start_and_wait_for_adc_conversion(void);
-void calibrate_cur_mos_0nA(void);
+uint8_t get_configured_adc_channel(void);
+uint8_t get_configured_adc_ampl(void);
 void init_adc(void);
 
 #endif /* ADC_H_ */

@@ -29,14 +29,16 @@
 #define DACA1GAINCAL_offset 0x35
 #define DACB1OFFCAL_offset  0x36
 #define DACB1GAINCAL_offset 0x37
+#define DAC_MAX_VAL         0x0FFF              // 12 bits DAC
+#define DAC_MIN_VAL         0x0000              // Obviously...
 
 // Prototypes
 void update_opampin_dac(uint16_t val);
+void setup_opampin_dac(uint16_t val);
 void update_vbias_dac(uint16_t val);
 void setup_vbias_dac(uint16_t val);
-void disable_vbias_dac(void);
-void setup_opampin_dac(uint16_t val);
 void disable_opampin_dac(void);
+void disable_vbias_dac(void);
 void init_dac(void);
 
 #endif /* DAC_H_ */
