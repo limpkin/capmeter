@@ -50,8 +50,8 @@ int main(void)
     enable_interrupts();                            // Enable interrupts
     wait_for_0v_bias();                             // Wait for 0v bias
     //bias_voltage_test();
-    //calibrate_vup_vlow();                           // Calibrate vup vlow
-    //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
+    calibrate_vup_vlow();                           // Calibrate vup vlow
+    calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
     //calibrate_opamp_internal_resistance();          // Measure the opamp internal resistance (so low it is useless)
     current_measurement_calibration();
     
@@ -67,7 +67,7 @@ int main(void)
         _delay_us(20);
         //cur_measure = get_averaged_stabilized_adc_value(8, 4, TRUE);
         cur_measure = get_averaged_adc_value(11);
-        uint16_t debug_val = ((cur_measure)*23)/38;
+        uint16_t debug_val = ((cur_measure)*20)/33;
         measdprintf("Quiescent current: %u, approx %u/%unA\r\n", cur_measure, debug_val*10, 1 << get_configured_adc_ampl());
     }
     while(1);

@@ -28,6 +28,7 @@
 #define STEPUP_ACTIV_DAC_V  3070                // Around 4350mV
 
 // Prototypes
+uint16_t compute_vbias_for_adc_value(uint16_t adc_val);
 uint16_t update_bias_voltage(uint16_t val_mv);
 uint16_t enable_bias_voltage(uint16_t val_mv);
 void disable_bias_voltage(void);

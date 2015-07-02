@@ -17,6 +17,10 @@
 #include "vbias.h"
 #include "dac.h"
 #include "adc.h"
+// Current ADC current values for gain computation
+uint16_t adc_cur_values_for_gain_correction[7];
+// Vbias values for gain computation
+uint16_t vbias_for_gain_correction[7];
 // Opamp 0v output voltages at vbias 3.3v depending on resistance
 uint16_t opamp_0v_outputs_for_3v[4];
 // Opamp 0v output voltage when no load attached to vout
@@ -107,18 +111,10 @@ void init_calibration(void)
 
 void current_measurement_calibration(void)
 {
-    // Vadc = I(A) * 1k * 100 * ampl
-    // Vadc = I(A) * 100k * ampl
-    // I(A) = Vadc / (100k * ampl)
-    // I(A) = Val(ADC) * (1.24 / 2048) / (100k * ampl)
-    // I(A) = Val(ADC) * 1.24 / (204.8M * ampl)
-    // I(nA) = Val(ADC) * 1.24 / (0.2048 * ampl)
-    // I(nA) = Val(ADC) * 6,0546875 / ampl
-    //
     // Calibration Methodology
     //
     // 1) Adjust Vbias to get exactly one LSB for all amplifications
-    // X1:  1LSB = 6,0546875nA
+    // X1:  1LSB = 6,057645335nA
     // X2:  1LSB = 3,02734375nA
     // X4:  1LSB = 1,513671875nA
     // X8:  1LSB = 0,7568359375nA
@@ -139,7 +135,7 @@ void current_measurement_calibration(void)
     //
     //
     // Measured from the ADC for current:
-    // I(nA) = Val(ADC) * 6,0546875 / ampl
+    // I(nA) = Val(ADC) * 6,057645335 / ampl
     //
     // Measured from the ADC for precision resistor and vbias
     // I(A) = Vbias / (1.01M)
@@ -148,11 +144,7 @@ void current_measurement_calibration(void)
     //
     // Correcting for gain on ADC for current:
     // VAL(ADCcur) * 6,0546875 * X / ampl = (VAL(ADCbias) * 4 + VAL(ADCbias) * 16 / 182) / 1.01
-    // X = (VAL(ADCbias) * 4 + VAL(ADCbias) * 16 / 182) * ampl / (1.01 * 
-    //
-    //
-    //
-    //
+    // X = (VAL(ADCbias) * 4 + VAL(ADCbias) * 16 / 182) * ampl / (1.01 * VAL(ADCcur) * 6,057645335)
     
     calibprintf_P(PSTR("-----------------------\r\n"));
     calibprintf_P(PSTR("Advanced current calibration\r\n"));
@@ -167,24 +159,25 @@ void current_measurement_calibration(void)
     {
         // Start increasing the voltage
         update_vbias_dac(--dac_val);
-        _delay_us(20);
+        _delay_us(50);
         // Measure the current
-        cur_measure = get_averaged_adc_value(11);
+        cur_measure = get_averaged_adc_value(13);
         // Check if we reached the max val
         if (cur_measure >= get_max_value_for_diff_channel(current_cur_mes_mode))
         {
+            // Set ADC channel to vbias measurement
+            configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
+            // Compute vbias
+            uint16_t measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(9, 10, FALSE));
+            // Stored measured current
+            adc_cur_values_for_gain_correction[current_cur_mes_mode] = cur_measure;
+            // Store measured vbias
+            vbias_for_gain_correction[current_cur_mes_mode] = measured_vbias;
+            
             #ifdef CALIB_PRINTF
-                uint8_t meas_peak_peak = 10;
-                uint16_t approx_cur = ((cur_measure)*23)/38;
-                configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
-                uint16_t temp_val = get_averaged_stabilized_adc_value(9, meas_peak_peak, FALSE);
-                uint16_t measured_vbias = (temp_val * 16 / 182);
-                measured_vbias += (temp_val * 4);
-                set_current_measurement_ampl(current_cur_mes_mode);
                 calibprintf("Found max value for ampl %u at dac value %u\r\n", 1 << current_cur_mes_mode, dac_val);
-                calibprintf("Vbias ADC value %u, approx %umV\r\n", temp_val, measured_vbias);
-                calibprintf("Quiescent ADC value: %u, approx %u/%unA\r\n", cur_measure, approx_cur*10, 1 << get_configured_adc_ampl());
-                _delay_ms(5000);
+                calibprintf("Quiescent ADC value: %u, approx %u/%unA at approx %umV\r\n", cur_measure, compute_cur_mes_numerator_from_adc_val(cur_measure), 1 << current_cur_mes_mode, measured_vbias);
+                //_delay_ms(5000);
             #endif
             // Check if we are at the min amplification
             if (current_cur_mes_mode == CUR_MES_1X)
@@ -268,7 +261,7 @@ void calibrate_cur_mos_0nA(void)
         if (cur_0nA_val <= (16*(1 << cur_ampl)))
         {
             // Only possible because of the ampl registers
-            adcprintf("Zero quiescent current for ampl %u: %d, approx %d*10/%unA\r\n", 1 << cur_ampl, cur_0nA_val, ((cur_0nA_val)*20)/33, 1 << cur_ampl);
+            adcprintf("Zero quiescent current for ampl %u: %d, approx %u/%unA\r\n", 1 << cur_ampl, cur_0nA_val, compute_cur_mes_numerator_from_adc_val(cur_0nA_val), 1 << cur_ampl);
             zero_na_outputs[cur_ampl++] = cur_0nA_val;
             if (cur_ampl <= CUR_MES_64X)
             {

@@ -22,6 +22,29 @@ uint16_t cur_vbias_dac_val;
 
 
 /*
+ * Compute real vbias value from adc value
+ * @param   adc_val     ADC value
+ * @return  Actual mV value
+ */
+uint16_t compute_vbias_for_adc_value(uint16_t adc_val)
+{    
+    /******************* MATHS *******************/
+    // Vadc = Vbias * 1.2 / (1.2+15)
+    // Vadc = Vbias * 1.2 / 16.2
+    // Vbias = Vadc * 16.2 / 1.2
+    // Vbias(mV) = VALadc * Vref / 4095 * 16.2 / 1.2
+    // Vbias(mV) = VALadc * 1240 / 4095 * 16.2 / 1.2
+    // Vbias(mV) = VALadc * 20088 / 4914
+    // Vbias(mV) = VALadc * 4,0879120879120879120879120879121
+    // Vbias(mV) = VALadc * (4 + 0,0879120879120879120879120879121)
+    // Vbias(mV) = VALadc * 4 + VALadc * 16 / 182
+    
+    uint16_t return_value = (adc_val * 16 / 182);
+    return_value += (adc_val * 4);
+    return return_value;
+}
+
+/*
  * To measure set voltages
  */
 void bias_voltage_test(void)
@@ -95,19 +118,9 @@ void disable_bias_voltage(void)
 uint16_t update_bias_voltage(uint16_t val_mv)
 {
     vbiasprintf("Vbias call for %umV\r\n", val_mv);
-    uint16_t measured_vbias, temp_val;
+    uint16_t measured_vbias;
     uint8_t peak_peak;
     
-    /******************* MATHS *******************/
-    // Vadc = Vbias * 1.2 / (1.2+15)
-    // Vadc = Vbias * 1.2 / 16.2
-    // Vbias = Vadc * 16.2 / 1.2
-    // Vbias(mV) = VALadc * Vref / 4095 * 16.2 / 1.2
-    // Vbias(mV) = VALadc * 1240 / 4095 * 16.2 / 1.2
-    // Vbias(mV) = VALadc * 20088 / 4914
-    // Vbias(mV) = VALadc * 4,0879120879120879120879120879121
-    // Vbias(mV) = VALadc * (4 + 0,0879120879120879120879120879121)
-    // Vbias(mV) = VALadc * 4 + VALadc * 16 / 182
     /******************* MEASUREMENTS *******************/
     // On fluke45, one set (to be automatized)
     // 1500mV  => 1506mV   => 0.4%
@@ -178,9 +191,7 @@ uint16_t update_bias_voltage(uint16_t val_mv)
             // Update DAC, wait and get measured vbias
             update_vbias_dac(++cur_vbias_dac_val);
             _delay_us(20);
-            temp_val = get_averaged_stabilized_adc_value(8, peak_peak, FALSE);
-            measured_vbias = (temp_val * 16 / 182);
-            measured_vbias += (temp_val * 4);
+            measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(8, peak_peak, FALSE));
         }
         while ((measured_vbias > val_mv) && (cur_vbias_dac_val != DAC_MAX_VAL));
     } 
@@ -215,10 +226,8 @@ uint16_t update_bias_voltage(uint16_t val_mv)
             
             // Update DAC, wait and get measured vbias
             update_vbias_dac(--cur_vbias_dac_val);
-            _delay_us(20);            
-            temp_val = get_averaged_stabilized_adc_value(8, peak_peak, FALSE);
-            measured_vbias = (temp_val * 16 / 182);
-            measured_vbias += (temp_val * 4);
+            _delay_us(20);
+            measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(8, peak_peak, FALSE));
         }
         while ((measured_vbias < val_mv) && (cur_vbias_dac_val != 0));
     }
