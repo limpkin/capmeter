@@ -95,7 +95,7 @@ uint16_t compute_voltage_from_se_adc_val(uint16_t adc_val)
 {    
     /******************* MATHS *******************/    
     // Vadc = Val(ADC) * (1.24 / 4095)
-    // Vadc ~ Val(ADC) * 10/33
+    // Vadc(mV) ~ Val(ADC) * 10/33
     
     return (adc_val * 10)/33;
 }

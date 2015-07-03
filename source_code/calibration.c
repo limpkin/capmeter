@@ -21,8 +21,12 @@
 uint16_t adc_cur_values_for_gain_correction[7];
 // Vbias values for gain computation
 uint16_t vbias_for_gain_correction[7];
+// Calibrated 0nA ADC values for different amplifications
+int16_t adc_cur_values_for_offset[7];
 // Opamp 0v output voltages at vbias 3.3v depending on resistance
 uint16_t opamp_0v_outputs_for_3v[4];
+// Boolean indicating that advanced current measurement calibration values are available
+uint8_t advanced_current_mes_calib_values_available = FALSE;
 // Opamp 0v output voltage when no load attached to vout
 uint16_t opamp_0v_output_no_load;
 // Calibration 0V value for single ended measurement
@@ -51,7 +55,14 @@ uint16_t get_single_ended_offset(void)
  */
 int16_t get_differential_offset_for_ampl(uint8_t ampl)
 {
-    return zero_na_outputs[ampl];
+    if (advanced_current_mes_calib_values_available)
+    {
+        return adc_cur_values_for_offset[ampl];
+    } 
+    else
+    {
+        return zero_na_outputs[ampl];
+    }
 }
 
 /*
@@ -88,10 +99,26 @@ void init_calibration(void)
     {
         eeprom_read_block((void*)zero_na_outputs, (void*)CALIB_DIFF_OFFS_VAL_START, sizeof(zero_na_outputs));
         #ifdef CALIB_PRINTF
-            calibprintf_P(PSTR("Differential calibration values fetched from EEPROM\r\n"));
+            calibprintf_P(PSTR("\r\nDifferential calibration values fetched from EEPROM\r\n"));
             for (uint8_t i = 0; i <= CUR_MES_64X; i++)
             {
                 calibprintf("For ampl %u : %u\r\n", 1 << i, zero_na_outputs[i]);
+            }
+        #endif
+    }
+    
+    // Fetch advanced current calibration values if stored
+    if (eeprom_read_byte((uint8_t*)CALIB_CUR_DATA_BOOL) == EEPROM_BOOL_OK_VAL)
+    {
+        eeprom_read_block((void*)adc_cur_values_for_gain_correction, (void*)CALIB_CUR_GAIN_ADC_VAL, sizeof(adc_cur_values_for_gain_correction));
+        eeprom_read_block((void*)adc_cur_values_for_offset, (void*)CALIB_CUR_OFFS_VAL_START, sizeof(adc_cur_values_for_offset));
+        eeprom_read_block((void*)vbias_for_gain_correction, (void*)CALIB_CUR_GAIN_VBIAS, sizeof(vbias_for_gain_correction));
+        advanced_current_mes_calib_values_available = TRUE;
+        #ifdef CALIB_PRINTF
+            calibprintf_P(PSTR("\r\nCurrent calibration values fetched from EEPROM\r\n"));
+            for (uint8_t i = 0; i <= CUR_MES_64X; i++)
+            {
+                calibprintf("For ampl %u : offset %u, vbias for gain %u, adc cur value %u\r\n", 1 << i, adc_cur_values_for_offset[i], vbias_for_gain_correction[i], adc_cur_values_for_gain_correction[i]);
             }
         #endif
     }
@@ -102,14 +129,14 @@ void init_calibration(void)
         calib_vup = eeprom_read_word((uint16_t*)CALIB_VUP);
         calib_vlow = eeprom_read_word((uint16_t*)CALIB_VDOWN);
         #ifdef CALIB_PRINTF
-            calibprintf_P(PSTR("Vup/Vlow calibration values fetched from EEPROM\r\n"));
+            calibprintf_P(PSTR("\r\nVup/Vlow calibration values fetched from EEPROM\r\n"));
             calibprintf("Vup: %u\r\n", calib_vup);
             calibprintf("Vlow: %u\r\n", calib_vlow);
         #endif
     }
 }
 
-void current_measurement_calibration(void)
+void calibrate_current_measurement(void)
 {
     // Calibration Methodology
     //
@@ -122,6 +149,11 @@ void current_measurement_calibration(void)
     // X32: 1LSB = 0,189208984375nA
     // X64: 1LSB = 0,0946044921875nA
     // >> Chosen Resistor until X16: 2Gohms
+    // X1:  1LSB = 12115mV
+    // X2:  1LSB = 6058mV
+    // X4:  1LSB = 3029mV
+    // X8:  1LSB = 1514mV
+    // X16: 1LSB = 757mV
     //
     // 2) Adjust Vbias to get exactly the max ADC value
     // X1:  1LSB = 12393,9453125nA
@@ -132,7 +164,6 @@ void current_measurement_calibration(void)
     // X32: 1LSB = 387,310791015625nA
     // X64: 1LSB = 193,6553955078125nA
     // >> Chosen Resistor until X16: 1Mohms
-    //
     //
     // Measured from the ADC for current:
     // I(nA) = Val(ADC) * 6,057645335 / ampl
@@ -148,13 +179,35 @@ void current_measurement_calibration(void)
     // X = compute_vbias_for_adc_value(VAL(ADCbias)) * ampl / (1.01 * compute_cur_mes_numerator_from_adc_val(VAL(ADCcur)))
     
     calibprintf_P(PSTR("-----------------------\r\n"));
-    calibprintf_P(PSTR("Advanced current calibration\r\n"));
+    calibprintf_P(PSTR("Advanced current calibration\r\n"));    
+    calibprintf_P(PSTR("Adjusting for offset...\r\n"));
+
+    int16_t cur_0nA_val;                                                            // Real 0nA ADC value
+    enable_bias_voltage(VBIAS_MIN_V);                                               // Enable LDO at lowest voltage
+    uint8_t current_cur_mes_mode = CUR_MES_16X + 1;                                 // Calibration starts with max ampl
+    advanced_current_mes_calib_values_available = TRUE;                             // Use zeroed offset values
+    uint16_t calib_voltages[5] = {12115, 6058, 3029, 1514, 757};                    // The voltages to exactly get 1LSB
+    memset(adc_cur_values_for_offset, 0x00, sizeof(adc_cur_values_for_offset));     // Zero current offset values
     
+    while(current_cur_mes_mode--)
+    {
+        update_bias_voltage(calib_voltages[current_cur_mes_mode]);
+        set_current_measurement_ampl(current_cur_mes_mode);
+        _delay_ms(100);
+        cur_0nA_val = get_averaged_adc_value(19) - 1;
+        adc_cur_values_for_offset[current_cur_mes_mode] = cur_0nA_val;
+        calibprintf("0nA ADC value for ampl %u: %u, approx %u/%unA\r\n", 1 << current_cur_mes_mode, cur_0nA_val, compute_cur_mes_numerator_from_adc_val(cur_0nA_val), 1 << current_cur_mes_mode);
+    }   
+    disable_bias_voltage();
+    // TODO: remove the above line and use update_bias_voltage
+    
+    
+    calibprintf_P(PSTR("\r\nAdjusting for gain...\r\n"));
     uint16_t cur_measure;                                   // Var containing our measured current
     enable_bias_voltage(VBIAS_MIN_V);                       // Enable bias voltage at its minimum
+    current_cur_mes_mode = CUR_MES_16X;                     // Calibration starts with max ampl
     uint16_t dac_val = VBIAS_MIN_DAC_VAL;                   // Dac val for minimum bias voltage
-    uint8_t current_cur_mes_mode = CUR_MES_16X;             // Start with max ampl
-    set_current_measurement_ampl(current_cur_mes_mode);     // Set meas mode
+    set_current_measurement_ampl(current_cur_mes_mode);     // Set current measurement mode
     
     while(dac_val >= DAC_MIN_VAL)
     {
@@ -177,7 +230,7 @@ void current_measurement_calibration(void)
             
             #ifdef CALIB_PRINTF
                 calibprintf("Found max value for ampl %u at dac value %u\r\n", 1 << current_cur_mes_mode, dac_val);
-                calibprintf("Quiescent ADC value: %u, approx %u/%unA at approx %umV\r\n", cur_measure, compute_cur_mes_numerator_from_adc_val(cur_measure), 1 << current_cur_mes_mode, measured_vbias);
+                calibprintf("Current ADC value: %u, approx %u/%unA at approx %umV\r\n", cur_measure, compute_cur_mes_numerator_from_adc_val(cur_measure), 1 << current_cur_mes_mode, measured_vbias);
                 calibprintf("Additional gain factor: %u / (1.01 * %u)\r\n", measured_vbias * (1 << current_cur_mes_mode), compute_cur_mes_numerator_from_adc_val(cur_measure));
                 _delay_ms(5000);
             #endif
@@ -222,6 +275,11 @@ void current_measurement_calibration(void)
     }
     
     disable_bias_voltage();
+    eeprom_write_block((void*)adc_cur_values_for_gain_correction, (void*)CALIB_CUR_GAIN_ADC_VAL, sizeof(adc_cur_values_for_gain_correction));
+    eeprom_write_block((void*)adc_cur_values_for_offset, (void*)CALIB_CUR_OFFS_VAL_START, sizeof(adc_cur_values_for_offset));
+    eeprom_write_block((void*)vbias_for_gain_correction, (void*)CALIB_CUR_GAIN_VBIAS, sizeof(vbias_for_gain_correction));
+    eeprom_write_byte((void*)CALIB_CUR_DATA_BOOL, EEPROM_BOOL_OK_VAL);
+    adcprintf(PSTR("Values stored in EEPROM\r\n"));
 }
 
 /*
@@ -230,7 +288,7 @@ void current_measurement_calibration(void)
 void calibrate_single_ended_offset(void)
 {    
     // Calibrate 0V, average on more than a 1/50Hz period
-    calibprintf_P(PSTR("Measuring external 0V value, single ended...\r\n"));
+    calibprintf_P(PSTR("\r\nMeasuring external 0V value, single ended...\r\n"));
     configure_adc_channel(ADC_CHANNEL_GND_EXT, 0, TRUE);
     calib_0v_value_se = get_averaged_stabilized_adc_value(12, 12, TRUE);
     calibprintf("0V ADC value: %u, approx %umV\r\n", calib_0v_value_se, compute_voltage_from_se_adc_val(calib_0v_value_se));    
@@ -257,8 +315,8 @@ void calibrate_cur_mos_0nA(void)
     set_current_measurement_ampl(cur_ampl);
     while(1)
     {        
-        // Average on more than 1/50Hz
-        cur_0nA_val = get_averaged_adc_value(18);
+        // Average on a lot more than 1/50Hz
+        cur_0nA_val = get_averaged_adc_value(19);
         // Only take result into account when nothing is connected to the leads
         if (cur_0nA_val <= (17*(1 << cur_ampl)))
         {

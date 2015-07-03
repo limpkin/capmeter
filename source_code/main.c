@@ -53,7 +53,7 @@ int main(void)
     //calibrate_vup_vlow();                           // Calibrate vup vlow
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
     //calibrate_opamp_internal_resistance();          // Measure the opamp internal resistance (so low it is useless)
-    current_measurement_calibration();
+    //calibrate_current_measurement();                // Calibrate the ADC for current measurements
     
     while(1);
     uint16_t cur_measure = 0;

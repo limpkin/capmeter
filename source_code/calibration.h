@@ -23,7 +23,7 @@
 // Prototypes
 int16_t get_differential_offset_for_ampl(uint8_t ampl);
 void calibrate_opamp_internal_resistance(void);
-void current_measurement_calibration(void);
+void calibrate_current_measurement(void);
 void calibrate_single_ended_offset(void);
 uint16_t get_single_ended_offset(void);
 void calibrate_cur_mos_0nA(void);
