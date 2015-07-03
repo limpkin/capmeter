@@ -233,7 +233,7 @@ void calibrate_single_ended_offset(void)
     calibprintf_P(PSTR("Measuring external 0V value, single ended...\r\n"));
     configure_adc_channel(ADC_CHANNEL_GND_EXT, 0, TRUE);
     calib_0v_value_se = get_averaged_stabilized_adc_value(12, 12, TRUE);
-    calibprintf("0V ADC value: %u, approx %umV\r\n", calib_0v_value_se, (calib_0v_value_se*10)/33);    
+    calibprintf("0V ADC value: %u, approx %umV\r\n", calib_0v_value_se, compute_voltage_from_se_adc_val(calib_0v_value_se));    
 }
 
 /*
@@ -260,7 +260,7 @@ void calibrate_cur_mos_0nA(void)
         // Average on more than 1/50Hz
         cur_0nA_val = get_averaged_adc_value(18);
         // Only take result into account when nothing is connected to the leads
-        if (cur_0nA_val <= (16*(1 << cur_ampl)))
+        if (cur_0nA_val <= (17*(1 << cur_ampl)))
         {
             // Only possible because of the ampl registers
             adcprintf("Zero quiescent current for ampl %u: %d, approx %u/%unA\r\n", 1 << cur_ampl, cur_0nA_val, compute_cur_mes_numerator_from_adc_val(cur_0nA_val), 1 << cur_ampl);
@@ -312,7 +312,7 @@ void calibrate_vup_vlow(void)
         _delay_us(10);
     }
     
-    calibprintf("Vhigh found: %u, approx %umV\r\n", calib_vup, (calib_vup*10)/33);
+    calibprintf("Vhigh found: %u, approx %umV\r\n", calib_vup, compute_voltage_from_se_adc_val(calib_vup));
     update_opampin_dac(calib_vlow);
     _delay_us(10);
         
@@ -323,7 +323,7 @@ void calibrate_vup_vlow(void)
         _delay_us(10);
     }
     
-    calibprintf("Vlow found: %u, approx %umV\r\n", calib_vlow, (calib_vlow*10)/33);
+    calibprintf("Vlow found: %u, approx %umV\r\n", calib_vlow, compute_voltage_from_se_adc_val(calib_vlow));
     
     eeprom_write_word((uint16_t*)CALIB_VUP, calib_vup);
     eeprom_write_word((uint16_t*)CALIB_VDOWN, calib_vlow);
@@ -349,7 +349,7 @@ void calibrate_opamp_internal_resistance(void)
     _delay_ms(10);                                                                      // Wait before test
     setup_opampin_dac(calib_vup+100);                                                   // Force opamp output to 0 by setting IN- above IN+
     opamp_0v_output_no_load = get_averaged_stabilized_adc_value(8, 8, FALSE);           // Run averaging on 128 samples, max 8 lsb peak to peak noise    
-    measdprintf("Opamp 0v output: %u, approx %umV\r\n", opamp_0v_output_no_load, (opamp_0v_output_no_load*10)/33);
+    measdprintf("Opamp 0v output: %u, approx %umV\r\n", opamp_0v_output_no_load, compute_voltage_from_se_adc_val(opamp_0v_output_no_load));
     
     // Vbias should be short with the other terminal here
     enable_bias_voltage(3300);                                                          // Enable vbias at 3.3v to know its resistance during oscillations!
@@ -362,10 +362,10 @@ void calibrate_opamp_internal_resistance(void)
         // Only pass through if the user shorted the terminals
         if (!((cur_cal_res_mux == RES_270) && (opamp_0v_outputs_for_3v[cur_cal_res_mux] < 300)) && !((cur_cal_res_mux == RES_1K) && (opamp_0v_outputs_for_3v[cur_cal_res_mux] < 80)))
         {
-            measdprintf("Opamp 0v output at 3.3V: %u, approx %umV\r\n", opamp_0v_outputs_for_3v[cur_cal_res_mux], ((opamp_0v_outputs_for_3v[cur_cal_res_mux])*10)/33);
+            measdprintf("Opamp 0v output at 3.3V: %u, approx %umV\r\n", opamp_0v_outputs_for_3v[cur_cal_res_mux], compute_voltage_from_se_adc_val(opamp_0v_outputs_for_3v[cur_cal_res_mux]));
             
             #ifdef MEAS_PRINTF
-                uint16_t voltage_mv = ((opamp_0v_outputs_for_3v[cur_cal_res_mux])*10)/33;
+                uint16_t voltage_mv = compute_voltage_from_se_adc_val(opamp_0v_outputs_for_3v[cur_cal_res_mux]);
                 if (cur_cal_res_mux == RES_270)
                 {
                     measdprintf("Approx R of %umOhms\r\n", (voltage_mv*270) / (3300 - voltage_mv));

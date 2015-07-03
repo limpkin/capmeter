@@ -30,6 +30,7 @@ enum mes_mode_t     {MES_OFF = 0, MES_CONT = 1};
 // prototypes
 uint16_t compute_cur_mes_numerator_from_adc_val(uint16_t adc_val);
 uint16_t quiescent_cur_measurement_loop(uint8_t avg_bitshift);
+uint16_t compute_voltage_from_se_adc_val(uint16_t adc_val);
 void set_current_measurement_ampl(uint8_t ampl);
 void set_measurement_frequency(uint16_t freq);
 void disable_current_measurement_mode(void);

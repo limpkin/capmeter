@@ -86,6 +86,21 @@ uint16_t compute_cur_mes_numerator_from_adc_val(uint16_t adc_val)
 }
 
 /*
+ * Compute voltage from single ended adc measurement
+ * @param   adc_val     ADC value
+ * @return  the voltage
+ * @note    Only precise at 0.07%
+ */
+uint16_t compute_voltage_from_se_adc_val(uint16_t adc_val)
+{    
+    /******************* MATHS *******************/    
+    // Vadc = Val(ADC) * (1.24 / 4095)
+    // Vadc ~ Val(ADC) * 10/33
+    
+    return (adc_val * 10)/33;
+}
+
+/*
  * Set the frequency at which we will perform the measurements
  * @param   freq     the frequency (see mes_freq_t)
  */
@@ -175,7 +190,7 @@ uint16_t get_half_val_for_res_mux_define(uint16_t define)
 void print_compute_c_formula(uint16_t nb_ticks)
 {
     // C = 1 / 2 * half_r * freq_measurement * nb_ticks * (ln(3300-Vl/3300-vh) + ln(vh/vl))
-    measdprintf("Formula to compute C: 1 / (2 * %u * %u * %u * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_half_val_for_res_mux_define(get_cur_res_mux()), get_val_for_freq_define(cur_freq_meas), nb_ticks, (get_calib_vlow()*10)/33, (get_calib_vup()*10)/33, (get_calib_vup()*10)/33, (get_calib_vlow()*10)/33);
+    measdprintf("Formula to compute C: 1 / (2 * %u * %u * %u * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_half_val_for_res_mux_define(get_cur_res_mux()), get_val_for_freq_define(cur_freq_meas), nb_ticks, compute_voltage_from_se_adc_val(get_calib_vlow()), compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vlow()));
 }
 
 /*
@@ -219,15 +234,7 @@ void disable_current_measurement_mode(void)
  * @param   ampl        Our measurement amplification (see enum_cur_mes_mode_t)
  */
 uint16_t quiescent_cur_measurement_loop(uint8_t avg_bitshift)
-{
-    // Vadc = I(A) * 1k * 100 * ampl
-    // Vadc = I(A) * 100k * ampl
-    // I(A) = Vadc / (100k * ampl)
-    // I(A) = Val(ADC) * (1.24 / 2048) / (100k * ampl)
-    // I(A) = Val(ADC) * 1.24 / (204.8M * ampl)
-    // I(nA) = Val(ADC) * 1.24 / (0.2048 * ampl)
-    // I(nA) = Val(ADC) * 6,0546875 / ampl
-    
+{    
     // Check that the adc channel remained the same
     if (get_configured_adc_channel() != ADC_CHANNEL_CUR)
     {
