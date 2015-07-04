@@ -55,6 +55,7 @@ int main(void)
     //calibrate_opamp_internal_resistance();          // Measure the opamp internal resistance (so low it is useless)
     //calibrate_current_measurement();                // Calibrate the ADC for current measurements
     
+/*
     while(1);
     uint16_t cur_measure = 0;
     uint16_t dac_val = 1200;
@@ -87,14 +88,14 @@ int main(void)
     while(1)
     {
         quiescent_cur_measurement_loop(16);
-    }
+    }*/
     
     // Freq mes
+    enable_bias_voltage(3900);
     set_measurement_frequency(FREQ_1HZ);            // Set measurement frequency
-    set_measurement_mode_io(RES_270);
-    enable_bias_voltage(2000);
+    set_measurement_mode_io(RES_1K);
     
-    while(1);
+    while(1)
     {
         measurement_loop(0);
     }

@@ -20,38 +20,42 @@
 // To indicate the number of timer overflows
 volatile uint8_t nb_overflows;
 // Last counter value
-volatile uint16_t last_counter_val;
+volatile uint32_t last_counter_val;
 // Counter values
-volatile uint16_t last_measured_value;
+volatile uint32_t last_measured_value;
 // New measurement value
 volatile uint8_t new_val_flag;
 // Current measurement frequency
 uint16_t cur_freq_meas;
 
+
 /*
  * Timer overflow interrupt
  */
-ISR(TCC0_OVF_vect)
+ISR(TCC1_OVF_vect)
 {
     nb_overflows++;
 }
 
 /*
- * Channel A capture interrupt
+ * Channel A capture interrupt on TC1
  */
-ISR(TCC0_CCA_vect)
+ISR(TCC1_CCA_vect)
 {
-    uint16_t count_value = TCC0.CCA;
+    // Recompose 32 bits value
+    uint32_t count_value = TCC1.CCA;
+    count_value = count_value << 16;
+    count_value += TCC0.CCA;
     
     // Check if the count number isn't more than uint16_t
-    if (((nb_overflows == 1) && (count_value > last_counter_val)) || (nb_overflows > 1))
-    {
-        last_measured_value = 0xFFFF;
-    }
-    else
-    {
+//     if (((nb_overflows == 1) && (count_value > last_counter_val)) || (nb_overflows > 1))
+//     {
+//         last_measured_value = 0xFFFFFFFF;
+//     }
+//     else
+//     {
         last_measured_value = count_value - last_counter_val;
-    }
+/*    }*/
     
     // Set correct values
     nb_overflows = 0;
@@ -107,21 +111,26 @@ uint16_t compute_voltage_from_se_adc_val(uint16_t adc_val)
 void set_measurement_frequency(uint16_t freq)
 {    
     cur_freq_meas = freq;
-    RTC.PER = freq;                                     // Set correct RTC timer freq
-    RTC.CTRL = RTC_PRESCALER_DIV1_gc;                   // Keep the 32kHz base clock
-    EVSYS.CH1MUX = EVSYS_CHMUX_RTC_OVF_gc;              // Event line 1 for RTC overflow
-    CLK.RTCCTRL = CLK_RTCSRC_TOSC32_gc | CLK_RTCEN_bm;  // Select 32kHz crystal, enable
-    PORTA.DIRCLR = PIN6_bm;                             // COMP_OUT
-    PORTC.DIRSET = PIN7_bm;                             // EVOUT
-    PORTA.PIN6CTRL = PORT_ISC_RISING_gc;                // Generate event on rising edge
-    EVSYS.CH0MUX = EVSYS_CHMUX_PORTA_PIN6_gc;           // Event line 0 for COMP_OUT
-    PORTCFG.CLKEVOUT = PORTCFG_EVOUT_PC7_gc;            // Event line 0 output on PC7
-    TCC0.CTRLB = TC0_CCAEN_bm;                          // Enable compare A
-    TCC0.CTRLD = TC_EVACT_CAPT_gc | TC_EVSEL_CH1_gc;    // Capture event on channel 1
-    TCC0.PER = 0xFFFF;                                  // Set period to max
-    TCC0.CTRLA = TC_CLKSEL_EVCH0_gc;                    // Use event line 0 as frequency input
-    TCC0.INTCTRLA = TC_OVFINTLVL_HI_gc;                 // Overflow interrupt
-    TCC0.INTCTRLB = TC_CCAINTLVL_HI_gc;                 // High level interrupt on capture
+    RTC.PER = freq;                                                 // Set correct RTC timer freq
+    RTC.CTRL = RTC_PRESCALER_DIV1_gc;                               // Keep the 32kHz base clock for the RTC
+    EVSYS.CH1MUX = EVSYS_CHMUX_RTC_OVF_gc;                          // Event line 1 for RTC overflow (used as capture signal)
+    CLK.RTCCTRL = CLK_RTCSRC_TOSC32_gc | CLK_RTCEN_bm;              // Select 32kHz crystal for the RTC, enable it
+    PORTA.DIRCLR = PIN6_bm;                                         // Set COMP_OUT as input
+    PORTC.DIRSET = PIN7_bm;                                         // Set PC7 as EVOUT
+    PORTA.PIN6CTRL = PORT_ISC_RISING_gc;                            // Generate event on rising edge of COMPOUT
+    EVSYS.CH0MUX = EVSYS_CHMUX_PORTA_PIN6_gc;                       // Use event line 0 for COMP_OUT rising edge
+    PORTCFG.CLKEVOUT = PORTCFG_EVOUT_PC7_gc;                        // Event line 0 output on PC7
+    TCC0.CTRLB = TC0_CCAEN_bm;                                      // Enable compare A on TCC0
+    TCC0.CTRLD = TC_EVACT_CAPT_gc | TC_EVSEL_CH1_gc;                // Capture event on channel 1
+    TCC0.PER = 0xFFFF;                                              // Set period to max
+    TCC0.CTRLA = TC_CLKSEL_EVCH0_gc;                                // Use event line 0 as frequency input
+    EVSYS.CH2MUX = EVSYS_CHMUX_TCC0_OVF_gc;                         // Event channel 2 will be the TCC0 overflow
+    TCC1.CTRLB = TC1_CCAEN_bm;                                      // Enable compare A on TCC1
+    TCC1.CTRLD = TC_EVACT_CAPT_gc | TC1_EVDLY_bm | TC_EVSEL_CH1_gc; // Capture event on channel 1, delayed by one clock cycle
+    TCC1.PER = 0xFFFF;                                              // Set period to max
+    TCC1.CTRLA = TC_CLKSEL_EVCH2_gc;                                // Use event line 2 as frequency input
+    TCC1.INTCTRLA = TC_OVFINTLVL_HI_gc;                             // Overflow interrupt
+    TCC1.INTCTRLB = TC_CCAINTLVL_HI_gc;                             // High level interrupt on capture
     
     switch(freq)
     {
@@ -187,10 +196,11 @@ uint16_t get_half_val_for_res_mux_define(uint16_t define)
  * Print the formulate to compute the capacitance
  * @param   nb_ticks     Number of ticks
  */
-void print_compute_c_formula(uint16_t nb_ticks)
+void print_compute_c_formula(uint32_t nb_ticks)
 {
     // C = 1 / 2 * half_r * freq_measurement * nb_ticks * (ln(3300-Vl/3300-vh) + ln(vh/vl))
-    measdprintf("Formula to compute C: 1 / (2 * %u * %u * %u * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_half_val_for_res_mux_define(get_cur_res_mux()), get_val_for_freq_define(cur_freq_meas), nb_ticks, compute_voltage_from_se_adc_val(get_calib_vlow()), compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vlow()));
+    measdprintf("Formula to compute C: 1 / (2 * %u * %u * %lu * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_half_val_for_res_mux_define(get_cur_res_mux()), get_val_for_freq_define(cur_freq_meas), nb_ticks, compute_voltage_from_se_adc_val(get_calib_vlow()), compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vlow()));
+    //measdprintf("Formula to compute C: -1 / (2 * %u * %u * %lu * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_half_val_for_res_mux_define(get_cur_res_mux()), get_val_for_freq_define(cur_freq_meas), nb_ticks, compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vlow()), compute_voltage_from_se_adc_val(get_calib_vlow()), compute_voltage_from_se_adc_val(get_calib_vup()));
 }
 
 /*
@@ -204,7 +214,7 @@ void measurement_loop(uint8_t ampl)
     {
         new_val_flag = FALSE;
         print_compute_c_formula(last_measured_value);
-        measdprintf("%u\r\n", last_measured_value);
+        //measdprintf("%lu\r\n", last_measured_value);
     }
 }
 

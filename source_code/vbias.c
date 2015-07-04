@@ -22,6 +22,15 @@ uint16_t cur_vbias_dac_val;
 
 
 /*
+ * Get the last measured vbias
+ * @return  Vbias
+ */
+uint16_t get_last_measured_vbias(void)
+{
+    return last_measured_vbias;
+}
+
+/*
  * Compute real vbias value from adc value
  * @param   adc_val     ADC value
  * @return  Actual mV value
