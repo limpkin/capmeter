@@ -82,11 +82,13 @@ void wait_for_0v_bias(void)
     
     // Wait for bias voltage to be under ~400mV
     configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
+    enable_vbias_quenching();
     while (measured_vbias > 100)
     {
         measured_vbias = get_averaged_stabilized_adc_value(6, 8, FALSE);
     }
     
+    disable_vbias_quenching();
     vbiasprintf_P(PSTR("Bias voltage at 0.4V\r\n"));    
 }
 
@@ -181,6 +183,7 @@ uint16_t update_bias_voltage(uint16_t val_mv)
         }
         
         // Our voltage decreasing loop
+        enable_vbias_quenching();
         do
         {            
             // Adjust peak-peak depending on how close we are
@@ -203,6 +206,7 @@ uint16_t update_bias_voltage(uint16_t val_mv)
             measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(8, peak_peak, FALSE));
         }
         while ((measured_vbias > val_mv) && (cur_vbias_dac_val != DAC_MAX_VAL));
+        disable_vbias_quenching();
     } 
     else
     {

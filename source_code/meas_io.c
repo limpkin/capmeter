@@ -22,6 +22,24 @@ uint8_t get_cur_res_mux(void)
 }
 
 /*
+ * Enable vbias quenching
+ */
+void enable_vbias_quenching(void)
+{
+    PORTC_OUTSET = PIN1_bm;
+    iodprintf_P(PSTR("Quenching Vbias\r\n"));
+}
+
+/*
+ * Disable vbias quenching
+ */
+void disable_vbias_quenching(void)
+{
+    PORTC_OUTCLR = PIN1_bm;
+    iodprintf_P(PSTR("Disabled Vbias quench\r\n"));
+}
+
+/*
  * Enable the current measurement mosfet
  */
 void enable_cur_meas_mos(void)
@@ -182,13 +200,14 @@ void disable_measurement_mode_io(void)
 void init_ios(void)
 {
     iodprintf_P(PSTR("-----------------------\r\n"));
-    iodprintf_P(PSTR("IO init\r\n"));
+    iodprintf_P(PSTR("IO init\r\n\r\n"));
     disable_cur_meas_mos();                                 // Disable cur measurement mosfet
+    disable_vbias_quenching();                              // Disable vbias quenching
     disable_feedback_mos();                                 // Disable opamp feedback
     disable_res_mux();                                      // Disable resistor mux
     disable_stepup();                                       // Disable stepup
     disable_ldo();                                          // Disable LDO
     PORTA_DIRSET = PIN0_bm | PIN2_bm | PIN3_bm | PIN4_bm;   // CON_SH, MUX_A1, MUX_A0, MUX_EN
     PORTB_DIRSET = PIN1_bm;                                 // AMP_FB_EN
-    PORTC_DIRSET = PIN4_bm | PIN5_bm;                       // LDO_EN, SU_EN
+    PORTC_DIRSET = PIN1_bm | PIN4_bm | PIN5_bm;             // QUENCH, LDO_EN, SU_EN
 }

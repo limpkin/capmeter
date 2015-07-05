@@ -79,7 +79,7 @@ void disable_opampin_dac(void)
 void init_dac(void)
 {
     dacdprintf_P(PSTR("-----------------------\r\n"));
-    dacdprintf_P(PSTR("DAC init\r\n"));
+    dacdprintf_P(PSTR("DAC init\r\n\r\n"));
     
     DACB.CH0GAINCAL = ReadCalibrationByte(PROD_SIGNATURES_START + DACB0GAINCAL_offset);     // Set correct calibration values
     DACB.CH0OFFSETCAL = ReadCalibrationByte(PROD_SIGNATURES_START + DACB0OFFCAL_offset);    // Set correct calibration values

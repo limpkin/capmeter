@@ -29,6 +29,8 @@ void enable_cur_meas_mos(void);
 void disable_cur_meas_mos(void);
 void enable_feedback_mos(void);
 void disable_feedback_mos(void);
+void enable_vbias_quenching(void);
+void disable_vbias_quenching(void);
 void enable_stepup(void);
 void disable_stepup(void);
 void enable_ldo(void);

@@ -33,6 +33,14 @@ uint16_t opamp_0v_output_no_load;
 uint16_t calib_0v_value_se = 0;
 // 0nA ADC values for different amplifications
 int16_t zero_na_outputs[7];
+// Calibrated second threshold, ramping up
+uint16_t calib_second_thres_down;
+// Calibrated first threshold, ramping up
+uint16_t calib_first_thres_down;
+// Calibrated second threshold, ramping down
+uint16_t calib_second_thres_up;
+// Calibrated first threshold, ramping down
+uint16_t calib_first_thres_up;
 // Calibrated vlow
 uint16_t calib_vlow;
 // Calibrated vup
@@ -128,10 +136,18 @@ void init_calibration(void)
     {
         calib_vup = eeprom_read_word((uint16_t*)CALIB_VUP);
         calib_vlow = eeprom_read_word((uint16_t*)CALIB_VDOWN);
+        calib_first_thres_up = eeprom_read_word((uint16_t*)CALIB_FIRST_THRES_UP);
+        calib_second_thres_up = eeprom_read_word((uint16_t*)CALIB_SECOND_THRES_UP);
+        calib_first_thres_down = eeprom_read_word((uint16_t*)CALIB_FIRST_THRES_DOWN);
+        calib_second_thres_down = eeprom_read_word((uint16_t*)CALIB_SECOND_THRES_DOWN);
         #ifdef CALIB_PRINTF
             calibprintf_P(PSTR("\r\nVup/Vlow calibration values fetched from EEPROM\r\n"));
             calibprintf("Vup: %u\r\n", calib_vup);
             calibprintf("Vlow: %u\r\n", calib_vlow);
+            calibprintf("First thres (from high): %u, approx %umV\r\n", calib_first_thres_up, compute_voltage_from_se_adc_val(calib_first_thres_up));
+            calibprintf("First thres (from low): %u, approx %umV\r\n", calib_first_thres_down, compute_voltage_from_se_adc_val(calib_first_thres_down));
+            calibprintf("Second thres (from high): %u, approx %umV\r\n", calib_second_thres_up, compute_voltage_from_se_adc_val(calib_second_thres_up));
+            calibprintf("Second thres (from low): %u, approx %umV\r\n", calib_second_thres_down, compute_voltage_from_se_adc_val(calib_second_thres_down));
         #endif
     }
 }
@@ -345,12 +361,12 @@ void calibrate_cur_mos_0nA(void)
 }
 
 /*
- * Measure Vup/Vlow of our opamp
+ * Measure Vup/Vlow of our oscillator as well as our thresholds
  */
 void calibrate_vup_vlow(void)
 {
     calibprintf_P(PSTR("-----------------------\r\n"));
-    calibprintf_P(PSTR("Vup/Vlow calibration\r\n"));
+    calibprintf_P(PSTR("Vup/Vlow calibration\r\n\r\n"));
     
     // Set bias voltage above vcc so Q1 comes into play if there's a cap between the terminals
     disable_feedback_mos();
@@ -362,30 +378,64 @@ void calibrate_vup_vlow(void)
     setup_opampin_dac(DAC_MIN_VAL);
     calib_vlow = DAC_MAX_VAL;
     calib_vup = DAC_MIN_VAL;
+    calib_second_thres_down = 0;
+    calib_first_thres_down = 0;
+    calib_second_thres_up = 0;
+    calib_first_thres_up = 0;
     
-    // Ramp up, wait for toggle
+    // Ramp up, wait for all the toggles
+    calibprintf_P(PSTR("\r\nRamping up...\r\n"));
     while((PORTA_IN & PIN6_bm) != 0)
     {
         update_opampin_dac(++calib_vup);
         _delay_us(10);
+        // First threshold crossed
+        if ((calib_first_thres_down == 0) && ((PORTE_IN & PIN2_bm) == 0))
+        {
+            calib_first_thres_down = calib_vup;
+        }
+        // Second threshold crossed
+        if ((calib_second_thres_down == 0) && ((PORTE_IN & PIN3_bm) != 0))
+        {
+            calib_second_thres_down = calib_vup;
+        }
     }
     
     calibprintf("Vhigh found: %u, approx %umV\r\n", calib_vup, compute_voltage_from_se_adc_val(calib_vup));
+    calibprintf("First thres found: %u, approx %umV\r\n", calib_first_thres_down, compute_voltage_from_se_adc_val(calib_first_thres_down));
+    calibprintf("Second thres found: %u, approx %umV\r\n\r\n", calib_second_thres_down, compute_voltage_from_se_adc_val(calib_second_thres_down));
     update_opampin_dac(calib_vlow);
     _delay_us(10);
         
     // Ramp low, wait for toggle
+    calibprintf_P(PSTR("Ramping down...\r\n"));
     while((PORTA_IN & PIN6_bm) == 0)
     {
         update_opampin_dac(--calib_vlow);
         _delay_us(10);
+        // First threshold crossed
+        if ((calib_first_thres_up == 0) && ((PORTE_IN & PIN2_bm) != 0))
+        {
+            calib_first_thres_up = calib_vlow;
+        }
+        // Second threshold crossed
+        if ((calib_second_thres_up == 0) && ((PORTE_IN & PIN3_bm) == 0))
+        {
+            calib_second_thres_up = calib_vlow;
+        }
     }
     
     calibprintf("Vlow found: %u, approx %umV\r\n", calib_vlow, compute_voltage_from_se_adc_val(calib_vlow));
+    calibprintf("First thres found: %u, approx %umV\r\n", calib_first_thres_up, compute_voltage_from_se_adc_val(calib_first_thres_up));
+    calibprintf("Second thres found: %u, approx %umV\r\n\r\n", calib_second_thres_up, compute_voltage_from_se_adc_val(calib_second_thres_up));
     
     eeprom_write_word((uint16_t*)CALIB_VUP, calib_vup);
     eeprom_write_word((uint16_t*)CALIB_VDOWN, calib_vlow);
     eeprom_write_byte((uint8_t*)CALIB_VUP_VLOW_BOOL, EEPROM_BOOL_OK_VAL);
+    eeprom_write_word((uint16_t*)CALIB_FIRST_THRES_UP, calib_first_thres_up);
+    eeprom_write_word((uint16_t*)CALIB_SECOND_THRES_UP, calib_second_thres_up);
+    eeprom_write_word((uint16_t*)CALIB_FIRST_THRES_DOWN, calib_first_thres_down);
+    eeprom_write_word((uint16_t*)CALIB_SECOND_THRES_DOWN, calib_second_thres_down);
     calibprintf_P(PSTR("Values stored in EEPROM\r\n"));
     
     disable_opampin_dac();
