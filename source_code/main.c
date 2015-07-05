@@ -13,9 +13,12 @@
 #include "interrupts.h"
 #include "meas_io.h"
 #include "serial.h"
+#include "utils.h"
 #include "vbias.h"
 #include "dac.h"
 #include "adc.h"
+#define RCOSC32M_offset  0x03
+#define RCOSC32MA_offset 0x04
 
 
 /*
@@ -23,16 +26,18 @@
  */
 void switch_to_32MHz_clock(void)
 {
-    OSC.CTRL |= OSC_RC32MEN_bm;                     // Enable 32MHz oscillator
-    while((OSC.STATUS & OSC_RC32MRDY_bm) == 0);     // Wait for stable oscillator
-    CCP = CCP_IOREG_gc;                             // Inform process we change a protected register
-    CLK.CTRL = CLK_SCLKSEL_RC32M_gc;                // Switch to 32MHz    
-    OSC.CTRL &= (~OSC_RC2MEN_bm);                   // Disable the default 2Mhz oscillator    
-    OSC.XOSCCTRL = OSC_XOSCSEL_32KHz_gc;            // Choose 32kHz external crystal
-    OSC.CTRL |= OSC_XOSCEN_bm;                      // Enable external oscillator
-    while((OSC.STATUS & OSC_XOSCRDY_bm) == 0);      // Wait for stable 32kHz clock
-    OSC.DFLLCTRL = OSC_RC32MCREF_XOSC32K_gc;        // Select the 32kHz clock as calibration ref for our 32M
-    DFLLRC32M.CTRL = DFLL_ENABLE_bm;                // Enable DFLL for RC32M
+    DFLLRC32M.CALA = ReadCalibrationByte(PROD_SIGNATURES_START + RCOSC32MA_offset); // Load calibration value for 32M RC Oscillator
+    DFLLRC32M.CALB = ReadCalibrationByte(PROD_SIGNATURES_START + RCOSC32M_offset);  // Load calibration value for 32M RC Oscillator
+    OSC.CTRL |= OSC_RC32MEN_bm;                                                     // Enable 32MHz oscillator
+    while((OSC.STATUS & OSC_RC32MRDY_bm) == 0);                                     // Wait for stable oscillator
+    CCP = CCP_IOREG_gc;                                                             // Inform process we change a protected register
+    CLK.CTRL = CLK_SCLKSEL_RC32M_gc;                                                // Switch to 32MHz    
+    OSC.CTRL &= (~OSC_RC2MEN_bm);                                                   // Disable the default 2Mhz oscillator    
+    OSC.XOSCCTRL = OSC_XOSCSEL_32KHz_gc;                                            // Choose 32kHz external crystal
+    OSC.CTRL |= OSC_XOSCEN_bm;                                                      // Enable external oscillator
+    while((OSC.STATUS & OSC_XOSCRDY_bm) == 0);                                      // Wait for stable 32kHz clock
+    OSC.DFLLCTRL = OSC_RC32MCREF_XOSC32K_gc;                                        // Select the 32kHz clock as calibration ref for our 32M
+    DFLLRC32M.CTRL = DFLL_ENABLE_bm;                                                // Enable DFLL for RC32M
 }
 
 /*
@@ -93,7 +98,7 @@ int main(void)
     // Freq mes
     enable_bias_voltage(3900);
     set_measurement_frequency(FREQ_1HZ);            // Set measurement frequency
-    set_measurement_mode_io(RES_1K);
+    set_measurement_mode_io(RES_10K);
     
     while(1)
     {
