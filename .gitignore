@@ -2,7 +2,6 @@ source_code/Debug/
 source_code/Release/
 *Thumbs.db
 *~
-*.hex
 *.elf
 *.eep
 *.o
