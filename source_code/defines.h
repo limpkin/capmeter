@@ -13,6 +13,9 @@
 #define FALSE   0
 #define TRUE    (!FALSE)
 
+// Typedefs
+typedef void (*bootloader_f_ptr_type)(void);
+
 // IO debug printf
 #define IO_PRINTF
 // Serial debug printf
