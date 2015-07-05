@@ -17,12 +17,14 @@
 #include "main.h"
 #include "dac.h"
 #include "adc.h"
-// To indicate the number of timer overflows
-volatile uint8_t nb_overflows;
-// Last counter value
-volatile uint32_t last_counter_val;
-// Counter values
-volatile uint32_t last_measured_value;
+// Current counter
+volatile uint32_t current_counter;
+// Current aggregate
+volatile uint32_t current_agg;
+// Last counter
+volatile uint32_t last_counter;
+// Last aggregate
+volatile uint32_t last_agg;
 // New measurement value
 volatile uint8_t new_val_flag;
 // Current measurement frequency
@@ -32,37 +34,39 @@ uint16_t cur_freq_meas;
 /*
  * Timer overflow interrupt
  */
-ISR(TCC1_OVF_vect)
+ISR(TCC0_OVF_vect)
 {
-    nb_overflows++;
+    // If we have an overflow, it means we couldn't measure the pulse width :/
 }
 
 /*
- * Channel A capture interrupt on TC1
+ * Channel A capture interrupt on TC0
  */
-ISR(TCC1_CCA_vect)
+ISR(TCC0_CCA_vect)
 {
-    // Recompose 32 bits value
-    uint32_t count_value = TCC1.CCA;
-    count_value = count_value << 16;
-    count_value += TCC0.CCA;
-    
-    // Check if the count number isn't more than uint16_t
-//     if (((nb_overflows == 1) && (count_value > last_counter_val)) || (nb_overflows > 1))
-//     {
-//         last_measured_value = 0xFFFFFFFF;
-//     }
-//     else
-//     {
-        last_measured_value = count_value - last_counter_val;
-/*    }*/
-    
-    // Set correct values
-    nb_overflows = 0;
-    last_counter_val = count_value;
-    
-    // Set Flag
-    new_val_flag = TRUE;
+    // Pulse width of AN1_COMPOUT, subtract it with pulse width of AN2_COMPOUT
+    current_agg += (TCC0.CCA - TCC1.CCA);
+    current_counter++;
+}
+
+/*
+ * Timer overflow interrupt
+ */
+ISR(TCC1_OVF_vect)
+{
+    // If we have an overflow, it means we couldn't measure the pulse width :/
+}
+
+/*
+ * RTC overflow interrupt
+ */
+ISR(RTC_OVF_vect)
+{
+    new_val_flag = TRUE;                // Indicate new values to be read
+    last_agg = current_agg;             // Copy current aggregate
+    last_counter = current_counter;     // Copy current counter
+    current_counter = 0;                // Reset counter
+    last_agg = 0;                       // Reset agg
 }
 
 /*
@@ -111,26 +115,36 @@ uint16_t compute_voltage_from_se_adc_val(uint16_t adc_val)
 void set_measurement_frequency(uint16_t freq)
 {    
     cur_freq_meas = freq;
+    // RTC: set period depending on measurement freq
     RTC.PER = freq;                                                 // Set correct RTC timer freq
     RTC.CTRL = RTC_PRESCALER_DIV1_gc;                               // Keep the 32kHz base clock for the RTC
-    EVSYS.CH1MUX = EVSYS_CHMUX_RTC_OVF_gc;                          // Event line 1 for RTC overflow (used as capture signal)
+    EVSYS.CH1MUX = EVSYS_CHMUX_RTC_OVF_gc;                          // Event line 1 for RTC overflow
     CLK.RTCCTRL = CLK_RTCSRC_TOSC32_gc | CLK_RTCEN_bm;              // Select 32kHz crystal for the RTC, enable it
+    RTC.INTCTRL = RTC_OVFINTLVL_gm;                                 // Interrupt on RTC overflow
+    // IOs and event lines
     PORTA.DIRCLR = PIN6_bm;                                         // Set COMP_OUT as input
     PORTC.DIRSET = PIN7_bm;                                         // Set PC7 as EVOUT
+    PORTE.DIRCLR = PIN2_bm | PIN3_bm;                               // Set PE2 & PE3 as inputs
     PORTA.PIN6CTRL = PORT_ISC_RISING_gc;                            // Generate event on rising edge of COMPOUT
+    PORTE.PIN3CTRL = PORT_ISC_BOTHEDGES_gc;                         // Generate events on both edges of AN2_COMPOUT
+    PORTE.PIN2CTRL = PORT_ISC_BOTHEDGES_gc | PORT_INVEN_bm;         // Generate events on both edges of AN1_COMPOUT, invert
     EVSYS.CH0MUX = EVSYS_CHMUX_PORTA_PIN6_gc;                       // Use event line 0 for COMP_OUT rising edge
+    EVSYS.CH2MUX = EVSYS_CHMUX_PORTE_PIN2_gc;                       // Use event line 2 for AN1_COMPOUT edges
+    EVSYS.CH3MUX = EVSYS_CHMUX_PORTE_PIN3_gc;                       // Use event line 3 for AN2_COMPOUT edges
     PORTCFG.CLKEVOUT = PORTCFG_EVOUT_PC7_gc;                        // Event line 0 output on PC7
+    // TC0: pulse width capture of AN1_COMPOUT
     TCC0.CTRLB = TC0_CCAEN_bm;                                      // Enable compare A on TCC0
-    TCC0.CTRLD = TC_EVACT_CAPT_gc | TC_EVSEL_CH1_gc;                // Capture event on channel 1
+    TCC0.CTRLD = TC_EVACT_PW_gc | TC_EVSEL_CH2_gc;                  // Pulse width capture on event line 2 (AN1_COMPOUT)
     TCC0.PER = 0xFFFF;                                              // Set period to max
-    TCC0.CTRLA = TC_CLKSEL_EVCH0_gc;                                // Use event line 0 as frequency input
-    EVSYS.CH2MUX = EVSYS_CHMUX_TCC0_OVF_gc;                         // Event channel 2 will be the TCC0 overflow
+    TCC0.CTRLA = TC_CLKSEL_DIV1_gc;                                 // Use 32MHz as frequency input
+    TCC0.INTCTRLA = TC_OVFINTLVL_HI_gc;                             // Overflow interrupt
+    TCC0.INTCTRLB = TC_CCAINTLVL_HI_gc;                             // High level interrupt on capture
+    // TC1: pulse width capture of AN2_COMPOUT
     TCC1.CTRLB = TC1_CCAEN_bm;                                      // Enable compare A on TCC1
-    TCC1.CTRLD = TC_EVACT_CAPT_gc | TC1_EVDLY_bm | TC_EVSEL_CH1_gc; // Capture event on channel 1, delayed by one clock cycle
+    TCC1.CTRLD = TC_EVACT_PW_gc | TC_EVSEL_CH3_gc;                  // Pulse width capture on event line 3 (AN2_COMPOUT)
     TCC1.PER = 0xFFFF;                                              // Set period to max
-    TCC1.CTRLA = TC_CLKSEL_EVCH2_gc;                                // Use event line 2 as frequency input
+    TCC1.CTRLA = TC_CLKSEL_DIV1_gc;                                 // Use 32MHz as frequency input
     TCC1.INTCTRLA = TC_OVFINTLVL_HI_gc;                             // Overflow interrupt
-    TCC1.INTCTRLB = TC_CCAINTLVL_HI_gc;                             // High level interrupt on capture
     
     switch(freq)
     {
@@ -213,7 +227,7 @@ void measurement_loop(uint8_t ampl)
     if (new_val_flag == TRUE)
     {
         new_val_flag = FALSE;
-        print_compute_c_formula(last_measured_value);
+        print_compute_c_formula(last_agg);
         //measdprintf("%lu\r\n", last_measured_value);
     }
 }
