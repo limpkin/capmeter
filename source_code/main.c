@@ -59,7 +59,7 @@ int main(void)
     enable_interrupts();                            // Enable interrupts
     wait_for_0v_bias();                             // Wait for 0v bias
     //bias_voltage_test();
-    calibrate_vup_vlow();                           // Calibrate vup vlow & thresholds
+    //calibrate_vup_vlow();                           // Calibrate vup vlow & thresholds
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
     //calibrate_opamp_internal_resistance();          // Measure the opamp internal resistance (so low it is useless)
     //calibrate_current_measurement();                // Calibrate the ADC for current measurements
@@ -100,7 +100,7 @@ int main(void)
     }*/
     
     // Freq mes
-    enable_bias_voltage(3900);
+    enable_bias_voltage(999);
     set_measurement_frequency(FREQ_1HZ);            // Set measurement frequency
     set_measurement_mode_io(RES_10K);
     
