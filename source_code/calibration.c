@@ -41,10 +41,6 @@ uint16_t calib_first_thres_down;
 uint16_t calib_second_thres_up;
 // Calibrated first threshold, ramping down
 uint16_t calib_first_thres_up;
-// Calibrated vlow
-uint16_t calib_vlow;
-// Calibrated vup
-uint16_t calib_vup;
 
 
 /*
@@ -54,6 +50,35 @@ uint16_t calib_vup;
 uint16_t get_single_ended_offset(void)
 {
     return calib_0v_value_se;
+}
+
+/*
+ * Find if advanced current calibration has been done
+ * @return  the bool
+ */
+uint8_t get_advanced_current_calib_done(void)
+{
+    return advanced_current_mes_calib_values_available;
+}
+
+/*
+ * Get ADC value for gain correction
+ * @param   ampl    Selected amplification
+ * @return  ADC value
+ */
+uint16_t get_adc_cur_value_for_gain_correction(uint8_t ampl)
+{
+    return adc_cur_values_for_gain_correction[ampl];
+}
+
+/*
+ * Get vbias for gain correction
+ * @param   ampl    Selected amplification
+ * @return  The vbias
+ */
+uint16_t get_vbias_for_gain_correction(uint8_t ampl)
+{
+    return vbias_for_gain_correction[ampl];
 }
 
 /*
@@ -71,24 +96,6 @@ int16_t get_differential_offset_for_ampl(uint8_t ampl)
     {
         return zero_na_outputs[ampl];
     }
-}
-
-/*
- * Get DAC value for opamp vlow
- * @return  DAC value
- */
-uint16_t get_calib_vlow(void)
-{
-    return calib_vlow;
-}
-
-/*
- * Get DAC value for opamp vup
- * @return  DAC value
- */
-uint16_t get_calib_vup(void)
-{
-    return calib_vup;
 }
 
 /*
@@ -132,18 +139,14 @@ void init_calibration(void)
     }
     
     // Fetch vup vlow calibration data if stored
-    if (eeprom_read_byte((uint8_t*)CALIB_VUP_VLOW_BOOL) == EEPROM_BOOL_OK_VAL)
+    if (eeprom_read_byte((uint8_t*)CALIB_THRESHOLD_BOOL) == EEPROM_BOOL_OK_VAL)
     {
-        calib_vup = eeprom_read_word((uint16_t*)CALIB_VUP);
-        calib_vlow = eeprom_read_word((uint16_t*)CALIB_VDOWN);
         calib_first_thres_up = eeprom_read_word((uint16_t*)CALIB_FIRST_THRES_UP);
         calib_second_thres_up = eeprom_read_word((uint16_t*)CALIB_SECOND_THRES_UP);
         calib_first_thres_down = eeprom_read_word((uint16_t*)CALIB_FIRST_THRES_DOWN);
         calib_second_thres_down = eeprom_read_word((uint16_t*)CALIB_SECOND_THRES_DOWN);
         #ifdef CALIB_PRINTF
-            calibprintf_P(PSTR("\r\nVup/Vlow calibration values fetched from EEPROM\r\n"));
-            calibprintf("Vup: %u\r\n", calib_vup);
-            calibprintf("Vlow: %u\r\n", calib_vlow);
+            calibprintf_P(PSTR("\r\nThreshold calibration values fetched from EEPROM\r\n"));
             calibprintf("First thres (from high): %u, approx %umV\r\n", calib_first_thres_up, compute_voltage_from_se_adc_val(calib_first_thres_up));
             calibprintf("First thres (from low): %u, approx %umV\r\n", calib_first_thres_down, compute_voltage_from_se_adc_val(calib_first_thres_down));
             calibprintf("Second thres (from high): %u, approx %umV\r\n", calib_second_thres_up, compute_voltage_from_se_adc_val(calib_second_thres_up));
@@ -192,11 +195,13 @@ void calibrate_current_measurement(void)
     // Correcting for gain on ADC for current:
     // VAL(ADCcur) * 6,0546875 * X / ampl = (VAL(ADCbias) * 4 + VAL(ADCbias) * 16 / 182) / 1.01
     // X = (VAL(ADCbias) * 4 + VAL(ADCbias) * 16 / 182) * ampl / (1.01 * VAL(ADCcur) * 6,057645335)
-    // X = compute_vbias_for_adc_value(VAL(ADCbias)) * ampl / (1.01 * compute_cur_mes_numerator_from_adc_val(VAL(ADCcur)))
+    // X = compute_vbias_for_adc_value(VAL(ADCbias)) * ampl / (1.01 * compute_cur_mes_numerator_from_adc_val(VAL(ADCcur)))    
     
     calibprintf_P(PSTR("-----------------------\r\n"));
     calibprintf_P(PSTR("Advanced current calibration\r\n"));    
     calibprintf_P(PSTR("Adjusting for offset...\r\n"));
+    calibprintf_P(PSTR("Insert 2G resistor!\r\n"));
+    _delay_ms(10000);
 
     int16_t cur_0nA_val;                                                            // Real 0nA ADC value
     enable_bias_voltage(VBIAS_MIN_V);                                               // Enable LDO at lowest voltage
@@ -215,10 +220,40 @@ void calibrate_current_measurement(void)
         calibprintf("0nA ADC value for ampl %u: %u, approx %u/%unA\r\n", 1 << current_cur_mes_mode, cur_0nA_val, compute_cur_mes_numerator_from_adc_val(cur_0nA_val), 1 << current_cur_mes_mode);
     }   
     disable_bias_voltage();
+    // TODO: remove the above line and use update_bias_voltage    
+    
+    calibprintf_P(PSTR("\r\nChecking Found Offsets...\r\n"));
+    uint8_t calib_passed = TRUE;
+    enable_bias_voltage(VBIAS_MIN_V);                                               // Enable LDO at lowest voltage
+    current_cur_mes_mode = CUR_MES_16X + 1;                                         // Calibration starts with max ampl    
+    while(current_cur_mes_mode--)
+    {
+        // Double the 1 LSB voltage and check that we actually at least 1 or 2 LSB
+        update_bias_voltage(calib_voltages[current_cur_mes_mode]*2 + calib_voltages[current_cur_mes_mode]/2);
+        set_current_measurement_ampl(current_cur_mes_mode);
+        _delay_ms(100);
+        cur_0nA_val = get_averaged_adc_value(19);
+        if (cur_0nA_val == 0 || cur_0nA_val > 3)
+        {
+            calibprintf("\r\nOffset check failed for ampl %u: %u\r\n", 1 << current_cur_mes_mode, cur_0nA_val);
+            calib_passed = FALSE;
+        }
+        else
+        {
+            calibprintf("Offset check passed for ampl %u: %u\r\n", 1 << current_cur_mes_mode, cur_0nA_val);            
+        }
+    }    
+    // Did we pass offset check?
+    if (calib_passed == TRUE)
+    {
+        calibprintf_P(PSTR("\r\nOffset check OK!!!\r\n"));
+    }
+    disable_bias_voltage();
     // TODO: remove the above line and use update_bias_voltage
     
-    
     calibprintf_P(PSTR("\r\nAdjusting for gain...\r\n"));
+    calibprintf_P(PSTR("Insert 1M resistor!\r\n"));
+    _delay_ms(20000);
     uint16_t cur_measure;                                   // Var containing our measured current
     enable_bias_voltage(VBIAS_MIN_V);                       // Enable bias voltage at its minimum
     current_cur_mes_mode = CUR_MES_16X;                     // Calibration starts with max ampl
@@ -363,10 +398,10 @@ void calibrate_cur_mos_0nA(void)
 /*
  * Measure Vup/Vlow of our oscillator as well as our thresholds
  */
-void calibrate_vup_vlow(void)
+void calibrate_thresholds(void)
 {
     calibprintf_P(PSTR("-----------------------\r\n"));
-    calibprintf_P(PSTR("Vup/Vlow calibration\r\n\r\n"));
+    calibprintf_P(PSTR("Threshold calibration\r\n\r\n"));
     
     // Set bias voltage above vcc so Q1 comes into play if there's a cap between the terminals
     disable_feedback_mos();
@@ -375,9 +410,8 @@ void calibrate_vup_vlow(void)
     
     // Leave time for a possible cap to charge
     _delay_ms(1000);
-    setup_opampin_dac(DAC_MIN_VAL);
-    calib_vlow = DAC_MAX_VAL;
-    calib_vup = DAC_MIN_VAL;
+    uint16_t dac_val = DAC_MIN_VAL;
+    setup_opampin_dac(dac_val);
     calib_second_thres_down = 0;
     calib_first_thres_down = 0;
     calib_second_thres_up = 0;
@@ -385,53 +419,47 @@ void calibrate_vup_vlow(void)
     
     // Ramp up, wait for all the toggles
     calibprintf_P(PSTR("\r\nRamping up...\r\n"));
-    while((PORTA_IN & PIN6_bm) != 0)
+    while(dac_val != DAC_MAX_VAL)
     {
-        update_opampin_dac(++calib_vup);
+        update_opampin_dac(++dac_val);
         _delay_us(10);
         // First threshold crossed
         if ((calib_first_thres_down == 0) && ((PORTE_IN & PIN2_bm) == 0))
         {
-            calib_first_thres_down = calib_vup;
+            calib_first_thres_down = dac_val;
         }
         // Second threshold crossed
         if ((calib_second_thres_down == 0) && ((PORTE_IN & PIN3_bm) != 0))
         {
-            calib_second_thres_down = calib_vup;
+            calib_second_thres_down = dac_val;
         }
     }
     
-    calibprintf("Vhigh found: %u, approx %umV\r\n", calib_vup, compute_voltage_from_se_adc_val(calib_vup));
     calibprintf("First thres found: %u, approx %umV\r\n", calib_first_thres_down, compute_voltage_from_se_adc_val(calib_first_thres_down));
     calibprintf("Second thres found: %u, approx %umV\r\n\r\n", calib_second_thres_down, compute_voltage_from_se_adc_val(calib_second_thres_down));
-    update_opampin_dac(calib_vlow);
-    _delay_us(10);
         
     // Ramp low, wait for toggle
     calibprintf_P(PSTR("Ramping down...\r\n"));
-    while((PORTA_IN & PIN6_bm) == 0)
+    while(dac_val != DAC_MIN_VAL)
     {
-        update_opampin_dac(--calib_vlow);
+        update_opampin_dac(--dac_val);
         _delay_us(10);
         // First threshold crossed
         if ((calib_first_thres_up == 0) && ((PORTE_IN & PIN2_bm) != 0))
         {
-            calib_first_thres_up = calib_vlow;
+            calib_first_thres_up = dac_val;
         }
         // Second threshold crossed
         if ((calib_second_thres_up == 0) && ((PORTE_IN & PIN3_bm) == 0))
         {
-            calib_second_thres_up = calib_vlow;
+            calib_second_thres_up = dac_val;
         }
     }
     
-    calibprintf("Vlow found: %u, approx %umV\r\n", calib_vlow, compute_voltage_from_se_adc_val(calib_vlow));
     calibprintf("First thres found: %u, approx %umV\r\n", calib_first_thres_up, compute_voltage_from_se_adc_val(calib_first_thres_up));
     calibprintf("Second thres found: %u, approx %umV\r\n\r\n", calib_second_thres_up, compute_voltage_from_se_adc_val(calib_second_thres_up));
     
-    eeprom_write_word((uint16_t*)CALIB_VUP, calib_vup);
-    eeprom_write_word((uint16_t*)CALIB_VDOWN, calib_vlow);
-    eeprom_write_byte((uint8_t*)CALIB_VUP_VLOW_BOOL, EEPROM_BOOL_OK_VAL);
+    eeprom_write_byte((uint8_t*)CALIB_THRESHOLD_BOOL, EEPROM_BOOL_OK_VAL);
     eeprom_write_word((uint16_t*)CALIB_FIRST_THRES_UP, calib_first_thres_up);
     eeprom_write_word((uint16_t*)CALIB_SECOND_THRES_UP, calib_second_thres_up);
     eeprom_write_word((uint16_t*)CALIB_FIRST_THRES_DOWN, calib_first_thres_down);
@@ -447,6 +475,7 @@ void calibrate_vup_vlow(void)
  */
 void calibrate_opamp_internal_resistance(void)
 {
+    // Obsolete! TODO: update the procedure to ask the user to touch the contacts together to bring IN- to 3.3V.
     uint8_t cur_cal_res_mux = RES_270;    
     measdprintf_P(PSTR("-----------------------\r\n"));
     measdprintf_P(PSTR("Measuring opamp internal resistance\r\n"));
@@ -455,7 +484,7 @@ void calibrate_opamp_internal_resistance(void)
     disable_feedback_mos();                                                             // Disable feedback mosfet
     disable_res_mux();                                                                  // Disable resistor mux
     _delay_ms(10);                                                                      // Wait before test
-    setup_opampin_dac(calib_vup+100);                                                   // Force opamp output to 0 by setting IN- above IN+
+    setup_opampin_dac(DAC_MAX_VAL);                                                     // Force opamp output to 0 by setting IN- below IN+
     opamp_0v_output_no_load = get_averaged_stabilized_adc_value(8, 8, FALSE);           // Run averaging on 128 samples, max 8 lsb peak to peak noise    
     measdprintf("Opamp 0v output: %u, approx %umV\r\n", opamp_0v_output_no_load, compute_voltage_from_se_adc_val(opamp_0v_output_no_load));
     

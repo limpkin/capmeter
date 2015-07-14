@@ -58,8 +58,8 @@ int main(void)
     init_calibration();                             // Init calibration
     enable_interrupts();                            // Enable interrupts
     wait_for_0v_bias();                             // Wait for 0v bias
-    //bias_voltage_test();
-    //calibrate_vup_vlow();                           // Calibrate vup vlow & thresholds
+    //bias_voltage_test();                            // Check accuracy of bias voltages
+    //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
     //calibrate_opamp_internal_resistance();          // Measure the opamp internal resistance (so low it is useless)
     //calibrate_current_measurement();                // Calibrate the ADC for current measurements
@@ -79,25 +79,20 @@ int main(void)
         cur_measure = get_averaged_adc_value(11);
         measdprintf("Quiescent current: %u, approx %u/%unA\r\n", cur_measure, compute_cur_mes_numerator_from_adc_val(cur_measure), 1 << get_configured_adc_ampl());
     }
-    while(1);
+    while(1);*/
     
     // Current mes
     _delay_ms(1000);
-    enable_bias_voltage(3200);
+    enable_bias_voltage(3000);
     while(1)
     {
-        for (uint8_t i = 0; i <= CUR_MES_64X; i++)
+        for (uint8_t i = 0; i <= CUR_MES_16X; i++)
         {
             set_current_measurement_ampl(i);
-            _delay_ms(1000);
-            quiescent_cur_measurement_loop(17);
+            print_compute_r_formula(quiescent_cur_measurement_loop(17));
         }        
     }
-    set_current_measurement_ampl(CUR_MES_16X);
-    while(1)
-    {
-        quiescent_cur_measurement_loop(16);
-    }*/
+    while(1);
     
     // Freq mes
     enable_bias_voltage(999);

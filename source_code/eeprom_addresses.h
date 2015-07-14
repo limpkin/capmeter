@@ -15,7 +15,7 @@
 // Addresses
 #define CALIB_DIFF_OFFS_VAL_START   0       // 0nA offsets for different amplifications
 #define CALIB_DIFF_OFFS_DATA_BOOL   14      // Boolean indicating storage
-#define CALIB_VUP_VLOW_BOOL         15      // Boolean indicating vup vlow & thresholds storage
+#define CALIB_THRESHOLD_BOOL        15      // Boolean indicating thresholds storage
 #define CALIB_VUP                   16      // Opamp vup
 #define CALIB_VDOWN                 18      // Opamp vlow
 #define CALIB_CUR_GAIN_VBIAS        20      // Vbias values for current measurements gain correction computation

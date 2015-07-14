@@ -14,9 +14,12 @@
 #include "measurement.h"
 #include "calibration.h"
 #include "meas_io.h"
+#include "vbias.h"
 #include "main.h"
 #include "dac.h"
 #include "adc.h"
+// Error flag
+volatile uint8_t error_flag = FALSE;
 // Current counter
 volatile uint32_t current_counter;
 // Current aggregate
@@ -37,6 +40,7 @@ uint16_t cur_freq_meas;
 ISR(TCC0_OVF_vect)
 {
     // If we have an overflow, it means we couldn't measure the pulse width :/
+    error_flag = TRUE;
 }
 
 /*
@@ -55,6 +59,7 @@ ISR(TCC0_CCA_vect)
 ISR(TCC1_OVF_vect)
 {
     // If we have an overflow, it means we couldn't measure the pulse width :/
+    error_flag = TRUE;
 }
 
 /*
@@ -66,7 +71,7 @@ ISR(RTC_OVF_vect)
     last_agg = current_agg;             // Copy current aggregate
     last_counter = current_counter;     // Copy current counter
     current_counter = 0;                // Reset counter
-    last_agg = 0;                       // Reset agg
+    current_agg = 0;                    // Reset agg
 }
 
 /*
@@ -213,7 +218,7 @@ uint16_t get_half_val_for_res_mux_define(uint16_t define)
 void print_compute_c_formula(uint32_t nb_ticks)
 {
     // C = 1 / 2 * half_r * freq_measurement * nb_ticks * (ln(3300-Vl/3300-vh) + ln(vh/vl))
-    measdprintf("Formula to compute C: 1 / (2 * %u * %u * %lu * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_half_val_for_res_mux_define(get_cur_res_mux()), get_val_for_freq_define(cur_freq_meas), nb_ticks, compute_voltage_from_se_adc_val(get_calib_vlow()), compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vlow()));
+    //measdprintf("Formula to compute C: 1 / (2 * %u * %u * %lu * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_half_val_for_res_mux_define(get_cur_res_mux()), get_val_for_freq_define(cur_freq_meas), nb_ticks, compute_voltage_from_se_adc_val(get_calib_vlow()), compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vlow()));
     //measdprintf("Formula to compute C: -1 / (2 * %u * %u * %lu * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_half_val_for_res_mux_define(get_cur_res_mux()), get_val_for_freq_define(cur_freq_meas), nb_ticks, compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vlow()), compute_voltage_from_se_adc_val(get_calib_vlow()), compute_voltage_from_se_adc_val(get_calib_vup()));
 }
 
@@ -254,6 +259,44 @@ void disable_current_measurement_mode(void)
 }
 
 /*
+ * Print resistance computation formula
+ * @param   adc     Current ADC val for current measurement
+ */
+void print_compute_r_formula(uint16_t adc_val)
+{    
+    /******************* MATHS *******************/
+    // Vadc = I(A) * 1k * 100 * ampl
+    // Vadc = I(A) * 100k * ampl
+    // I(A) = Vadc / (100k * ampl)
+    // I(A) = Val(ADC) * (1.24 / 2047) / (100k * ampl)
+    // I(A) = Val(ADC) * 1.24 / (204.7M * ampl)
+    // I(nA) = Val(ADC) * 1.24 / (0.2047 * ampl)
+    measdprintf("Measured current in nA: %u * 1.24 / (0.2047 * %u)\r\n", adc_val, 1 << get_configured_adc_ampl());
+    
+    // Depending if we performed the advanced current measurement calibration
+    if (get_advanced_current_calib_done() == TRUE)
+    {                
+        // Correcting for gain
+        // During calibration:
+        // Icalib(nA) * X = Vbiascalib / 1.01
+        // X = Vbiascalib / (1.01 * Icalib(nA))
+        // Corrected result:
+        // I(nA) = Val(ADC) * 1.24 * Vbiascalib / (0.2047 * ampl * 1.01 * Icalib(nA)) 
+        // I(nA) = Val(ADC) * Vbiascalib / (1.01 * Val(ADC)calib)
+        // Final R measurement:
+        // R + 11k = U / I
+        // R = U/I - 11k
+        measdprintf_P(PSTR("Advanced current calibration values available, applying gain correction...\r\n"));
+        measdprintf("Adjusted current in nA: (%u * %u)/(%u * 1.01)\r\n", adc_val, get_vbias_for_gain_correction(get_configured_adc_ampl()), get_adc_cur_value_for_gain_correction(get_configured_adc_ampl()));
+        measdprintf("Resulting R: (%u * %u * 1.01)) / (%u * %u))*1000000 - 11000\r\n", get_last_measured_vbias(), get_adc_cur_value_for_gain_correction(get_configured_adc_ampl()), adc_val, get_vbias_for_gain_correction(get_configured_adc_ampl()));
+    } 
+    else
+    {
+        // TODO
+    }    
+}
+
+/*
  * Our main current measurement loop
  * @param   ampl        Our measurement amplification (see enum_cur_mes_mode_t)
  */
@@ -265,8 +308,6 @@ uint16_t quiescent_cur_measurement_loop(uint8_t avg_bitshift)
         configure_adc_channel(ADC_CHANNEL_CUR, get_configured_adc_ampl(), FALSE);
     }
     
-    uint16_t cur_val = get_averaged_adc_value(avg_bitshift);
-    measdprintf("Quiescent current: %u, approx %u/%unA\r\n", cur_val, compute_cur_mes_numerator_from_adc_val(cur_val), 1 << get_configured_adc_ampl());
-    
+    uint16_t cur_val = get_averaged_adc_value(avg_bitshift);    
     return cur_val;
 }
