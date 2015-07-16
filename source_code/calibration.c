@@ -233,7 +233,7 @@ void calibrate_current_measurement(void)
         set_current_measurement_ampl(current_cur_mes_mode);
         _delay_ms(100);
         cur_0nA_val = get_averaged_adc_value(19);
-        if (cur_0nA_val == 0 || cur_0nA_val > 3)
+        if (cur_0nA_val == 0 || cur_0nA_val > 4)
         {
             calibprintf("\r\nOffset check failed for ampl %u: %u\r\n", 1 << current_cur_mes_mode, cur_0nA_val);
             calib_passed = FALSE;
@@ -350,6 +350,7 @@ void calibrate_single_ended_offset(void)
  */
 void calibrate_cur_mos_0nA(void)
 {
+    uint8_t adv_cur_bool_copy = advanced_current_mes_calib_values_available;
     int16_t cur_0nA_val = INT16_MAX;
     uint8_t cur_ampl = CUR_MES_1X;
     
@@ -357,6 +358,7 @@ void calibrate_cur_mos_0nA(void)
     calibprintf_P(PSTR("Measuring 0nA outputs\r\n"));
     
     // Clear current values
+    advanced_current_mes_calib_values_available = FALSE;
     memset((void*)zero_na_outputs, 0x00, sizeof(zero_na_outputs));
     
     // Set a bias voltage to make sure that nothing is connected between the leads
@@ -390,6 +392,9 @@ void calibrate_cur_mos_0nA(void)
     eeprom_write_block((void*)zero_na_outputs, (void*)CALIB_DIFF_OFFS_VAL_START, sizeof(zero_na_outputs));
     eeprom_write_byte((void*)CALIB_DIFF_OFFS_DATA_BOOL, EEPROM_BOOL_OK_VAL);
     adcprintf(PSTR("Values stored in EEPROM\r\n"));
+    
+    // Restore the boolean value
+    advanced_current_mes_calib_values_available = adv_cur_bool_copy;
     
     disable_current_measurement_mode();
     disable_bias_voltage();

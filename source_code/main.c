@@ -59,10 +59,9 @@ int main(void)
     enable_interrupts();                            // Enable interrupts
     wait_for_0v_bias();                             // Wait for 0v bias
     //bias_voltage_test();                            // Check accuracy of bias voltages
-    //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
-    //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
-    //calibrate_opamp_internal_resistance();          // Measure the opamp internal resistance (so low it is useless)
-    //calibrate_current_measurement();                // Calibrate the ADC for current measurements
+    calibrate_thresholds();                         // Calibrate vup vlow & thresholds
+    calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
+    calibrate_current_measurement();                // Calibrate the ADC for current measurements
     
 /*
     while(1);
@@ -84,7 +83,7 @@ int main(void)
     // Current mes
     _delay_ms(1000);
     enable_bias_voltage(3000);
-    while(1)
+    while(1);
     {
         for (uint8_t i = 0; i <= CUR_MES_16X; i++)
         {

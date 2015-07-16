@@ -264,6 +264,11 @@ void disable_current_measurement_mode(void)
  */
 void print_compute_r_formula(uint16_t adc_val)
 {    
+    if (adc_val >= get_max_value_for_diff_channel(get_configured_adc_ampl())-10)
+    {
+        measdprintf_P(PSTR("ADC val too high, measurement invalid\r\n"));
+        return;
+    }
     /******************* MATHS *******************/
     // Vadc = I(A) * 1k * 100 * ampl
     // Vadc = I(A) * 100k * ampl
