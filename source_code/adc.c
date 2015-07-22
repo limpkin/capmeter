@@ -60,7 +60,7 @@ void set_adc_vbias_channel_clock_divider(uint8_t divider)
 {
     ADCA.PRESCALER = divider;
     
-    #ifdef VBIAS_PRINTF
+    #ifdef ADC_PRINTF
         uint16_t temp = 1 << ((uint16_t)divider + 2);
         adcprintf("ADC Vbias channel clock divider set to %d\r\n", temp);
     #endif

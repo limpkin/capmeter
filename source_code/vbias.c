@@ -91,7 +91,7 @@ void bias_voltage_test(void)
         {
             set_voltage = update_bias_voltage(i);
             _delay_ms(10);
-            correct_voltage = compute_vbias_for_adc_value(get_averaged_adc_value(17));
+            correct_voltage = compute_vbias_for_adc_value(get_averaged_adc_value(16));
             
             if (set_voltage > correct_voltage)
             {
@@ -103,9 +103,9 @@ void bias_voltage_test(void)
             }
             vbiasprintf("Voltage error: %d\r\n", correct_voltage - set_voltage);
         }
-        vbiasprintf_P(PSTR("-----------------------\r\n"));
-        vbiasprintf("Accumulated error for div %u: %d\r\n", 1 << ((uint16_t)div + 2), agg_error);
-        vbiasprintf_P(PSTR("-----------------------\r\n"));
+        printf_P(PSTR("-----------------------\r\n"));
+        printf("Accumulated error for div %u: %d\r\n", 1 << ((uint16_t)div + 2), agg_error);
+        printf_P(PSTR("-----------------------\r\n"));
         disable_bias_voltage();
         _delay_ms(50000);
     }
