@@ -15,6 +15,4 @@ inline void enable_interrupts(void)
     sei();
 }
 
-
-
 #endif /* INTERRUPTS_H_ */

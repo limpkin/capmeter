@@ -57,11 +57,11 @@ int main(void)
     init_ios();                                     // Init IOs
     init_calibration();                             // Init calibration
     enable_interrupts();                            // Enable interrupts
-    wait_for_0v_bias();                             // Wait for 0v bias
-    //bias_voltage_test();                            // Check accuracy of bias voltages
-    calibrate_thresholds();                         // Calibrate vup vlow & thresholds
-    calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
-    calibrate_current_measurement();                // Calibrate the ADC for current measurements
+    bias_voltage_test();                            // Check accuracy of bias voltages
+    while(1);
+    //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
+    //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
+    //calibrate_current_measurement();                // Calibrate the ADC for current measurements
     
 /*
     while(1);

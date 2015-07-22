@@ -73,16 +73,44 @@ uint16_t compute_vbias_for_adc_value(uint16_t adc_val)
  */
 void bias_voltage_test(void)
 {
-    enable_bias_voltage(700);
-    _delay_ms(5000);
-    update_bias_voltage(750);
-    _delay_ms(5000);
-    for (uint16_t i = 800; i <= 15400; i+= 200)
-    {
-        update_bias_voltage(i);
-        _delay_ms(3000);
+    // This is the routine to check that we actually can provide a vbias within +-0.5% specifications
+    // We are running this scenario in the worst case: 270Ohms resistor, ~17uF cap connected
+    // We want to make sure that the oscillations induced to vbias via the capacitor don't
+    // break our vbias setting algorithm.
+    vbiasprintf_P(PSTR("-----------------------\r\n"));
+    vbiasprintf_P(PSTR("Bias Voltage Test\r\n\r\n"));
+    
+    uint16_t set_voltage, correct_voltage, agg_error = 0;
+    set_measurement_mode_io(RES_270);    
+    
+    for (uint8_t div = ADC_PRESCALER_DIV16_gc; div <= ADC_PRESCALER_DIV512_gc; div++)
+    {        
+        set_adc_vbias_channel_clock_divider(div);
+        enable_bias_voltage(900);
+        for (uint16_t i = 1000; i <= 15500; i+= 100)
+        {
+            set_voltage = update_bias_voltage(i);
+            _delay_ms(10);
+            correct_voltage = compute_vbias_for_adc_value(get_averaged_adc_value(17));
+            
+            if (set_voltage > correct_voltage)
+            {
+                agg_error += set_voltage - correct_voltage;
+            }
+            else
+            {
+                agg_error += correct_voltage - set_voltage;
+            }
+            vbiasprintf("Voltage error: %d\r\n", correct_voltage - set_voltage);
+        }
+        vbiasprintf_P(PSTR("-----------------------\r\n"));
+        vbiasprintf("Accumulated error for div %u: %d\r\n", 1 << ((uint16_t)div + 2), agg_error);
+        vbiasprintf_P(PSTR("-----------------------\r\n"));
+        disable_bias_voltage();
+        _delay_ms(50000);
     }
-    disable_bias_voltage();
+    
+    disable_measurement_mode_io();    
 }
 
 /*
@@ -100,11 +128,11 @@ void wait_for_0v_bias(void)
     enable_vbias_quenching();
     while (measured_vbias > 100)
     {
-        measured_vbias = get_averaged_stabilized_adc_value(6, 8, FALSE);
+        measured_vbias = get_averaged_stabilized_adc_value(6, 12, FALSE);
     }
     
     disable_vbias_quenching();
-    vbiasprintf_P(PSTR("Bias voltage at 0.4V\r\n"));    
+    vbiasprintf_P(PSTR("Bias voltage at 0.4V\r\n"));
 }
 
 /*
@@ -146,25 +174,6 @@ uint16_t update_bias_voltage(uint16_t val_mv)
     vbiasprintf("Vbias call for %umV\r\n", val_mv);
     uint16_t measured_vbias;
     uint8_t peak_peak;
-    
-    /******************* MEASUREMENTS *******************/
-    // On fluke45, one set (to be automatized)
-    // 1500mV  => 1506mV   => 0.4%
-    // 2000mV  => 2004mV   => 0.2%
-    // 3000mV  => 3004mV   => 0.13%
-    // 4000mV  => 3996mV   => 0.1%
-    // 5000mV  => 4998mV   => 0.04%
-    // 6000mV  => 5997mV   => 0.05%
-    // 7000mV  => 6998mV   => 0.03%
-    // 8000mV  => 7990mV   => 0.125%
-    // 9000mV  => 8988mV   => 0.13%
-    // 10000mV => 9984mV   => 0.16%
-    // 11000mV => 10983mV  => 0.15%
-    // 12000mV => 11982mV  => 0.15%
-    // 13000mV => 12985mV  => 0.11%
-    // 14000mV => 13980mV  => 0.14%
-    // 15000mV => 14977mV  => 0.15%
-    // Which is quite awesome when you notice than one ADC LSB actually is 4mV!
     
     // Check that the ADC channel remained the same
     if (get_configured_adc_channel() != ADC_CHANNEL_VBIAS)
@@ -244,7 +253,7 @@ uint16_t update_bias_voltage(uint16_t val_mv)
                 // Lots of noise happening under 800mV
                 if (val_mv <= 800)
                 {
-                    peak_peak = 8;
+                    peak_peak = 12;
                 }
                 else
                 {
@@ -258,7 +267,7 @@ uint16_t update_bias_voltage(uint16_t val_mv)
             measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(8, peak_peak, FALSE));
         }
         while ((measured_vbias < val_mv) && (cur_vbias_dac_val != 0));
-    }
+    }  
     
     // Wait before continuing
     _delay_ms(10);     

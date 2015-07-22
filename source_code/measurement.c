@@ -259,12 +259,12 @@ void disable_current_measurement_mode(void)
 }
 
 /*
- * Print resistance computation formula
- * @param   adc     Current ADC val for current measurement
+ * Print current computation formula
+ * @param   adc_val     Current ADC val for current measurement
  */
-void print_compute_r_formula(uint16_t adc_val)
+void print_compute_cur_formula(uint16_t adc_val)
 {    
-    if (adc_val >= get_max_value_for_diff_channel(get_configured_adc_ampl())-10)
+    if (adc_val >= 2047)
     {
         measdprintf_P(PSTR("ADC val too high, measurement invalid\r\n"));
         return;
@@ -276,29 +276,7 @@ void print_compute_r_formula(uint16_t adc_val)
     // I(A) = Val(ADC) * (1.24 / 2047) / (100k * ampl)
     // I(A) = Val(ADC) * 1.24 / (204.7M * ampl)
     // I(nA) = Val(ADC) * 1.24 / (0.2047 * ampl)
-    measdprintf("Measured current in nA: %u * 1.24 / (0.2047 * %u)\r\n", adc_val, 1 << get_configured_adc_ampl());
-    
-    // Depending if we performed the advanced current measurement calibration
-    if (get_advanced_current_calib_done() == TRUE)
-    {                
-        // Correcting for gain
-        // During calibration:
-        // Icalib(nA) * X = Vbiascalib / 1.01
-        // X = Vbiascalib / (1.01 * Icalib(nA))
-        // Corrected result:
-        // I(nA) = Val(ADC) * 1.24 * Vbiascalib / (0.2047 * ampl * 1.01 * Icalib(nA)) 
-        // I(nA) = Val(ADC) * Vbiascalib / (1.01 * Val(ADC)calib)
-        // Final R measurement:
-        // R + 11k = U / I
-        // R = U/I - 11k
-        measdprintf_P(PSTR("Advanced current calibration values available, applying gain correction...\r\n"));
-        measdprintf("Adjusted current in nA: (%u * %u)/(%u * 1.01)\r\n", adc_val, get_vbias_for_gain_correction(get_configured_adc_ampl()), get_adc_cur_value_for_gain_correction(get_configured_adc_ampl()));
-        measdprintf("Resulting R: (%u * %u * 1.01)) / (%u * %u))*1000000 - 11000\r\n", get_last_measured_vbias(), get_adc_cur_value_for_gain_correction(get_configured_adc_ampl()), adc_val, get_vbias_for_gain_correction(get_configured_adc_ampl()));
-    } 
-    else
-    {
-        // TODO
-    }    
+    measdprintf("Measured current in nA: %u * 1.24 / (0.2047 * %u)\r\n", adc_val, 1 << get_configured_adc_ampl()); 
 }
 
 /*
