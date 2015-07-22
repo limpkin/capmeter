@@ -56,7 +56,7 @@ void calibrate_single_ended_offset(void)
     calibprintf_P(PSTR("-----------------------\r\n"));
     calibprintf_P(PSTR("Single Ended Offset Calibration...\r\n\r\n"));
     configure_adc_channel(ADC_CHANNEL_GND_EXT, 0, TRUE);
-    calib_0v_value_se = get_averaged_stabilized_adc_value(13, 13, TRUE);
+    calib_0v_value_se = get_averaged_adc_value(16);
     calibprintf("0V ADC value: %u, approx %umV\r\n", calib_0v_value_se, compute_voltage_from_se_adc_val(calib_0v_value_se));    
 }
 

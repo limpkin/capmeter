@@ -101,7 +101,7 @@ void bias_voltage_test(void)
             {
                 agg_error += correct_voltage - set_voltage;
             }
-            vbiasprintf("Voltage error: %d\r\n", correct_voltage - set_voltage);
+            //printf("Voltage error: %d\r\n", correct_voltage - set_voltage);
         }
         printf_P(PSTR("-----------------------\r\n"));
         printf("Accumulated error for div %u: %d\r\n", 1 << ((uint16_t)div + 2), agg_error);
@@ -110,6 +110,61 @@ void bias_voltage_test(void)
         _delay_ms(50000);
     }
     
+    disable_measurement_mode_io();    
+}
+
+/*
+ * To measure set voltages
+ */
+void bias_voltage_test2(void)
+{
+    // This is the routine to check that we actually can provide a vbias within +-0.5% specifications
+    // We are running this scenario in the worst case: 270Ohms resistor, ~17uF cap connected
+    // We want to make sure that the oscillations induced to vbias via the capacitor don't
+    // break our vbias setting algorithm.
+    vbiasprintf_P(PSTR("-----------------------\r\n"));
+    vbiasprintf_P(PSTR("Bias Voltage Test\r\n\r\n"));
+    
+    set_measurement_mode_io(RES_270);        
+    enable_bias_voltage(900);
+    for (uint16_t i = 1000; i <= 15500; i+= 500)
+    {        
+        for (uint8_t div = ADC_PRESCALER_DIV16_gc; div <= ADC_PRESCALER_DIV512_gc; div++)
+        {
+            set_adc_vbias_channel_clock_divider(div);
+            update_bias_voltage(i);
+            _delay_ms(2000);
+            update_bias_voltage(i - 200);
+        }
+    }
+    
+    disable_bias_voltage();
+    disable_measurement_mode_io();    
+}
+
+/*
+ * To measure set voltages
+ */
+void ramp_bias_voltage_test(void)
+{
+    // This is the routine to check that we actually can provide a vbias within +-0.5% specifications
+    // We are running this scenario in the worst case: 270Ohms resistor, ~17uF cap connected
+    // We want to make sure that the oscillations induced to vbias via the capacitor don't
+    // break our vbias setting algorithm.
+    vbiasprintf_P(PSTR("-----------------------\r\n"));
+    vbiasprintf_P(PSTR("Ramp Voltage Test\r\n\r\n"));
+    
+    set_measurement_mode_io(RES_270);        
+    //enable_bias_voltage(15500);
+    //disable_bias_voltage();
+    enable_bias_voltage(700);
+    for (uint16_t i = 700; i <= 15500; i+= 500)
+    {        
+        update_bias_voltage(i);
+        _delay_ms(2222);
+    }
+    
+    disable_bias_voltage();
     disable_measurement_mode_io();    
 }
 
@@ -137,7 +192,7 @@ void wait_for_0v_bias(void)
 
 /*
  * Enable bias voltage
- * @param   val     bias voltage in mV (min 1250mv, max 15300mV)
+ * @param   val     bias voltage in mV
  * @return  Actual mV value set
  */
 uint16_t enable_bias_voltage(uint16_t val_mv)
@@ -172,6 +227,7 @@ void disable_bias_voltage(void)
 uint16_t update_bias_voltage(uint16_t val_mv)
 {
     vbiasprintf("Vbias call for %umV\r\n", val_mv);
+    uint8_t precise_phase = FALSE;
     uint16_t measured_vbias;
     uint8_t peak_peak;
     
@@ -180,6 +236,9 @@ uint16_t update_bias_voltage(uint16_t val_mv)
     {
         configure_adc_channel(ADC_CHANNEL_VBIAS, 0, FALSE);
     }
+    
+    // Set clock divider to min to quickly reach the target vbias
+    //set_adc_vbias_channel_clock_divider(ADC_PRESCALER_DIV16_gc);
     
     // Check that value isn't too low...
     if (val_mv < VBIAS_MIN_V)
@@ -211,17 +270,12 @@ uint16_t update_bias_voltage(uint16_t val_mv)
         do
         {            
             // Adjust peak-peak depending on how close we are
-            if ((val_mv - measured_vbias) < 300)
+            if (((measured_vbias - val_mv) < 300) && (precise_phase == FALSE))
             {
-                // Lots of noise happening under 800mV
-                if (val_mv <= 800)
-                {
-                    peak_peak = 8;
-                }
-                else
-                {
-                    peak_peak = 0;
-                }
+                // Lower prescaler (not needed)
+                //set_adc_vbias_channel_clock_divider(ADC_PRESCALER_DIV256_gc);
+                precise_phase = TRUE;
+                peak_peak = 11;
             }
             
             // Update DAC, wait and get measured vbias
@@ -246,19 +300,14 @@ uint16_t update_bias_voltage(uint16_t val_mv)
         
         // Our voltage increasing loop (takes 40ms to reach vmax)
         do
-        {            
+        {
             // Adjust peak-peak depending on how close we are
-            if ((measured_vbias - val_mv) < 300)
+            if (((val_mv - measured_vbias) < 100) && (precise_phase == FALSE))
             {
-                // Lots of noise happening under 800mV
-                if (val_mv <= 800)
-                {
-                    peak_peak = 12;
-                }
-                else
-                {
-                    peak_peak = 0;
-                }
+                // Lower prescaler (not needed)
+                //set_adc_vbias_channel_clock_divider(ADC_PRESCALER_DIV256_gc);
+                precise_phase = TRUE;
+                peak_peak = 11;
             }
             
             // Update DAC, wait and get measured vbias
