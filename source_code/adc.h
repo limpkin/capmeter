@@ -10,6 +10,7 @@
 #define ADC_H_
 
 #include "defines.h"
+#include "printf_override.h"
 
 // Debug printf
 #ifdef ADC_PRINTF

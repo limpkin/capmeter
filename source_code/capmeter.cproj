@@ -115,6 +115,12 @@
     <Compile Include="adc.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="automated_testing.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="automated_testing.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="calibration.c">
       <SubType>compile</SubType>
     </Compile>
@@ -152,6 +158,9 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="measurement.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="printf_override.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="serial.c">

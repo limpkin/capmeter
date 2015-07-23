@@ -10,6 +10,7 @@
 #define VBIAS_H_
 
 #include "defines.h"
+#include "printf_override.h"
 
 // Debug printf
 #ifdef VBIAS_PRINTF
@@ -21,11 +22,17 @@
 #endif
 
 // Defines
-#define VBIAS_MIN_DAC_VAL   DAC_MAX_VAL - 66    // Bit less than 700mV
-#define VBIAS_MAX_DAC_VAL   DAC_MIN_VAL         // Around 15440mV
-#define VBIAS_MIN_V         700                 // Min V we can reach for Vbias
-#define STEPUP_ACTIV_V      4300                // Technically 4500mV should work
-#define STEPUP_ACTIV_DAC_V  3070                // Around 4350mV
+#define VBIAS_MIN_DAC_VAL   DAC_MAX_VAL - 66            // Bit less than 700mV
+#define VBIAS_MAX_DAC_VAL   DAC_MIN_VAL                 // Around 15500mV
+#define VBIAS_MIN_V         700                         // Min V we can reach for Vbias
+#define STEPUP_ACTIV_V      4300                        // Technically 4500mV should work
+#define STEPUP_ACTIV_DAC_V  3070                        // Around 4350mV
+#define MV_APPROCH          123                         // When to start fine approach
+#define PEAKPEAK_APPROCH    60                          // Maximum peak peak allowed durring vram (must be < to MV_APPROCH / 2)
+#define PEAKPEAK_FINE       22                          // Maximum peak peak allowed during fine tuning
+#define BIT_AVG_APPROACH    3                           // Bit averaging for approach
+#define BIT_AVG_FINE        9                           // Bit averaging for fine approach
+#define OVERSHOOT_COR_V     1400                        // Overshoot correction voltage threshold
 
 // Prototypes
 uint16_t compute_vbias_for_adc_value(uint16_t adc_val);

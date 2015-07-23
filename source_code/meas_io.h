@@ -10,6 +10,9 @@
 #ifndef IO_H_
 #define IO_H_
 
+#include "defines.h"
+#include "printf_override.h"
+
 // Debug printf
 #ifdef IO_PRINTF
     #define iodprintf   printf

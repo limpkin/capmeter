@@ -294,3 +294,31 @@ uint16_t quiescent_cur_measurement_loop(uint8_t avg_bitshift)
     uint16_t cur_val = get_averaged_adc_value(avg_bitshift);    
     return cur_val;
 }
+
+/*
+ * Ramp voltage and measure the current
+ */
+void ramp_current_test(void)
+{
+    uint16_t cur_measure;
+    
+    vbiasprintf_P(PSTR("-----------------------\r\n"));
+    vbiasprintf_P(PSTR("Ramp Current Test\r\n\r\n"));
+    
+    set_current_measurement_ampl(CUR_MES_1X);
+    enable_bias_voltage(VBIAS_MIN_V);
+    for (uint16_t i = VBIAS_MIN_V; i <= 15500; i+= 100)
+    {
+        update_bias_voltage(i);
+        _delay_ms(10);
+        cur_measure = quiescent_cur_measurement_loop(16);
+        print_compute_cur_formula(cur_measure);
+        if (cur_measure >= 2047)
+        {
+            break;
+        }        
+    }
+    
+    disable_bias_voltage();
+    disable_current_measurement_mode();
+}

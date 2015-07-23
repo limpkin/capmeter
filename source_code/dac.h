@@ -10,6 +10,7 @@
 #define DAC_H_
 
 #include "defines.h"
+#include "printf_override.h"
 
 // Debug printf
 #ifdef DAC_PRINTF

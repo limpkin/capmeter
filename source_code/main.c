@@ -8,6 +8,7 @@
 #include <util/delay.h>
 #include <avr/io.h>
 #include <stdio.h>
+#include "automated_testing.h"
 #include "measurement.h"
 #include "calibration.h"
 #include "interrupts.h"
@@ -57,7 +58,10 @@ int main(void)
     init_ios();                                     // Init IOs
     init_calibration();                             // Init calibration
     enable_interrupts();                            // Enable interrupts
-    ramp_bias_voltage_test();                            // Check accuracy of bias voltages
+    automated_current_testing();
+    //automated_vbias_testing();
+    //ramp_bias_voltage_test();                            // Check accuracy of bias voltages
+    ramp_current_test();
     while(1);
     //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom

@@ -10,6 +10,7 @@
 #define MEASUREMENT_H_
 
 #include "defines.h"
+#include "printf_override.h"
 
 // Debug printf
 #ifdef MEAS_PRINTF
@@ -36,5 +37,6 @@ void print_compute_r_formula(uint16_t adc_val);
 void set_measurement_frequency(uint16_t freq);
 void disable_current_measurement_mode(void);
 void measurement_loop(uint8_t ampl);
+void ramp_current_test(void);
 
 #endif /* MEASUREMENT_H_ */

@@ -10,6 +10,9 @@
 #ifndef SERIAL_H_
 #define SERIAL_H_
 
+#include "defines.h"
+#include "printf_override.h"
+
 // Debug printf
 #ifdef SERIAL_PRINTF
     #define serialdprintf   printf

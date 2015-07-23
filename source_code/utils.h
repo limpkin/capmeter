@@ -10,6 +10,7 @@
 #define UTILS_H_
 
 #include "defines.h"
+#include "printf_override.h"
 
 uint8_t ReadCalibrationByte(uint8_t index);
 

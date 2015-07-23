@@ -10,6 +10,7 @@
 #define CALIBRATION_H_
 
 #include "defines.h"
+#include "printf_override.h"
 
 // Debug printf
 #ifdef CALIB_PRINTF
@@ -21,6 +22,7 @@
 #endif
 
 // Prototypes
+void calibrate_single_ended_offset(void);
 uint16_t get_single_ended_offset(void);
 void init_calibration(void);
 
