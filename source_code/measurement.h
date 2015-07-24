@@ -30,14 +30,14 @@ enum mes_mode_t     {MES_OFF = 0, MES_CONT = 1};
     
 // prototypes
 uint8_t measure_peak_to_peak_on_channel(uint8_t nb_bits, uint8_t channel, uint8_t ampl);
+void set_capacitance_measurement_mode(uint16_t freq, uint8_t counter_divider);
 uint16_t compute_cur_mes_numerator_from_adc_val(uint16_t adc_val);
 uint16_t quiescent_cur_measurement_loop(uint8_t avg_bitshift);
 uint16_t compute_voltage_from_se_adc_val(uint16_t adc_val);
 void set_current_measurement_ampl(uint8_t ampl);
 void print_compute_r_formula(uint16_t adc_val);
-void set_measurement_frequency(uint16_t freq);
 void disable_current_measurement_mode(void);
-void measurement_loop(uint8_t ampl);
 void ramp_current_test(void);
+uint8_t measurement_loop(uint8_t temp);
 
 #endif /* MEASUREMENT_H_ */

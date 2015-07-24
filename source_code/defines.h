@@ -29,7 +29,7 @@ typedef void (*bootloader_f_ptr_type)(void);
 // Calib debug printf
 #define CALIB_PRINTF
 // Vbias debug printf
-//#define VBIAS_PRINTF
+#define VBIAS_PRINTF
 // Tests debug printf
 #define TESTS_PRINTF
 

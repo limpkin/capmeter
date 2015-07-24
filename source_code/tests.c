@@ -38,8 +38,7 @@ void bias_voltage_test(void)
         {
             set_voltage = update_bias_voltage(i);
             _delay_ms(10);
-            correct_voltage = compute_vbias_for_adc_value(get_averaged_adc_value(18));
-            
+            correct_voltage = compute_vbias_for_adc_value(get_averaged_adc_value(18));            
             if (i > correct_voltage)
             {
                 agg_error += i - correct_voltage;

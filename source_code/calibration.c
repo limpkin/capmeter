@@ -41,6 +41,26 @@ uint16_t calib_0v_value_se = 0;
 uint16_t max_voltage = 0;
 
 
+uint16_t get_calib_second_thres_down(void)
+{
+    return calib_second_thres_down;
+}
+
+uint16_t get_calib_first_thres_down(void)
+{
+    return calib_first_thres_down;
+}
+
+uint16_t get_calib_second_thres_up(void)
+{
+    return calib_second_thres_up;
+}
+
+uint16_t get_calib_first_thres_up(void)
+{
+    return calib_first_thres_up;
+}
+
 /*
  * Get ADC value for single ended offset
  * @return  ADC value

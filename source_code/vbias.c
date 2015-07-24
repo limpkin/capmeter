@@ -143,12 +143,8 @@ uint16_t update_bias_voltage(uint16_t val_mv)
     if (val_mv < VBIAS_MIN_V)
     {
         vbiasprintf("Value too low, setting it to %dmV!\r\n", VBIAS_MIN_V);
-        disable_vbias_quenching();
         val_mv = VBIAS_MIN_V;
     }
-    
-    // Apply a load on the power supply
-    //enable_vbias_quenching();
     
     // Ramp up or ramp low depending on currently set vbias
     if (cur_set_vbias_voltage == val_mv)
@@ -221,7 +217,6 @@ uint16_t update_bias_voltage(uint16_t val_mv)
     
     // Wait before continuing
     _delay_ms(10);
-    //disable_vbias_quenching();
     cur_set_vbias_voltage = val_mv;      
     last_measured_vbias = measured_vbias;                           
     vbiasprintf("Vbias set, actual value: %umV\r\n", measured_vbias);

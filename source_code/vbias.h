@@ -33,7 +33,7 @@
 #define BIT_AVG_APPROACH    4                           // Bit averaging for approach
 #define BIT_AVG_FINE        15                          // Bit averaging for fine approach
 #define CONV_DELAY_FINE     5                           // How long we should wait before launching a conversion (ms)
-#define VBIAS_OVERSHOOT_MV  3                           // The overshoot we want (due to the capacitors)
+#define VBIAS_OVERSHOOT_MV  2                           // The overshoot we want (due to the capacitors)
 
 // Prototypes
 uint16_t compute_vbias_for_adc_value(uint16_t adc_val);

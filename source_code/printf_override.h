@@ -9,7 +9,7 @@
 #ifndef PRINTF_OVERRIDE_H_
 #define PRINTF_OVERRIDE_H_
 
-//#define OVERRIDE
+#define OVERRIDE
 #ifdef OVERRIDE
     #undef IO_PRINTF
     #undef SERIAL_PRINTF

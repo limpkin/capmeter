@@ -63,10 +63,10 @@ int main(void)
     //automated_current_testing();
     //automated_vbias_testing();
     //peak_to_peak_adc_noise_measurement_test();
-    bias_voltage_test();
+    //bias_voltage_test();
     //ramp_bias_voltage_test();                            // Check accuracy of bias voltages
     //ramp_current_test();
-    while(1);
+    //while(1);
     //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
     //calibrate_current_measurement();                // Calibrate the ADC for current measurements
@@ -89,25 +89,44 @@ int main(void)
     while(1);*/
     
     // Current mes
-    _delay_ms(1000);
-    enable_bias_voltage(3000);
-    while(1);
-    {
-        for (uint8_t i = 0; i <= CUR_MES_16X; i++)
-        {
-            set_current_measurement_ampl(i);
-            print_compute_r_formula(quiescent_cur_measurement_loop(17));
-        }        
-    }
-    while(1);
+//     _delay_ms(1000);
+//     enable_bias_voltage(3000);
+//     while(1);
+//     {
+//         for (uint8_t i = 0; i <= CUR_MES_16X; i++)
+//         {
+//             set_current_measurement_ampl(i);
+//             print_compute_r_formula(quiescent_cur_measurement_loop(17));
+//         }        
+//     }
+//     while(1);
     
     // Freq mes
-    enable_bias_voltage(999);
-    set_measurement_frequency(FREQ_1HZ);            // Set measurement frequency
-    set_measurement_mode_io(RES_10K);
-    
-    while(1);
+    uint16_t voltage = 1000;
+    uint8_t temp_bool = FALSE;
+    enable_bias_voltage(voltage);
+    set_capacitance_measurement_mode(FREQ_1HZ, TC_CLKSEL_DIV4_gc);
+    set_measurement_mode_io(RES_270);   
+    while(1)
     {
-        measurement_loop(0);
+        if (measurement_loop(temp_bool) == TRUE)
+        {
+            if (temp_bool == TRUE)
+            {
+                temp_bool = FALSE;
+            } 
+            else
+            {
+                disable_feedback_mos();
+                voltage += 250;
+                update_bias_voltage(voltage);
+                if (voltage >= 15000)
+                {
+                    while(1);
+                }
+                enable_feedback_mos();
+                temp_bool = TRUE;
+            }              
+        } 
     }
 }

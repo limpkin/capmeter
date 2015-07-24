@@ -19,6 +19,8 @@
 #include "dac.h"
 #include "adc.h"
 // Error flag
+volatile uint8_t error_flag2 = FALSE;
+// Error flag
 volatile uint8_t error_flag = FALSE;
 // Current counter
 volatile uint32_t current_counter;
@@ -30,6 +32,8 @@ volatile uint32_t last_counter;
 volatile uint32_t last_agg;
 // New measurement value
 volatile uint8_t new_val_flag;
+// Current counter divider
+uint8_t cur_counter_divider;
 // Current measurement frequency
 uint16_t cur_freq_meas;
 
@@ -59,7 +63,7 @@ ISR(TCC0_CCA_vect)
 ISR(TCC1_OVF_vect)
 {
     // If we have an overflow, it means we couldn't measure the pulse width :/
-    error_flag = TRUE;
+    error_flag2 = TRUE;
 }
 
 /*
@@ -114,12 +118,14 @@ uint16_t compute_voltage_from_se_adc_val(uint16_t adc_val)
 }
 
 /*
- * Set the frequency at which we will perform the measurements
- * @param   freq     the frequency (see mes_freq_t)
+ * Set capacitance measurement mode
+ * @param   freq                the frequency (see mes_freq_t)
+ * @param   counter_divider     The TCCx counter divider (TC_CLKSEL_DIV2_gc etc)
  */
-void set_measurement_frequency(uint16_t freq)
+void set_capacitance_measurement_mode(uint16_t freq, uint8_t counter_divider)
 {    
     cur_freq_meas = freq;
+    cur_counter_divider = counter_divider;
     // RTC: set period depending on measurement freq
     RTC.PER = freq;                                                 // Set correct RTC timer freq
     RTC.CTRL = RTC_PRESCALER_DIV1_gc;                               // Keep the 32kHz base clock for the RTC
@@ -140,16 +146,14 @@ void set_measurement_frequency(uint16_t freq)
     // TC0: pulse width capture of AN1_COMPOUT
     TCC0.CTRLB = TC0_CCAEN_bm;                                      // Enable compare A on TCC0
     TCC0.CTRLD = TC_EVACT_PW_gc | TC_EVSEL_CH2_gc;                  // Pulse width capture on event line 2 (AN1_COMPOUT)
-    TCC0.PER = 0xFFFF;                                              // Set period to max
-    TCC0.CTRLA = TC_CLKSEL_DIV1_gc;                                 // Use 32MHz as frequency input
     TCC0.INTCTRLA = TC_OVFINTLVL_HI_gc;                             // Overflow interrupt
     TCC0.INTCTRLB = TC_CCAINTLVL_HI_gc;                             // High level interrupt on capture
+    TCC0.CTRLA = counter_divider;                                   // Set correct counter divider
     // TC1: pulse width capture of AN2_COMPOUT
     TCC1.CTRLB = TC1_CCAEN_bm;                                      // Enable compare A on TCC1
     TCC1.CTRLD = TC_EVACT_PW_gc | TC_EVSEL_CH3_gc;                  // Pulse width capture on event line 3 (AN2_COMPOUT)
-    TCC1.PER = 0xFFFF;                                              // Set period to max
-    TCC1.CTRLA = TC_CLKSEL_DIV1_gc;                                 // Use 32MHz as frequency input
     TCC1.INTCTRLA = TC_OVFINTLVL_HI_gc;                             // Overflow interrupt
+    TCC1.CTRLA = counter_divider;                                   // Set correct counter divider
     
     switch(freq)
     {
@@ -195,6 +199,26 @@ uint16_t get_val_for_freq_define(uint16_t define)
 }
 
 /*
+ * Get value for counter divider
+ * @param   divider  The divider
+ * @return  the value
+ */
+uint16_t get_val_for_counter_divider(uint8_t divider)
+{
+    switch(divider)
+    {
+        case TC_CLKSEL_DIV1_gc : return 1;
+        case TC_CLKSEL_DIV2_gc : return 2;
+        case TC_CLKSEL_DIV4_gc : return 4;
+        case TC_CLKSEL_DIV8_gc : return 8;
+        case TC_CLKSEL_DIV64_gc : return 64;
+        case TC_CLKSEL_DIV256_gc : return 256;
+        case TC_CLKSEL_DIV1024_gc : return 1024;
+    }
+    return 0;
+}
+
+/*
  * Get value for res mux measurement define
  * @param   define  The define
  * @return  the value divided by two
@@ -212,29 +236,44 @@ uint16_t get_half_val_for_res_mux_define(uint16_t define)
 }
 
 /*
- * Print the formulate to compute the capacitance
- * @param   nb_ticks     Number of ticks
+ * Print the formula to compute the capacitance
  */
-void print_compute_c_formula(uint32_t nb_ticks)
+void print_compute_c_formula(uint32_t aggregate, uint32_t counter)
 {
-    // C = 1 / 2 * half_r * freq_measurement * nb_ticks * (ln(3300-Vl/3300-vh) + ln(vh/vl))
-    //measdprintf("Formula to compute C: 1 / (2 * %u * %u * %lu * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_half_val_for_res_mux_define(get_cur_res_mux()), get_val_for_freq_define(cur_freq_meas), nb_ticks, compute_voltage_from_se_adc_val(get_calib_vlow()), compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vlow()));
-    //measdprintf("Formula to compute C: -1 / (2 * %u * %u * %lu * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_half_val_for_res_mux_define(get_cur_res_mux()), get_val_for_freq_define(cur_freq_meas), nb_ticks, compute_voltage_from_se_adc_val(get_calib_vup()), compute_voltage_from_se_adc_val(get_calib_vlow()), compute_voltage_from_se_adc_val(get_calib_vlow()), compute_voltage_from_se_adc_val(get_calib_vup()));
+    // C = T / 2 * half_r * (ln(3300-Vl/3300-vh) + ln(vh/vl))
+    // C = counter divider * aggregate / 32M * counter * 2 * half_r * (ln(3300-Vl/3300-vh) + ln(vh/vl))
+    printf("(%u * %lu) / (32000000 * %lu * 2 * %u * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_val_for_counter_divider(cur_counter_divider), aggregate, counter, get_half_val_for_res_mux_define(get_cur_res_mux()), compute_voltage_from_se_adc_val(get_calib_first_thres_down()), compute_voltage_from_se_adc_val(get_calib_second_thres_down()), compute_voltage_from_se_adc_val(get_calib_second_thres_down()), compute_voltage_from_se_adc_val(get_calib_first_thres_down()));
 }
 
 /*
  * Our main measurement loop
- * @param   mes_mode     Our measurement mode (see enum_mes_mode_t)
  */
-void measurement_loop(uint8_t ampl)
+uint8_t measurement_loop(uint8_t temp)
 {
     // If we received a new measurement
+    if (error_flag == TRUE)
+    {
+        error_flag = FALSE;
+        measdprintf_P(PSTR("ERR\r\n"));
+    }
+    if (error_flag2 == TRUE)
+    {
+        error_flag2 = FALSE;
+        measdprintf_P(PSTR("ERR2\r\n"));
+    }    
     if (new_val_flag == TRUE)
     {
         new_val_flag = FALSE;
-        print_compute_c_formula(last_agg);
-        //measdprintf("%lu\r\n", last_measured_value);
+        //measdprintf_P(PSTR("."));
+        //measdprintf("agg: %lu, counter: %lu\r\n", last_agg, last_counter);
+        if (temp == FALSE)
+        {
+            print_compute_c_formula(last_agg, last_counter);
+        }        
+        return TRUE;
+        //print_compute_c_formula(last_agg);
     }
+    return FALSE;
 }
 
 /*
