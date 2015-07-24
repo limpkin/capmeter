@@ -9,6 +9,7 @@
 #include <string.h>
 #include <avr/io.h>
 #include <stdio.h>
+#include "calibration.h"
 #include "meas_io.h"
 #include "vbias.h"
 #include "dac.h"
@@ -69,107 +70,6 @@ uint16_t compute_vbias_for_adc_value(uint16_t adc_val)
 }
 
 /*
- * To measure set voltages
- */
-void bias_voltage_test(void)
-{
-    // This is the routine to check that we actually can provide a vbias within +-0.5% specifications
-    // We are running this scenario in the worst case: 270Ohms resistor, ~17uF cap connected
-    // We want to make sure that the oscillations induced to vbias via the capacitor don't
-    // break our vbias setting algorithm.
-    vbiasprintf_P(PSTR("-----------------------\r\n"));
-    vbiasprintf_P(PSTR("Bias Voltage Test\r\n\r\n"));
-    
-    uint16_t set_voltage, correct_voltage, agg_error = 0;
-    set_measurement_mode_io(RES_270);    
-    
-    for (uint8_t div = ADC_PRESCALER_DIV16_gc; div <= ADC_PRESCALER_DIV512_gc; div++)
-    {        
-        set_adc_vbias_channel_clock_divider(div);
-        enable_bias_voltage(VBIAS_MIN_V);
-        for (uint16_t i = VBIAS_MIN_V; i <= 15500; i+= 100)
-        {
-            set_voltage = update_bias_voltage(i);
-            _delay_ms(10);
-            correct_voltage = compute_vbias_for_adc_value(get_averaged_adc_value(16));
-            
-            if (set_voltage > correct_voltage)
-            {
-                agg_error += set_voltage - correct_voltage;
-            }
-            else
-            {
-                agg_error += correct_voltage - set_voltage;
-            }
-            //printf("Voltage error: %d\r\n", correct_voltage - set_voltage);
-        }
-        printf_P(PSTR("-----------------------\r\n"));
-        printf("Accumulated error for div %u: %d\r\n", 1 << ((uint16_t)div + 2), agg_error);
-        printf_P(PSTR("-----------------------\r\n"));
-        disable_bias_voltage();
-        _delay_ms(50000);
-    }
-    
-    disable_measurement_mode_io();    
-}
-
-/*
- * To measure set voltages
- */
-void bias_voltage_test2(void)
-{
-    // This is the routine to check that we actually can provide a vbias within +-0.5% specifications
-    // We are running this scenario in the worst case: 270Ohms resistor, ~17uF cap connected
-    // We want to make sure that the oscillations induced to vbias via the capacitor don't
-    // break our vbias setting algorithm.
-    vbiasprintf_P(PSTR("-----------------------\r\n"));
-    vbiasprintf_P(PSTR("Bias Voltage Test\r\n\r\n"));
-    
-    set_measurement_mode_io(RES_270);        
-    enable_bias_voltage(VBIAS_MIN_V);
-    for (uint16_t i = VBIAS_MIN_V; i <= 15500; i+= 100)
-    {        
-        for (uint8_t div = ADC_PRESCALER_DIV16_gc; div <= ADC_PRESCALER_DIV512_gc; div++)
-        {
-            set_adc_vbias_channel_clock_divider(div);
-            update_bias_voltage(i);
-            _delay_ms(2000);
-            update_bias_voltage(i - 200);
-        }
-    }
-    
-    disable_bias_voltage();
-    disable_measurement_mode_io();    
-}
-
-/*
- * To measure set voltages
- */
-void ramp_bias_voltage_test(void)
-{
-    // This is the routine to check that we actually can provide a vbias within +-0.5% specifications
-    // We are running this scenario in the worst case: 270Ohms resistor, ~17uF cap connected
-    // We want to make sure that the oscillations induced to vbias via the capacitor don't
-    // break our vbias setting algorithm.
-    vbiasprintf_P(PSTR("-----------------------\r\n"));
-    vbiasprintf_P(PSTR("Ramp Voltage Test\r\n\r\n"));
-    
-    set_measurement_mode_io(RES_10K);        
-    enable_bias_voltage(15500);
-    _delay_ms(5000);
-    disable_bias_voltage();
-    enable_bias_voltage(VBIAS_MIN_V);
-    for (uint16_t i = VBIAS_MIN_V; i <= 15500; i+= 100)
-    {        
-        update_bias_voltage(i);
-        _delay_ms(2222);
-    }
-    
-    disable_bias_voltage();
-    disable_measurement_mode_io();    
-}
-
-/*
  * Wait for 0v bias
  */
 void wait_for_0v_bias(void)
@@ -204,7 +104,7 @@ uint16_t enable_bias_voltage(uint16_t val_mv)
     configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);  // Enable ADC for vbias monitoring
     setup_vbias_dac(cur_vbias_dac_val);                 // Start with lowest voltage possible
     enable_ldo();                                       // Enable ldo
-    _delay_ms(100);                                     // Soft start wait
+    _delay_ms(200);                                     // Soft start wait
     return update_bias_voltage(val_mv);                 // Return the actual voltage that was set
 }
 
@@ -243,8 +143,12 @@ uint16_t update_bias_voltage(uint16_t val_mv)
     if (val_mv < VBIAS_MIN_V)
     {
         vbiasprintf("Value too low, setting it to %dmV!\r\n", VBIAS_MIN_V);
+        disable_vbias_quenching();
         val_mv = VBIAS_MIN_V;
     }
+    
+    // Apply a load on the power supply
+    //enable_vbias_quenching();
     
     // Ramp up or ramp low depending on currently set vbias
     if (cur_set_vbias_voltage == val_mv)
@@ -262,7 +166,6 @@ uint16_t update_bias_voltage(uint16_t val_mv)
         }
         
         // Our voltage decreasing loop
-        enable_vbias_quenching();
         do
         {            
             // Adjust peak-peak depending on how close we are
@@ -279,14 +182,6 @@ uint16_t update_bias_voltage(uint16_t val_mv)
             measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(bit_avg, peak_peak, FALSE));
         }
         while ((measured_vbias > val_mv) && (cur_vbias_dac_val != DAC_MAX_VAL));
-        disable_vbias_quenching();
-        
-        // To remove maybe: decrease voltage a bit to compensate for overshoot
-        if (val_mv > OVERSHOOT_COR_V)
-        {
-            update_vbias_dac(++cur_vbias_dac_val);
-            measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(bit_avg, peak_peak, FALSE));
-        }
     } 
     else
     {        
@@ -297,34 +192,36 @@ uint16_t update_bias_voltage(uint16_t val_mv)
             _delay_ms(10);                                      // Step up start takes around 1.5ms (oscilloscope)
         }
         
-        // Our voltage increasing loop (takes 40ms to reach vmax)
+        // Our voltage increasing loop (takes 200ms to reach vmax)
         do
         {
             // Adjust peak-peak & averaging depending on how close we are
             if (((val_mv - measured_vbias) < MV_APPROCH) && (precise_phase == FALSE))
             {
-                peak_peak = PEAKPEAK_FINE;
-                bit_avg = BIT_AVG_FINE;
                 precise_phase = TRUE;
             }
             
             // Update DAC, wait and get measured vbias
             update_vbias_dac(--cur_vbias_dac_val);
-            _delay_us(20);
-            measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(bit_avg, peak_peak, FALSE));
+            _delay_us(10);
+            if (precise_phase == FALSE)
+            {
+                // During approach phase we use the peak-peak to make sure we don't miss the fine approach
+                measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(BIT_AVG_APPROACH, PEAKPEAK_APPROCH, FALSE));
+            } 
+            else
+            {
+                _delay_ms(CONV_DELAY_FINE);
+                // During fine approach we use averaging
+                measured_vbias = compute_vbias_for_adc_value(get_averaged_adc_value(BIT_AVG_FINE));
+            }            
         }
-        while ((measured_vbias < val_mv) && (cur_vbias_dac_val != 0));
-        
-        // To remove maybe: increase voltage a bit to compensate for overshoot
-        if (val_mv > OVERSHOOT_COR_V)
-        {
-            update_vbias_dac(--cur_vbias_dac_val);
-            measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(bit_avg, peak_peak, FALSE));
-        }        
+        while ((measured_vbias < val_mv - VBIAS_OVERSHOOT_MV) && (cur_vbias_dac_val != 0));       
     }  
     
     // Wait before continuing
-    _delay_ms(10);     
+    _delay_ms(10);
+    //disable_vbias_quenching();
     cur_set_vbias_voltage = val_mv;      
     last_measured_vbias = measured_vbias;                           
     vbiasprintf("Vbias set, actual value: %umV\r\n", measured_vbias);

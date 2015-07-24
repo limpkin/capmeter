@@ -24,6 +24,7 @@
 // Prototypes
 void calibrate_single_ended_offset(void);
 uint16_t get_single_ended_offset(void);
+uint16_t get_max_vbias_voltage(void);
 void init_calibration(void);
 
 #endif /* CALIBRATION_H_ */

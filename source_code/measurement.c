@@ -281,7 +281,7 @@ void print_compute_cur_formula(uint16_t adc_val)
 
 /*
  * Our main current measurement loop
- * @param   ampl        Our measurement amplification (see enum_cur_mes_mode_t)
+ * @param   avg_bitshift    Bit shift for averaging
  */
 uint16_t quiescent_cur_measurement_loop(uint8_t avg_bitshift)
 {    
@@ -302,12 +302,12 @@ void ramp_current_test(void)
 {
     uint16_t cur_measure;
     
-    vbiasprintf_P(PSTR("-----------------------\r\n"));
-    vbiasprintf_P(PSTR("Ramp Current Test\r\n\r\n"));
+    measdprintf_P(PSTR("-----------------------\r\n"));
+    measdprintf_P(PSTR("Ramp Current Test\r\n\r\n"));
     
     set_current_measurement_ampl(CUR_MES_1X);
     enable_bias_voltage(VBIAS_MIN_V);
-    for (uint16_t i = VBIAS_MIN_V; i <= 15500; i+= 100)
+    for (uint16_t i = VBIAS_MIN_V; i <= get_max_vbias_voltage(); i+= 50)
     {
         update_bias_voltage(i);
         _delay_ms(10);
@@ -321,4 +321,46 @@ void ramp_current_test(void)
     
     disable_bias_voltage();
     disable_current_measurement_mode();
+}
+
+/*
+ * Measure the peak to peak noise on a given channel
+ * @param   nb_bits   Bit shift for the number of samples
+ * @param   channel   The channel
+ * @param   ampl      The amplification
+ * @return  the peak to peak
+ */
+uint8_t measure_peak_to_peak_on_channel(uint8_t nb_bits, uint8_t channel, uint8_t ampl)
+{
+    int16_t min_val = 0, max_val = 0, temp_val;
+    
+    measdprintf_P(PSTR("-----------------------\r\n"));
+    measdprintf_P(PSTR("Measuring peak to peak noise\r\n\r\n"));
+    configure_adc_channel(channel, ampl, TRUE);
+    
+    for (uint16_t i = 0; i < (1 << (uint16_t)nb_bits); i++)
+    {
+        // Get one val
+        temp_val = start_and_wait_for_adc_conversion();
+        
+        // If it is the first iteration
+        if (i == 0)
+        {
+            min_val = temp_val;
+            max_val = temp_val;
+        }
+        
+        // Check min/max
+        if (temp_val > max_val)
+        {
+            max_val = temp_val;
+        }
+        else if (temp_val < min_val)
+        {
+            min_val = temp_val;
+        }
+    }
+    
+    measdprintf("Peak to peak on %u samples found : %u\r\n", (1 << (uint16_t)nb_bits), max_val - min_val);
+    return (max_val - min_val);
 }

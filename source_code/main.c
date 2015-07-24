@@ -16,6 +16,7 @@
 #include "serial.h"
 #include "utils.h"
 #include "vbias.h"
+#include "tests.h"
 #include "dac.h"
 #include "adc.h"
 // Define the bootloader function
@@ -58,10 +59,13 @@ int main(void)
     init_ios();                                     // Init IOs
     init_calibration();                             // Init calibration
     enable_interrupts();                            // Enable interrupts
-    automated_current_testing();
+    //enable_bias_voltage(850);while(1);
+    //automated_current_testing();
     //automated_vbias_testing();
+    //peak_to_peak_adc_noise_measurement_test();
+    bias_voltage_test();
     //ramp_bias_voltage_test();                            // Check accuracy of bias voltages
-    ramp_current_test();
+    //ramp_current_test();
     while(1);
     //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom

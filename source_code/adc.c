@@ -101,7 +101,7 @@ void configure_adc_channel(uint8_t channel, uint8_t ampl, uint8_t debug)
     {
         ADCA.CTRLB = 0;                                                             // No current limit, high impedance, unsigned mode, 12-bit right adjusted
         ADCA.REFCTRL = ADC_REFSEL_AREFB_gc;                                         // External 1.24V ref
-        ADCA.PRESCALER = ADC_PRESCALER_DIV256_gc;                                   // Divide clock by 256, resulting in fadc of 125Hz (best accuracy)
+        ADCA.PRESCALER = ADC_PRESCALER_DIV16_gc;                                   // Divide clock by 256, resulting in fadc of 125Hz (best accuracy)
         ADCA.CH0.CTRL = ADC_CH_GAIN_1X_gc | ADC_CH_INPUTMODE_SINGLEENDED_gc;        // Single ended input, no gain
         ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN7_gc;                                   // Channel 7
         PORTA.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;                                 // Disable digital input buffer
@@ -269,7 +269,7 @@ uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint16_t max_p
             // Check current peak to peak, leave loop
             if ((max_val - min_val) > max_pp)
             {
-                //adcprintf("%u ", (max_val - min_val));
+                //adcprintf("%04u|%04u ", i, (max_val - min_val));
                 break;
             }
         }

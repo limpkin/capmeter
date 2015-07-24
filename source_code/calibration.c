@@ -37,6 +37,8 @@ uint16_t calib_second_thres_up;
 uint16_t calib_first_thres_up;
 // Single ended measurement offset
 uint16_t calib_0v_value_se = 0;
+// Maximum voltage that can be generated
+uint16_t max_voltage = 0;
 
 
 /*
@@ -46,6 +48,15 @@ uint16_t calib_0v_value_se = 0;
 uint16_t get_single_ended_offset(void)
 {
     return calib_0v_value_se;
+}
+
+/*
+ * Get the max voltage we can generate
+ * @return  the voltage
+ */
+uint16_t get_max_vbias_voltage(void)
+{
+    return max_voltage;
 }
 
 /*
@@ -144,5 +155,12 @@ void init_calibration(void)
     wait_for_0v_bias();
     
     // Calibrate thresholds
-    //calibrate_thresholds();
+    calibrate_thresholds();
+    
+    // Find max voltage
+    calibprintf_P(PSTR("-----------------------\r\n"));
+    calibprintf_P(PSTR("Max Voltage Measure\r\n\r\n"));
+    max_voltage = enable_bias_voltage(33333);
+    disable_bias_voltage();
+    calibprintf("Max voltage found: %dmV\r\n", max_voltage);
 }

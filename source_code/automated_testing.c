@@ -38,7 +38,7 @@ void automated_vbias_testing(void)
         for (uint16_t added_v = 0; (added_v < 100) && (restart == FALSE); added_v++)
         {
             enable_bias_voltage(VBIAS_MIN_V);
-            for (uint16_t main_v = VBIAS_MIN_V; (main_v <= 15500) && (restart == FALSE); main_v+=100)
+            for (uint16_t main_v = VBIAS_MIN_V; (main_v <= get_max_vbias_voltage()) && (restart == FALSE); main_v+=100)
             {
                 update_bias_voltage(main_v + added_v);
                 printf("%d\r\n", main_v + added_v);

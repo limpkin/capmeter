@@ -29,6 +29,7 @@ enum cur_mes_mode_t {CUR_MES_1X = 0, CUR_MES_2X = 1, CUR_MES_4X = 2, CUR_MES_8X 
 enum mes_mode_t     {MES_OFF = 0, MES_CONT = 1};
     
 // prototypes
+uint8_t measure_peak_to_peak_on_channel(uint8_t nb_bits, uint8_t channel, uint8_t ampl);
 uint16_t compute_cur_mes_numerator_from_adc_val(uint16_t adc_val);
 uint16_t quiescent_cur_measurement_loop(uint8_t avg_bitshift);
 uint16_t compute_voltage_from_se_adc_val(uint16_t adc_val);

@@ -169,6 +169,12 @@
     <Compile Include="serial.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="tests.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="tests.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="utils.c">
       <SubType>compile</SubType>
     </Compile>
