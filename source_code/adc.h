@@ -34,10 +34,10 @@ enum adc_channel_t     {ADC_CHANNEL_COMPOUT = 0, ADC_CHANNEL_VBIAS = 1, ADC_CHAN
 
 // prototypes
 uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint16_t max_pp, uint8_t debug);
+uint8_t measure_peak_to_peak_on_channel(uint8_t nb_bits, uint8_t channel, uint8_t ampl);
 void configure_adc_channel(uint8_t channel, uint8_t ampl, uint8_t debug);
-void set_adc_vbias_channel_clock_divider(uint8_t divider);
 uint16_t get_averaged_adc_value(uint8_t avg_bit_shift);
-int16_t start_and_wait_for_adc_conversion(void);
+void disable_adc_channel(uint8_t channel);
 uint8_t get_configured_adc_channel(void);
 uint8_t get_configured_adc_ampl(void);
 void init_adc(void);

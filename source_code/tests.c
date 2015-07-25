@@ -6,14 +6,15 @@
  */ 
 #include <avr/pgmspace.h>
 #include <util/delay.h>
-#include <string.h>
 #include <avr/io.h>
+#include <string.h>
 #include <stdio.h>
-#include "measurement.h"
+#include "conversions.h"
 #include "calibration.h"
+#include "measurement.h"
 #include "meas_io.h"
 #include "vbias.h"
-#include "dac.h"
+#include "tests.h"
 #include "adc.h"
 
 /*
@@ -25,8 +26,8 @@ void bias_voltage_test(void)
     // We are running this scenario in the worst case: 270Ohms resistor, ~17uF cap connected
     // We want to make sure that the oscillations induced to vbias via the capacitor don't
     // break our vbias setting algorithm.
-    vbiasprintf_P(PSTR("-----------------------\r\n"));
-    vbiasprintf_P(PSTR("Bias Voltage Test\r\n\r\n"));
+    testprintf_P(PSTR("-----------------------\r\n"));
+    testprintf_P(PSTR("Bias Voltage Test\r\n\r\n"));
     
     uint16_t set_voltage, correct_voltage, agg_error = 0;
     
@@ -47,43 +48,14 @@ void bias_voltage_test(void)
             {
                 agg_error += correct_voltage - i;
             }
-            printf("Call: %u, Set: %u, Measured: %u, Error Set: %d, Error Measured: %d\r\n", i, set_voltage, correct_voltage, correct_voltage - set_voltage, correct_voltage - i);
+            testprintf("Call: %u, Set: %u, Measured: %u, Error Set: %d, Error Measured: %d\r\n", i, set_voltage, correct_voltage, correct_voltage - set_voltage, correct_voltage - i);
         }
-        printf_P(PSTR("-----------------------\r\n"));
-        printf("Accumulated error for div %u: %d\r\n", 1 << ((uint16_t)div + 2), agg_error);
-        printf_P(PSTR("-----------------------\r\n"));
+        testprintf_P(PSTR("-----------------------\r\n"));
+        testprintf("Accumulated error for div %u: %d\r\n", 1 << ((uint16_t)div + 2), agg_error);
+        testprintf_P(PSTR("-----------------------\r\n"));
         disable_bias_voltage();
         _delay_ms(50000);
     } 
-}
-
-/*
- * To measure set voltages
- */
-void bias_voltage_test2(void)
-{
-    // This is the routine to check that we actually can provide a vbias within +-0.5% specifications
-    // We are running this scenario in the worst case: 270Ohms resistor, ~17uF cap connected
-    // We want to make sure that the oscillations induced to vbias via the capacitor don't
-    // break our vbias setting algorithm.
-    vbiasprintf_P(PSTR("-----------------------\r\n"));
-    vbiasprintf_P(PSTR("Bias Voltage Test\r\n\r\n"));
-    
-    set_measurement_mode_io(RES_270);        
-    enable_bias_voltage(VBIAS_MIN_V);
-    for (uint16_t i = VBIAS_MIN_V; i <= get_max_vbias_voltage(); i+= 100)
-    {        
-        for (uint8_t div = ADC_PRESCALER_DIV16_gc; div <= ADC_PRESCALER_DIV512_gc; div++)
-        {
-            set_adc_vbias_channel_clock_divider(div);
-            update_bias_voltage(i);
-            _delay_ms(2000);
-            update_bias_voltage(i - 200);
-        }
-    }
-    
-    disable_bias_voltage();
-    disable_measurement_mode_io();    
 }
 
 /*
@@ -95,8 +67,8 @@ void ramp_bias_voltage_test(void)
     // We are running this scenario in the worst case: 270Ohms resistor, ~17uF cap connected
     // We want to make sure that the oscillations induced to vbias via the capacitor don't
     // break our vbias setting algorithm.
-    vbiasprintf_P(PSTR("-----------------------\r\n"));
-    vbiasprintf_P(PSTR("Ramp Voltage Test\r\n\r\n"));
+    testprintf_P(PSTR("-----------------------\r\n"));
+    testprintf_P(PSTR("Ramp Voltage Test\r\n\r\n"));
     
     //set_measurement_mode_io(RES_10K);        
     enable_bias_voltage(15000);
@@ -124,4 +96,32 @@ void peak_to_peak_adc_noise_measurement_test(void)
     }
     
     disable_bias_voltage();
+}
+
+/*
+ * Ramp voltage and measure the current
+ */
+void ramp_current_test(void)
+{
+    uint16_t cur_measure;
+    
+    testprintf_P(PSTR("-----------------------\r\n"));
+    testprintf_P(PSTR("Ramp Current Test\r\n\r\n"));
+    
+    set_current_measurement_mode(CUR_MES_1X);
+    enable_bias_voltage(VBIAS_MIN_V);
+    for (uint16_t i = VBIAS_MIN_V; i <= get_max_vbias_voltage(); i+= 50)
+    {
+        update_bias_voltage(i);
+        _delay_ms(10);
+        cur_measure = cur_measurement_loop(16);
+        print_compute_cur_formula(cur_measure);
+        if (cur_measure >= 2047)
+        {
+            break;
+        }        
+    }
+    
+    disable_bias_voltage();
+    disable_current_measurement_mode();
 }

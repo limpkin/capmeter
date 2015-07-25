@@ -5,13 +5,11 @@
  *  Author: limpkin
  */
 #include <avr/pgmspace.h>
-#include <avr/eeprom.h>
 #include <util/delay.h>
-#include <string.h>
 #include <avr/io.h>
+#include <string.h>
 #include <stdio.h>
-#include "eeprom_addresses.h"
-#include "measurement.h"
+#include "conversions.h"
 #include "calibration.h"
 #include "meas_io.h"
 #include "vbias.h"
@@ -41,21 +39,37 @@ uint16_t calib_0v_value_se = 0;
 uint16_t max_voltage = 0;
 
 
+/*
+ * Get calibrated second threshold, ramping up
+ * @return  DAC value
+ */
 uint16_t get_calib_second_thres_down(void)
 {
     return calib_second_thres_down;
 }
 
+/*
+ * Get calibrated first threshold, ramping up
+ * @return  DAC value
+ */
 uint16_t get_calib_first_thres_down(void)
 {
     return calib_first_thres_down;
 }
 
+/*
+ * Get calibrated second threshold, ramping down
+ * @return  DAC value
+ */
 uint16_t get_calib_second_thres_up(void)
 {
     return calib_second_thres_up;
 }
 
+/*
+ * Get calibrated first threshold, ramping down
+ * @return  DAC value
+ */
 uint16_t get_calib_first_thres_up(void)
 {
     return calib_first_thres_up;

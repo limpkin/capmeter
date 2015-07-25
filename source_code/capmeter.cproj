@@ -127,6 +127,12 @@
     <Compile Include="calibration.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="conversions.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="conversions.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="dac.c">
       <SubType>compile</SubType>
     </Compile>

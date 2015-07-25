@@ -109,7 +109,7 @@ int main(void)
     set_measurement_mode_io(RES_270);   
     while(1)
     {
-        if (measurement_loop(temp_bool) == TRUE)
+        if (cap_measurement_loop(temp_bool) == TRUE)
         {
             if (temp_bool == TRUE)
             {

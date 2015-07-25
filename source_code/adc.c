@@ -4,15 +4,12 @@
  * Created: 14/05/2015 20:48:38
  *  Author: limpkin
  */
+
 #include <avr/pgmspace.h>
-#include <avr/eeprom.h>
-#include <util/delay.h>
-#include <string.h>
 #include <avr/io.h>
+#include <string.h>
 #include <stdio.h>
-#include "eeprom_addresses.h"
 #include "calibration.h"
-#include "measurement.h"
 #include "utils.h"
 #include "adc.h"
 // Currently configured channel
@@ -53,24 +50,10 @@ uint8_t get_configured_adc_ampl(void)
 }
 
 /*
- * Change the adc vbias channel clock divider
- * @param   divider     The divider (see defines)
- */
-void set_adc_vbias_channel_clock_divider(uint8_t divider)
-{
-    ADCA.PRESCALER = divider;
-    
-    #ifdef ADC_PRINTF
-        uint16_t temp = 1 << ((uint16_t)divider + 2);
-        adcprintf("ADC Vbias channel clock divider set to %d\r\n", temp);
-    #endif
-}
-
-/*
  * Configure an ADC channel
  * @param   channel     The channel (see defines)
  * @param   ampl        The amplification (see defines)
- * @param   debug       If we want the debug info
+ * @param   debug       If we want the debug info printed
  */
 void configure_adc_channel(uint8_t channel, uint8_t ampl, uint8_t debug)
 {
@@ -101,7 +84,7 @@ void configure_adc_channel(uint8_t channel, uint8_t ampl, uint8_t debug)
     {
         ADCA.CTRLB = 0;                                                             // No current limit, high impedance, unsigned mode, 12-bit right adjusted
         ADCA.REFCTRL = ADC_REFSEL_AREFB_gc;                                         // External 1.24V ref
-        ADCA.PRESCALER = ADC_PRESCALER_DIV16_gc;                                   // Divide clock by 256, resulting in fadc of 125Hz (best accuracy)
+        ADCA.PRESCALER = ADC_PRESCALER_DIV16_gc;                                    // Divide clock by 16, resulting in fadc of 2MHz
         ADCA.CH0.CTRL = ADC_CH_GAIN_1X_gc | ADC_CH_INPUTMODE_SINGLEENDED_gc;        // Single ended input, no gain
         ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN7_gc;                                   // Channel 7
         PORTA.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;                                 // Disable digital input buffer
@@ -224,6 +207,7 @@ uint16_t get_averaged_adc_value(uint8_t avg_bit_shift)
  * Wait for a stabilized adc value
  * @param   avg_bit_shift   Bit shift for our averaging (1 for 2 samples, 2 for 4, etc etc, max 15!)
  * @param   max_pp          Max peak to peak value we accept
+ * @param   debug       If we want the debug info printed
  * @return  the averaged ADC value
  */
 uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint16_t max_pp, uint8_t debug)
@@ -299,4 +283,46 @@ uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint16_t max_p
     {
         return return_value;
     }
+}
+
+/*
+ * Measure the peak to peak noise on a given channel
+ * @param   nb_bits   Bit shift for the number of samples
+ * @param   channel   The channel
+ * @param   ampl      The amplification
+ * @return  the peak to peak
+ */
+uint8_t measure_peak_to_peak_on_channel(uint8_t nb_bits, uint8_t channel, uint8_t ampl)
+{
+    int16_t min_val = 0, max_val = 0, temp_val;
+    
+    adcprintf_P(PSTR("-----------------------\r\n"));
+    adcprintf_P(PSTR("Measuring peak to peak noise\r\n\r\n"));
+    configure_adc_channel(channel, ampl, TRUE);
+    
+    for (uint16_t i = 0; i < (1 << (uint16_t)nb_bits); i++)
+    {
+        // Get one val
+        temp_val = start_and_wait_for_adc_conversion();
+        
+        // If it is the first iteration
+        if (i == 0)
+        {
+            min_val = temp_val;
+            max_val = temp_val;
+        }
+        
+        // Check min/max
+        if (temp_val > max_val)
+        {
+            max_val = temp_val;
+        }
+        else if (temp_val < min_val)
+        {
+            min_val = temp_val;
+        }
+    }
+    
+    adcprintf("Peak to peak on %u samples found : %u\r\n", (1 << (uint16_t)nb_bits), max_val - min_val);
+    return (max_val - min_val);
 }

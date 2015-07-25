@@ -23,7 +23,7 @@
 
 void peak_to_peak_adc_noise_measurement_test(void);
 void ramp_bias_voltage_test(void);
-void bias_voltage_test2(void);
 void bias_voltage_test(void);
+void ramp_current_test(void);
 
 #endif /* TESTS_H_ */

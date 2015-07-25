@@ -36,7 +36,6 @@
 #define VBIAS_OVERSHOOT_MV  2                           // The overshoot we want (due to the capacitors)
 
 // Prototypes
-uint16_t compute_vbias_for_adc_value(uint16_t adc_val);
 uint16_t update_bias_voltage(uint16_t val_mv);
 uint16_t enable_bias_voltage(uint16_t val_mv);
 uint16_t get_last_measured_vbias(void);

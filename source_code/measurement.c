@@ -6,22 +6,20 @@
  */
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
-#include <avr/eeprom.h>
 #include <util/delay.h>
 #include <avr/io.h>
 #include <stdio.h>
-#include "eeprom_addresses.h"
+#include "conversions.h"
 #include "measurement.h"
 #include "calibration.h"
 #include "meas_io.h"
 #include "vbias.h"
-#include "main.h"
 #include "dac.h"
 #include "adc.h"
 // Error flag
-volatile uint8_t error_flag2 = FALSE;
+volatile uint8_t tc_error_flag2 = FALSE;
 // Error flag
-volatile uint8_t error_flag = FALSE;
+volatile uint8_t tc_error_flag = FALSE;
 // Current counter
 volatile uint32_t current_counter;
 // Current aggregate
@@ -44,7 +42,16 @@ uint16_t cur_freq_meas;
 ISR(TCC0_OVF_vect)
 {
     // If we have an overflow, it means we couldn't measure the pulse width :/
-    error_flag = TRUE;
+    tc_error_flag = TRUE;
+}
+
+/*
+ * Timer overflow interrupt
+ */
+ISR(TCC1_OVF_vect)
+{
+    // If we have an overflow, it means we couldn't measure the pulse width :/
+    tc_error_flag2 = TRUE;
 }
 
 /*
@@ -55,15 +62,6 @@ ISR(TCC0_CCA_vect)
     // Pulse width of AN1_COMPOUT, subtract it with pulse width of AN2_COMPOUT
     current_agg += (TCC0.CCA - TCC1.CCA);
     current_counter++;
-}
-
-/*
- * Timer overflow interrupt
- */
-ISR(TCC1_OVF_vect)
-{
-    // If we have an overflow, it means we couldn't measure the pulse width :/
-    error_flag2 = TRUE;
 }
 
 /*
@@ -79,42 +77,23 @@ ISR(RTC_OVF_vect)
 }
 
 /*
- * Compute current measurement numerator from adc value (den is the ampl)
- * @param   adc_val     ADC value
- * @return  numerator
- * @note    Only precise at 0.118%
+ * Set quiescent current measurement mode
+ * @param   ampl        Our measurement amplification (see enum_cur_mes_mode_t)
  */
-uint16_t compute_cur_mes_numerator_from_adc_val(uint16_t adc_val)
-{    
-    /******************* MATHS *******************/    
-    // Vadc = I(A) * 1k * 100 * ampl
-    // Vadc = I(A) * 100k * ampl
-    // I(A) = Vadc / (100k * ampl)
-    // I(A) = Val(ADC) * (1.24 / 2047) / (100k * ampl)
-    // I(A) = Val(ADC) * 1.24 / (204.7M * ampl)
-    // I(nA) = Val(ADC) * 1.24 / (0.2047 * ampl)
-    // I(nA) = Val(ADC) * 6,057645335 / ampl
-    // I(nA) = Val(ADC)*5 + Val(ADC)*1,057645335 / ampl
-    // I(nA) ~ Val(ADC)*5 + Val(ADC)*(18/17) / ampl
-    
-    uint16_t return_value = (adc_val * 18) / 17;
-    return_value += (adc_val * 5);
-    return return_value;
+void set_current_measurement_mode(uint8_t ampl)
+{
+    disable_feedback_mos();
+    disable_res_mux();
+    enable_cur_meas_mos();
+    configure_adc_channel(ADC_CHANNEL_CUR, ampl, TRUE);
 }
 
 /*
- * Compute voltage from single ended adc measurement
- * @param   adc_val     ADC value
- * @return  the voltage
- * @note    Only precise at 0.07%
+ * Disable current measurement mode
  */
-uint16_t compute_voltage_from_se_adc_val(uint16_t adc_val)
+void disable_current_measurement_mode(void)
 {    
-    /******************* MATHS *******************/    
-    // Vadc = Val(ADC) * (1.24 / 4095)
-    // Vadc(mV) ~ Val(ADC) * 10/33
-    
-    return (adc_val * 10)/33;
+    disable_cur_meas_mos();
 }
 
 /*
@@ -182,83 +161,19 @@ void set_capacitance_measurement_mode(uint16_t freq, uint8_t counter_divider)
 }
 
 /*
- * Get value for freq measurement define
- * @param   define  The define
- * @return  the value
+ * Our main capacitance measurement loop
  */
-uint16_t get_val_for_freq_define(uint16_t define)
-{
-    switch(define)
-    {
-        case FREQ_1HZ:      return 1;
-        case FREQ_32HZ:     return 32;
-        case FREQ_64HZ:     return 64;
-        case FREQ_128HZ:    return 128;
-    }
-    return 0;
-}
-
-/*
- * Get value for counter divider
- * @param   divider  The divider
- * @return  the value
- */
-uint16_t get_val_for_counter_divider(uint8_t divider)
-{
-    switch(divider)
-    {
-        case TC_CLKSEL_DIV1_gc : return 1;
-        case TC_CLKSEL_DIV2_gc : return 2;
-        case TC_CLKSEL_DIV4_gc : return 4;
-        case TC_CLKSEL_DIV8_gc : return 8;
-        case TC_CLKSEL_DIV64_gc : return 64;
-        case TC_CLKSEL_DIV256_gc : return 256;
-        case TC_CLKSEL_DIV1024_gc : return 1024;
-    }
-    return 0;
-}
-
-/*
- * Get value for res mux measurement define
- * @param   define  The define
- * @return  the value divided by two
- */
-uint16_t get_half_val_for_res_mux_define(uint16_t define)
-{
-    switch(define)
-    {
-        case RES_270:       return 135;
-        case RES_100K:      return 50000;
-        case RES_1K:        return 500;
-        case RES_10K:       return 5000;
-    }
-    return 0;
-}
-
-/*
- * Print the formula to compute the capacitance
- */
-void print_compute_c_formula(uint32_t aggregate, uint32_t counter)
-{
-    // C = T / 2 * half_r * (ln(3300-Vl/3300-vh) + ln(vh/vl))
-    // C = counter divider * aggregate / 32M * counter * 2 * half_r * (ln(3300-Vl/3300-vh) + ln(vh/vl))
-    printf("(%u * %lu) / (32000000 * %lu * 2 * %u * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_val_for_counter_divider(cur_counter_divider), aggregate, counter, get_half_val_for_res_mux_define(get_cur_res_mux()), compute_voltage_from_se_adc_val(get_calib_first_thres_down()), compute_voltage_from_se_adc_val(get_calib_second_thres_down()), compute_voltage_from_se_adc_val(get_calib_second_thres_down()), compute_voltage_from_se_adc_val(get_calib_first_thres_down()));
-}
-
-/*
- * Our main measurement loop
- */
-uint8_t measurement_loop(uint8_t temp)
+uint8_t cap_measurement_loop(uint8_t temp)
 {
     // If we received a new measurement
-    if (error_flag == TRUE)
+    if (tc_error_flag == TRUE)
     {
-        error_flag = FALSE;
+        tc_error_flag = FALSE;
         measdprintf_P(PSTR("ERR\r\n"));
     }
-    if (error_flag2 == TRUE)
+    if (tc_error_flag2 == TRUE)
     {
-        error_flag2 = FALSE;
+        tc_error_flag2 = FALSE;
         measdprintf_P(PSTR("ERR2\r\n"));
     }    
     if (new_val_flag == TRUE)
@@ -268,7 +183,7 @@ uint8_t measurement_loop(uint8_t temp)
         //measdprintf("agg: %lu, counter: %lu\r\n", last_agg, last_counter);
         if (temp == FALSE)
         {
-            print_compute_c_formula(last_agg, last_counter);
+            print_compute_c_formula(last_agg, last_counter, cur_counter_divider, get_cur_res_mux());
         }        
         return TRUE;
         //print_compute_c_formula(last_agg);
@@ -277,52 +192,10 @@ uint8_t measurement_loop(uint8_t temp)
 }
 
 /*
- * Set quiescent current measurement mode
- * @param   ampl        Our measurement amplification (see enum_cur_mes_mode_t)
- */
-void set_current_measurement_ampl(uint8_t ampl)
-{
-    disable_feedback_mos();
-    disable_res_mux();
-    enable_cur_meas_mos();
-    configure_adc_channel(ADC_CHANNEL_CUR, ampl, TRUE);
-    start_and_wait_for_adc_conversion();
-}
-
-/*
- * Disable current measurement mode
- */
-void disable_current_measurement_mode(void)
-{    
-    disable_cur_meas_mos();
-}
-
-/*
- * Print current computation formula
- * @param   adc_val     Current ADC val for current measurement
- */
-void print_compute_cur_formula(uint16_t adc_val)
-{    
-    if (adc_val >= 2047)
-    {
-        measdprintf_P(PSTR("ADC val too high, measurement invalid\r\n"));
-        return;
-    }
-    /******************* MATHS *******************/
-    // Vadc = I(A) * 1k * 100 * ampl
-    // Vadc = I(A) * 100k * ampl
-    // I(A) = Vadc / (100k * ampl)
-    // I(A) = Val(ADC) * (1.24 / 2047) / (100k * ampl)
-    // I(A) = Val(ADC) * 1.24 / (204.7M * ampl)
-    // I(nA) = Val(ADC) * 1.24 / (0.2047 * ampl)
-    measdprintf("Measured current in nA: %u * 1.24 / (0.2047 * %u)\r\n", adc_val, 1 << get_configured_adc_ampl()); 
-}
-
-/*
  * Our main current measurement loop
  * @param   avg_bitshift    Bit shift for averaging
  */
-uint16_t quiescent_cur_measurement_loop(uint8_t avg_bitshift)
+uint16_t cur_measurement_loop(uint8_t avg_bitshift)
 {    
     // Check that the adc channel remained the same
     if (get_configured_adc_channel() != ADC_CHANNEL_CUR)
@@ -332,74 +205,4 @@ uint16_t quiescent_cur_measurement_loop(uint8_t avg_bitshift)
     
     uint16_t cur_val = get_averaged_adc_value(avg_bitshift);    
     return cur_val;
-}
-
-/*
- * Ramp voltage and measure the current
- */
-void ramp_current_test(void)
-{
-    uint16_t cur_measure;
-    
-    measdprintf_P(PSTR("-----------------------\r\n"));
-    measdprintf_P(PSTR("Ramp Current Test\r\n\r\n"));
-    
-    set_current_measurement_ampl(CUR_MES_1X);
-    enable_bias_voltage(VBIAS_MIN_V);
-    for (uint16_t i = VBIAS_MIN_V; i <= get_max_vbias_voltage(); i+= 50)
-    {
-        update_bias_voltage(i);
-        _delay_ms(10);
-        cur_measure = quiescent_cur_measurement_loop(16);
-        print_compute_cur_formula(cur_measure);
-        if (cur_measure >= 2047)
-        {
-            break;
-        }        
-    }
-    
-    disable_bias_voltage();
-    disable_current_measurement_mode();
-}
-
-/*
- * Measure the peak to peak noise on a given channel
- * @param   nb_bits   Bit shift for the number of samples
- * @param   channel   The channel
- * @param   ampl      The amplification
- * @return  the peak to peak
- */
-uint8_t measure_peak_to_peak_on_channel(uint8_t nb_bits, uint8_t channel, uint8_t ampl)
-{
-    int16_t min_val = 0, max_val = 0, temp_val;
-    
-    measdprintf_P(PSTR("-----------------------\r\n"));
-    measdprintf_P(PSTR("Measuring peak to peak noise\r\n\r\n"));
-    configure_adc_channel(channel, ampl, TRUE);
-    
-    for (uint16_t i = 0; i < (1 << (uint16_t)nb_bits); i++)
-    {
-        // Get one val
-        temp_val = start_and_wait_for_adc_conversion();
-        
-        // If it is the first iteration
-        if (i == 0)
-        {
-            min_val = temp_val;
-            max_val = temp_val;
-        }
-        
-        // Check min/max
-        if (temp_val > max_val)
-        {
-            max_val = temp_val;
-        }
-        else if (temp_val < min_val)
-        {
-            min_val = temp_val;
-        }
-    }
-    
-    measdprintf("Peak to peak on %u samples found : %u\r\n", (1 << (uint16_t)nb_bits), max_val - min_val);
-    return (max_val - min_val);
 }
