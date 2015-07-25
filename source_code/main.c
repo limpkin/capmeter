@@ -63,10 +63,10 @@ int main(void)
     //automated_current_testing();
     //automated_vbias_testing();
     //peak_to_peak_adc_noise_measurement_test();
-    //bias_voltage_test();
+    bias_voltage_test();
     //ramp_bias_voltage_test();                            // Check accuracy of bias voltages
     //ramp_current_test();
-    //while(1);
+    while(1);
     //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
     //calibrate_current_measurement();                // Calibrate the ADC for current measurements

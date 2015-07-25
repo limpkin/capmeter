@@ -26,8 +26,8 @@ void bias_voltage_test(void)
     // We are running this scenario in the worst case: 270Ohms resistor, ~17uF cap connected
     // We want to make sure that the oscillations induced to vbias via the capacitor don't
     // break our vbias setting algorithm.
-    testprintf_P(PSTR("-----------------------\r\n"));
-    testprintf_P(PSTR("Bias Voltage Test\r\n\r\n"));
+    testdprintf_P(PSTR("-----------------------\r\n"));
+    testdprintf_P(PSTR("Bias Voltage Test\r\n\r\n"));
     
     uint16_t set_voltage, correct_voltage, agg_error = 0;
     
@@ -38,8 +38,8 @@ void bias_voltage_test(void)
         for (uint16_t i = VBIAS_MIN_V; i <= get_max_vbias_voltage(); i+= 50)
         {
             set_voltage = update_bias_voltage(i);
-            _delay_ms(10);
-            correct_voltage = compute_vbias_for_adc_value(get_averaged_adc_value(18));            
+            _delay_ms(1500);
+            correct_voltage = compute_vbias_for_adc_value(get_averaged_adc_value(18));    
             if (i > correct_voltage)
             {
                 agg_error += i - correct_voltage;
@@ -48,11 +48,11 @@ void bias_voltage_test(void)
             {
                 agg_error += correct_voltage - i;
             }
-            testprintf("Call: %u, Set: %u, Measured: %u, Error Set: %d, Error Measured: %d\r\n", i, set_voltage, correct_voltage, correct_voltage - set_voltage, correct_voltage - i);
+            testdprintf("Call: %u, Set: %u, Measured: %u, Error Set: %d, Error Measured: %d\r\n", i, set_voltage, correct_voltage, correct_voltage - set_voltage, correct_voltage - i);
         }
-        testprintf_P(PSTR("-----------------------\r\n"));
-        testprintf("Accumulated error for div %u: %d\r\n", 1 << ((uint16_t)div + 2), agg_error);
-        testprintf_P(PSTR("-----------------------\r\n"));
+        testdprintf_P(PSTR("-----------------------\r\n"));
+        testdprintf("Accumulated error for div %u: %d\r\n", 1 << ((uint16_t)div + 2), agg_error);
+        testdprintf_P(PSTR("-----------------------\r\n"));
         disable_bias_voltage();
         _delay_ms(50000);
     } 
@@ -67,8 +67,8 @@ void ramp_bias_voltage_test(void)
     // We are running this scenario in the worst case: 270Ohms resistor, ~17uF cap connected
     // We want to make sure that the oscillations induced to vbias via the capacitor don't
     // break our vbias setting algorithm.
-    testprintf_P(PSTR("-----------------------\r\n"));
-    testprintf_P(PSTR("Ramp Voltage Test\r\n\r\n"));
+    testdprintf_P(PSTR("-----------------------\r\n"));
+    testdprintf_P(PSTR("Ramp Voltage Test\r\n\r\n"));
     
     //set_measurement_mode_io(RES_10K);        
     enable_bias_voltage(15000);
@@ -105,8 +105,8 @@ void ramp_current_test(void)
 {
     uint16_t cur_measure;
     
-    testprintf_P(PSTR("-----------------------\r\n"));
-    testprintf_P(PSTR("Ramp Current Test\r\n\r\n"));
+    testdprintf_P(PSTR("-----------------------\r\n"));
+    testdprintf_P(PSTR("Ramp Current Test\r\n\r\n"));
     
     set_current_measurement_mode(CUR_MES_1X);
     enable_bias_voltage(VBIAS_MIN_V);

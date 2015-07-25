@@ -161,7 +161,7 @@ void print_compute_c_formula(uint32_t aggregate, uint32_t counter, uint16_t coun
 {
     // C = T / 2 * half_r * (ln(3300-Vl/3300-vh) + ln(vh/vl))
     // C = counter divider * aggregate / 32M * counter * 2 * half_r * (ln(3300-Vl/3300-vh) + ln(vh/vl))
-    convprintf("(%u * %lu) / (32000000 * %lu * 2 * %u * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_val_for_counter_divider(counter_divider), aggregate, counter, get_half_val_for_res_mux_define(res_mux), compute_voltage_from_se_adc_val(get_calib_first_thres_down()), compute_voltage_from_se_adc_val(get_calib_second_thres_down()), compute_voltage_from_se_adc_val(get_calib_second_thres_down()), compute_voltage_from_se_adc_val(get_calib_first_thres_down()));
+    convdprintf("(%u * %lu) / (32000000 * %lu * 2 * %u * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_val_for_counter_divider(counter_divider), aggregate, counter, get_half_val_for_res_mux_define(res_mux), compute_voltage_from_se_adc_val(get_calib_first_thres_down()), compute_voltage_from_se_adc_val(get_calib_second_thres_down()), compute_voltage_from_se_adc_val(get_calib_second_thres_down()), compute_voltage_from_se_adc_val(get_calib_first_thres_down()));
 }
 
 /*
@@ -172,7 +172,7 @@ void print_compute_cur_formula(uint16_t adc_val)
 {    
     if (adc_val >= 2047)
     {
-        convprintf_P(PSTR("ADC val too high, measurement invalid\r\n"));
+        convdprintf_P(PSTR("ADC val too high, measurement invalid\r\n"));
         return;
     }
     /******************* MATHS *******************/
@@ -182,5 +182,5 @@ void print_compute_cur_formula(uint16_t adc_val)
     // I(A) = Val(ADC) * (1.24 / 2047) / (100k * ampl)
     // I(A) = Val(ADC) * 1.24 / (204.7M * ampl)
     // I(nA) = Val(ADC) * 1.24 / (0.2047 * ampl)
-    convprintf("Measured current in nA: %u * 1.24 / (0.2047 * %u)\r\n", adc_val, 1 << get_configured_adc_ampl()); 
+    convdprintf("Measured current in nA: %u * 1.24 / (0.2047 * %u)\r\n", adc_val, 1 << get_configured_adc_ampl()); 
 }

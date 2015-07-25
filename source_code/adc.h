@@ -14,11 +14,11 @@
 
 // Debug printf
 #ifdef ADC_PRINTF
-    #define adcprintf   printf
-    #define adcprintf_P printf_P
+    #define adcdprintf   printf
+    #define adcdprintf_P printf_P
 #else
-    #define adcprintf
-    #define adcprintf_P
+    #define adcdprintf
+    #define adcdprintf_P
 #endif
 
 // enums

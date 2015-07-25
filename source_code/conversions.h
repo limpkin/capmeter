@@ -14,11 +14,11 @@
 
 // Debug printf
 #ifdef CONV_PRINTF
-    #define convprintf   printf
-    #define convprintf_P printf_P
+    #define convdprintf   printf
+    #define convdprintf_P printf_P
 #else
-    #define convprintf
-    #define convprintf_P
+    #define convdprintf
+    #define convdprintf_P
 #endif
 
 // Prototypes

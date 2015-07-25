@@ -14,11 +14,11 @@
 
 // Debug printf
 #ifdef CALIB_PRINTF
-    #define calibprintf   printf
-    #define calibprintf_P printf_P
+    #define calibdprintf   printf
+    #define calibdprintf_P printf_P
 #else
-    #define calibprintf
-    #define calibprintf_P
+    #define calibdprintf
+    #define calibdprintf_P
 #endif
 
 // Prototypes

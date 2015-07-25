@@ -17,7 +17,7 @@
 typedef void (*bootloader_f_ptr_type)(void);
 
 // IO debug printf
-//#define IO_PRINTF
+#define IO_PRINTF
 // Serial debug printf
 #define SERIAL_PRINTF
 // Measurement debug printf

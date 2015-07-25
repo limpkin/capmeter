@@ -98,12 +98,12 @@ uint16_t get_max_vbias_voltage(void)
  */
 void calibrate_single_ended_offset(void)
 {
-    calibprintf_P(PSTR("-----------------------\r\n"));
-    calibprintf_P(PSTR("Single Ended Offset Calibration...\r\n\r\n"));
+    calibdprintf_P(PSTR("-----------------------\r\n"));
+    calibdprintf_P(PSTR("Single Ended Offset Calibration...\r\n\r\n"));
     configure_adc_channel(ADC_CHANNEL_GND_EXT, 0, TRUE);
     calib_0v_value_se = 0;
     calib_0v_value_se = get_averaged_adc_value(16);
-    calibprintf("0V ADC value: %u, approx %umV\r\n", calib_0v_value_se, compute_voltage_from_se_adc_val(calib_0v_value_se));    
+    calibdprintf("0V ADC value: %u, approx %umV\r\n", calib_0v_value_se, compute_voltage_from_se_adc_val(calib_0v_value_se));    
 }
 
 /*
@@ -111,8 +111,8 @@ void calibrate_single_ended_offset(void)
  */
 void calibrate_thresholds(void)
 {
-    calibprintf_P(PSTR("-----------------------\r\n"));
-    calibprintf_P(PSTR("Threshold calibration\r\n\r\n"));
+    calibdprintf_P(PSTR("-----------------------\r\n"));
+    calibdprintf_P(PSTR("Threshold calibration\r\n\r\n"));
     
     // Set bias voltage above vcc so Q1 comes into play if there's a cap between the terminals
     disable_feedback_mos();
@@ -129,7 +129,7 @@ void calibrate_thresholds(void)
     calib_first_thres_up = 0;
     
     // Ramp up, wait for all the toggles
-    calibprintf_P(PSTR("\r\nRamping up...\r\n"));
+    calibdprintf_P(PSTR("\r\nRamping up...\r\n"));
     while(dac_val != DAC_MAX_VAL)
     {
         update_opampin_dac(++dac_val);
@@ -146,11 +146,11 @@ void calibrate_thresholds(void)
         }
     }
     
-    calibprintf("First thres found: %u, approx %umV\r\n", calib_first_thres_down, compute_voltage_from_se_adc_val(calib_first_thres_down));
-    calibprintf("Second thres found: %u, approx %umV\r\n\r\n", calib_second_thres_down, compute_voltage_from_se_adc_val(calib_second_thres_down));
+    calibdprintf("First thres found: %u, approx %umV\r\n", calib_first_thres_down, compute_voltage_from_se_adc_val(calib_first_thres_down));
+    calibdprintf("Second thres found: %u, approx %umV\r\n\r\n", calib_second_thres_down, compute_voltage_from_se_adc_val(calib_second_thres_down));
         
     // Ramp low, wait for toggle
-    calibprintf_P(PSTR("Ramping down...\r\n"));
+    calibdprintf_P(PSTR("Ramping down...\r\n"));
     while(dac_val != DAC_MIN_VAL)
     {
         update_opampin_dac(--dac_val);
@@ -167,8 +167,8 @@ void calibrate_thresholds(void)
         }
     }
     
-    calibprintf("First thres found: %u, approx %umV\r\n", calib_first_thres_up, compute_voltage_from_se_adc_val(calib_first_thres_up));
-    calibprintf("Second thres found: %u, approx %umV\r\n\r\n", calib_second_thres_up, compute_voltage_from_se_adc_val(calib_second_thres_up));
+    calibdprintf("First thres found: %u, approx %umV\r\n", calib_first_thres_up, compute_voltage_from_se_adc_val(calib_first_thres_up));
+    calibdprintf("Second thres found: %u, approx %umV\r\n\r\n", calib_second_thres_up, compute_voltage_from_se_adc_val(calib_second_thres_up));
     
     disable_opampin_dac();
     disable_bias_voltage();
@@ -179,8 +179,8 @@ void calibrate_thresholds(void)
  */
 void init_calibration(void)
 {
-    calibprintf_P(PSTR("-----------------------\r\n"));
-    calibprintf_P(PSTR("Calibration Init\r\n"));
+    calibdprintf_P(PSTR("-----------------------\r\n"));
+    calibdprintf_P(PSTR("Calibration Init\r\n"));
     
     // Calibrate single ended offset
     calibrate_single_ended_offset();
@@ -192,9 +192,9 @@ void init_calibration(void)
     calibrate_thresholds();
     
     // Find max voltage
-    calibprintf_P(PSTR("-----------------------\r\n"));
-    calibprintf_P(PSTR("Max Voltage Measure\r\n\r\n"));
+    calibdprintf_P(PSTR("-----------------------\r\n"));
+    calibdprintf_P(PSTR("Max Voltage Measure\r\n\r\n"));
     max_voltage = enable_bias_voltage(33333);
+    calibdprintf("Max voltage found: %dmV\r\n", max_voltage);
     disable_bias_voltage();
-    calibprintf("Max voltage found: %dmV\r\n", max_voltage);
 }

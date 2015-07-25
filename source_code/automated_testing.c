@@ -35,7 +35,7 @@ void automated_vbias_testing(void)
             for (uint16_t main_v = VBIAS_MIN_V; (main_v <= get_max_vbias_voltage()) && (restart == FALSE); main_v+=100)
             {
                 update_bias_voltage(main_v + added_v);
-                auttestprintf("%d\r\n", main_v + added_v);
+                auttestdprintf("%d\r\n", main_v + added_v);
                 // Wait for input from the script
                 scanf("%c", &received_char);
                 if (received_char == '!')
@@ -69,7 +69,7 @@ void automated_current_testing(void)
             update_vbias_dac(dac_val);
             _delay_us(10);
             cur_measure = cur_measurement_loop(15);
-            auttestprintf("%d|%d\r\n", dac_val, cur_measure);
+            auttestdprintf("%d|%d\r\n", dac_val, cur_measure);
             // Wait for input from the script
             scanf("%c", &received_char);
             if (received_char == '!')

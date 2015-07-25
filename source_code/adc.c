@@ -26,8 +26,8 @@ void init_adc(void)
     /* Get ADCACAL0 from production signature . */
     ADCA.CALL = ReadCalibrationByte(PROD_SIGNATURES_START + ADCACAL0_offset);   // Set correct calibration values
     ADCA.CALH = ReadCalibrationByte(PROD_SIGNATURES_START + ADCACAL1_offset);   // Set correct calibration values
-    adcprintf_P(PSTR("-----------------------\r\n"));                           // Debug
-    adcprintf_P(PSTR("ADC Init\r\n"));                                          // Debug
+    adcdprintf_P(PSTR("-----------------------\r\n"));                           // Debug
+    adcdprintf_P(PSTR("ADC Init\r\n"));                                          // Debug
     ADCA.CTRLA = ADC_ENABLE_bm;                                                 // Enable ADC
 }
 
@@ -77,7 +77,7 @@ void configure_adc_channel(uint8_t channel, uint8_t ampl, uint8_t debug)
         PORTA.PIN6CTRL = PORT_ISC_INPUT_DISABLE_gc;                                 // Disable digital input buffer
         if (debug)
         {
-            adcprintf_P(PSTR("ADC COMPOUT channel set\r\n"));
+            adcdprintf_P(PSTR("ADC COMPOUT channel set\r\n"));
         }
     }
     else if (channel == ADC_CHANNEL_VBIAS)
@@ -90,7 +90,7 @@ void configure_adc_channel(uint8_t channel, uint8_t ampl, uint8_t debug)
         PORTA.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;                                 // Disable digital input buffer
         if (debug)
         {
-            adcprintf_P(PSTR("ADC VBIAS channel set\r\n"));
+            adcdprintf_P(PSTR("ADC VBIAS channel set\r\n"));
         }
     }
     else if (channel == ADC_CHANNEL_GND_EXT)
@@ -103,7 +103,7 @@ void configure_adc_channel(uint8_t channel, uint8_t ampl, uint8_t debug)
         PORTA.PIN5CTRL = PORT_ISC_INPUT_DISABLE_gc;                                 // Disable digital input buffer
         if (debug)
         {
-            adcprintf_P(PSTR("ADC GND EXT channel set\r\n"));
+            adcdprintf_P(PSTR("ADC GND EXT channel set\r\n"));
         }
     }
     else if (channel == ADC_CHANNEL_CUR)
@@ -117,7 +117,7 @@ void configure_adc_channel(uint8_t channel, uint8_t ampl, uint8_t debug)
         PORTA.PIN1CTRL = PORT_ISC_INPUT_DISABLE_gc;                                 // Disable digital input buffer
         if (debug)
         {
-            adcprintf("ADC quiesc cur channel set, gain %uX\r\n", 1 << ampl);
+            adcdprintf("ADC quiesc cur channel set, gain %uX\r\n", 1 << ampl);
         }
     }
     
@@ -135,7 +135,7 @@ void disable_adc_channel(uint8_t channel)
     if (channel == ADC_CHANNEL_COMPOUT)
     {
         PORTA.PIN6CTRL = PORT_ISC_RISING_gc;                                        // Enable digital input buffer
-        adcprintf_P(PSTR("ADC COMPOUT channel disabled\r\n"));
+        adcdprintf_P(PSTR("ADC COMPOUT channel disabled\r\n"));
     }    
 }
 
@@ -219,7 +219,7 @@ uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint16_t max_p
     
     if (debug == TRUE)
     {
-        adcprintf("Getting averaged value for %u samples, with less than %u LSB pp\r\n", (1 << avg_bit_shift), max_pp);
+        adcdprintf("Getting averaged value for %u samples, with less than %u LSB pp\r\n", (1 << avg_bit_shift), max_pp);
     }
         
     while (loop_running == TRUE)
@@ -253,7 +253,7 @@ uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint16_t max_p
             // Check current peak to peak, leave loop
             if ((max_val - min_val) > max_pp)
             {
-                //adcprintf("%04u|%04u ", i, (max_val - min_val));
+                //adcdprintf("%04u|%04u ", i, (max_val - min_val));
                 break;
             }
         }
@@ -271,7 +271,7 @@ uint16_t get_averaged_stabilized_adc_value(uint8_t avg_bit_shift, uint16_t max_p
     
     if (debug == TRUE)
     {
-        adcprintf("Averaged value found: %u, pp of %u LSB\r\n", return_value, (max_val - min_val));
+        adcdprintf("Averaged value found: %u, pp of %u LSB\r\n", return_value, (max_val - min_val));
     }
     
     // Don't return a negative value
@@ -296,8 +296,8 @@ uint8_t measure_peak_to_peak_on_channel(uint8_t nb_bits, uint8_t channel, uint8_
 {
     int16_t min_val = 0, max_val = 0, temp_val;
     
-    adcprintf_P(PSTR("-----------------------\r\n"));
-    adcprintf_P(PSTR("Measuring peak to peak noise\r\n\r\n"));
+    adcdprintf_P(PSTR("-----------------------\r\n"));
+    adcdprintf_P(PSTR("Measuring peak to peak noise\r\n\r\n"));
     configure_adc_channel(channel, ampl, TRUE);
     
     for (uint16_t i = 0; i < (1 << (uint16_t)nb_bits); i++)
@@ -323,6 +323,6 @@ uint8_t measure_peak_to_peak_on_channel(uint8_t nb_bits, uint8_t channel, uint8_
         }
     }
     
-    adcprintf("Peak to peak on %u samples found : %u\r\n", (1 << (uint16_t)nb_bits), max_val - min_val);
+    adcdprintf("Peak to peak on %u samples found : %u\r\n", (1 << (uint16_t)nb_bits), max_val - min_val);
     return (max_val - min_val);
 }

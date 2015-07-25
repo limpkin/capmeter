@@ -14,11 +14,11 @@
 
 // Debug printf
 #ifdef TESTS_PRINTF
-    #define testprintf   printf
-    #define testprintf_P printf_P
+    #define testdprintf   printf
+    #define testdprintf_P printf_P
 #else
-    #define testprintf
-    #define testprintf_P
+    #define testdprintf
+    #define testdprintf_P
 #endif
 
 void peak_to_peak_adc_noise_measurement_test(void);

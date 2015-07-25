@@ -14,11 +14,11 @@
 
 // Debug printf
 #ifdef AUTOMATED_TESTS_PRINTF
-    #define auttestprintf   printf
-    #define auttestprintf_P printf_P
+    #define auttestdprintf   printf
+    #define auttestdprintf_P printf_P
 #else
-    #define auttestprintf
-    #define auttestprintf_P
+    #define auttestdprintf
+    #define auttestdprintf_P
 #endif
 
 void automated_current_testing(void);
