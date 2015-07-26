@@ -104,12 +104,57 @@ void functional_test(void)
         testdprintf("- SECOND THRES UP OK: %u\r\n", get_calib_second_thres_up());
     }
     
+    // Check AVCC, select ADC channel for AVCC / 10
+    // Vadc = Val(ADC) * (1.24 / 4095)
+    // Val(ADC) = Vadc * (4095 / 1.24+-0.25%)
+    // Between 1087 and 1093 for 0.33V >> setting +-17 LSB, which is +-50mV
+    configure_adc_channel(ADC_CHANNEL_AVCCDIV10, 0, FALSE);
+    uint16_t avcc = get_averaged_adc_value(13);
+    if (check_value_range(avcc, 1070, 1110) == FALSE)
+    {
+        testdprintf("- AVCC PROBLEM: %u (~%umV)\r\n", avcc, compute_voltage_from_se_adc_val(avcc)*10);
+        test_passed = FALSE;
+    }
+    else
+    {
+        testdprintf("- AVCC OK: %u (~%umV)\r\n", avcc, compute_voltage_from_se_adc_val(avcc)*10);
+    }
+    
+    // Check AREF    
+    // Vadc ~= Val(ADC) * 3.3 / (1.6 * 4095)
+    // Val(ADC) = Vadc * (6552 / 3.3)
+    // Val(ADC) = 1.24 * (6552 / 3.3)
+    // Approximately 2462 +-50LSB (2.5mV)
+    delete_single_ended_offset();
+    configure_adc_channel(ADC_CHANNEL_GND_EXT_VCCDIV16, 0, FALSE);
+    uint16_t aref_offset = get_averaged_adc_value(13);
+    configure_adc_channel(ADC_CHANNEL_AREF, 0, FALSE);
+    uint16_t aref = get_averaged_adc_value(13);
+    if (check_value_range(aref-aref_offset, 2412, 2512) == FALSE)
+    {
+        testdprintf("- AREF PROBLEM: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
+        test_passed = FALSE;
+    }
+    else
+    {
+        testdprintf("- AREF OK: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
+    }
+    calibrate_single_ended_offset();
+    
     // Check Vbias generation (LDO)
+    // Vref = VR2 + Vdac
+    // VR2 = (Vout - Vdac) * R2 / (R1 + R2)
+    // Vout = Vref * (R1 + R2) / R2 - Vdac * R1 / R2
+    // Vout = 1.188 * 16.2 / 1.2 - Vdac * 15 / 1.2
+    // Vout = 16.038 - Val(DAC) * (1.24 / 4095) * (15 / 1.2)
+    // Vout = 16,038 - Val(DAC) * 0,0037851
+    // For 3210 : 3.888
     setup_vbias_dac(3210);
     enable_ldo();
     _delay_ms(200);
+    configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
     uint16_t voltage = compute_vbias_for_adc_value(get_averaged_adc_value(14));
-    if (check_value_range(voltage, 3700, 3800) == FALSE)
+    if (check_value_range(voltage, 3738, 4038) == FALSE)
     {
         testdprintf("- VBIAS GENERATION (LDO) PROBLEM: %u\r\n", voltage);
         test_passed = FALSE;
@@ -120,11 +165,13 @@ void functional_test(void)
     }
     
     // Check Vbias generation (stepup)
+    // For 1234 : 11.367
     setup_vbias_dac(1234);
     enable_stepup();
     _delay_ms(200);
+    configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
     voltage = compute_vbias_for_adc_value(get_averaged_adc_value(14));
-    if (check_value_range(voltage, 11200, 11550) == FALSE)
+    if (check_value_range(voltage, 11217, 11517) == FALSE)
     {
         testdprintf("- VBIAS GENERATION (STEPUP) PROBLEM: %u\r\n", voltage);
         test_passed = FALSE;
@@ -143,8 +190,8 @@ void functional_test(void)
     disable_ldo();                                                  // Disable LDO
     disable_stepup();                                               // Disable stepup
     disable_vbias_dac();                                            // Disable DAC controlling the ldo    
-    configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);              // Set DAC Channel to vbias
     enable_vbias_quenching();                                       // Enable vbias quenching
+    configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);              // Set ADC Channel to vbias
     uint16_t measured_vbias = 2000;
     while (measured_vbias > 100)                                    // Wait until voltage is around 400mV
     {
@@ -162,7 +209,21 @@ void functional_test(void)
     }    
     disable_vbias_quenching();
     
-    
+    // Check current measurement
+    uint16_t cur_measure;
+    enable_bias_voltage(4420);
+    set_current_measurement_mode(CUR_MES_1X);
+    cur_measure = cur_measurement_loop(15);
+    if (check_value_range(cur_measure, 11200, 11550) == FALSE)
+    {
+        testdprintf("- CUR MEASUREMENT PROBLEM: %u\r\n", cur_measure);
+        print_compute_cur_formula(cur_measure);
+        test_passed = FALSE;
+    }
+    else
+    {
+        testdprintf("- CUR MEASUREMENT OK: %u\r\n", cur_measure);
+    }
     
     while(1);    
 }

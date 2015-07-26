@@ -92,6 +92,38 @@ uint16_t compute_voltage_from_se_adc_val(uint16_t adc_val)
 }
 
 /*
+ * Compute voltage from single ended adc measurement when vref selected is avcc/2
+ * @param   adc_val     ADC value
+ * @return  the voltage
+ * @note    Only precise at 0.013%
+ */
+uint16_t compute_voltage_from_se_adc_val_with_avcc_div2_ref(uint16_t adc_val)
+{    
+    /******************* MATHS *******************/    
+    // Vadc = Val(ADC) * (3.3 / 2*4095)
+    // Vadc(mV) ~ Val(ADC) * 27/67
+    
+    uint16_t temp_val = adc_val * 13 / 67;
+    adc_val = adc_val * 14 / 67;    
+    return temp_val + adc_val;
+}
+
+/*
+ * Compute voltage from single ended adc measurement when vref selected is avcc/1.6
+ * @param   adc_val     ADC value
+ * @return  the voltage
+ * @note    Only precise at 0.73%
+ */
+uint16_t compute_voltage_from_se_adc_val_with_avcc_div16_ref(uint16_t adc_val)
+{    
+    /******************* MATHS *******************/    
+    // Vadc = Val(ADC) * (3.3 / 1.6*4095)
+    // Vadc(mV) ~ Val(ADC) / 2
+    
+    return adc_val/2;
+}
+
+/*
  * Get value for freq measurement define
  * @param   define  The define
  * @return  the value

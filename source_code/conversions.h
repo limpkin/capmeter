@@ -23,6 +23,8 @@
 
 // Prototypes
 void print_compute_c_formula(uint32_t aggregate, uint32_t counter, uint16_t counter_divider, uint8_t res_mux);
+uint16_t compute_voltage_from_se_adc_val_with_avcc_div16_ref(uint16_t adc_val);
+uint16_t compute_voltage_from_se_adc_val_with_avcc_div2_ref(uint16_t adc_val);
 uint16_t compute_cur_mes_numerator_from_adc_val(uint16_t adc_val);
 uint16_t compute_voltage_from_se_adc_val(uint16_t adc_val);
 uint16_t get_half_val_for_res_mux_define(uint16_t define);

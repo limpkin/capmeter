@@ -85,6 +85,14 @@ uint16_t get_single_ended_offset(void)
 }
 
 /*
+ * Delete single ended offset
+ */
+void delete_single_ended_offset(void)
+{
+    calib_0v_value_se = 0;
+}
+
+/*
  * Get the max voltage we can generate
  * @return  the voltage
  */

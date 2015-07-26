@@ -120,6 +120,44 @@ void configure_adc_channel(uint8_t channel, uint8_t ampl, uint8_t debug)
             adcdprintf("ADC quiesc cur channel set, gain %uX\r\n", 1 << ampl);
         }
     }
+    else if (channel == ADC_CHANNEL_AREF)
+    {
+        ADCA.CTRLB = 0;                                                             // No current limit, high impedance, unsigned mode, 12-bit right adjusted
+        ADCA.REFCTRL = ADC_REFSEL_INTVCC_gc;                                        // AVcc / 1.6 REF
+        ADCA.PRESCALER = ADC_PRESCALER_DIV128_gc;                                   // Divide clock by 128, resulting in fadc of 250Hz (best accuracy)
+        ADCA.CH0.CTRL = ADC_CH_GAIN_1X_gc | ADC_CH_INPUTMODE_SINGLEENDED_gc;        // Single ended input, no gain
+        ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN8_gc;                                   // Channel 8
+        PORTB.PIN0CTRL = PORT_ISC_INPUT_DISABLE_gc;                                 // Disable digital input buffer
+        if (debug)
+        {
+            adcdprintf_P(PSTR("ADC AREFB channel set\r\n"));
+        }
+    }
+    else if (channel == ADC_CHANNEL_GND_EXT_VCCDIV16)
+    {
+        ADCA.CTRLB = 0;                                                             // No current limit, high impedance, unsigned mode, 12-bit right adjusted
+        ADCA.REFCTRL = ADC_REFSEL_INTVCC_gc;                                        // AVcc / 1.6 REF
+        ADCA.PRESCALER = ADC_PRESCALER_DIV128_gc;                                   // Divide clock by 128, resulting in fadc of 250Hz (best accuracy)
+        ADCA.CH0.CTRL = ADC_CH_GAIN_1X_gc | ADC_CH_INPUTMODE_SINGLEENDED_gc;        // Single ended input, no gain
+        ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN5_gc;                                   // Channel 5
+        PORTA.PIN5CTRL = PORT_ISC_INPUT_DISABLE_gc;                                 // Disable digital input buffer
+        if (debug)
+        {
+            adcdprintf_P(PSTR("ADC GND EXT channel set with AVCC/2 ref\r\n"));
+        }
+    }   
+    else if (channel == ADC_CHANNEL_AVCCDIV10)
+    {
+        ADCA.CTRLB = 0;                                                             // No current limit, high impedance, unsigned mode, 12-bit right adjusted
+        ADCA.REFCTRL = ADC_REFSEL_AREFB_gc;                                         // External 1.24V ref
+        ADCA.PRESCALER = ADC_PRESCALER_DIV128_gc;                                   // Divide clock by 128, resulting in fadc of 250Hz (best accuracy)
+        ADCA.CH0.CTRL = ADC_CH_GAIN_1X_gc | ADC_CH_INPUTMODE_INTERNAL_gc;           // Internal input, no gain
+        ADCA.CH0.MUXCTRL = ADC_CH_MUXINT_SCALEDVCC_gc;                              // Avcc / 10
+        if (debug)
+        {
+            adcdprintf_P(PSTR("ADC AVCC div 10 channel set\r\n"));
+        }
+    }         
     
     // Launch dummy conversion
     ADCA.CTRLA |= ADC_CH0START_bm;
@@ -153,7 +191,7 @@ int16_t start_and_wait_for_adc_conversion(void)
     ADCA.CTRLA |= ADC_CH0START_bm;                                                  // Start channel 0 conversion
     
     // Depending on input mode, apply correction
-    if ((ADCA.CH0.CTRL & ADC_CH_INPUTMODE_gm) == ADC_CH_INPUTMODE_SINGLEENDED_gc)
+    if (((ADCA.CH0.CTRL & ADC_CH_INPUTMODE_gm) == ADC_CH_INPUTMODE_SINGLEENDED_gc) || ((ADCA.CH0.CTRL & ADC_CH_INPUTMODE_gm) == ADC_CH_INPUTMODE_INTERNAL_gc))
     {
         // Single ended, check we're not under 0v
         if ((uint16_t)return_value < get_single_ended_offset())
