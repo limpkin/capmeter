@@ -28,7 +28,7 @@
 #define STEPUP_ACTIV_V          4300                  // Technically 4500mV should work
 #define STEPUP_ACTIV_DAC_V      3070                  // Around 4350mV
 #define MV_APPROCH              50                    // When to start fine approach
-#define PEAKPEAK_APPROCH_UP     11                    // Maximum peak peak allowed during vramp up
+#define PEAKPEAK_APPROCH_UP     13                    // Maximum peak peak allowed during vramp up
 #define PEAKPEAK_APPROCH_LOW    3                     // Maximum peak peak allowed during vramp low
 #define PEAKPEAK_FINE           35                    // Maximum peak peak allowed during fine tuning
 #define BIT_AVG_APPROACH        3                     // Bit averaging for approach

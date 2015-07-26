@@ -9,6 +9,7 @@
 #include <avr/io.h>
 #include <stdio.h>
 #include "automated_testing.h"
+#include "conversions.h"
 #include "measurement.h"
 #include "calibration.h"
 #include "interrupts.h"
@@ -65,7 +66,7 @@ int main(void)
     //peak_to_peak_adc_noise_measurement_test();
     //ramp_bias_voltage_test();
     //ramp_current_test();
-    functional_test();
+    //functional_test();
     //while(1);
     //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
@@ -89,17 +90,17 @@ int main(void)
     while(1);*/
     
     // Current mes
-//     _delay_ms(1000);
-//     enable_bias_voltage(3000);
-//     while(1);
-//     {
-//         for (uint8_t i = 0; i <= CUR_MES_16X; i++)
-//         {
-//             set_current_measurement_ampl(i);
-//             print_compute_r_formula(quiescent_cur_measurement_loop(17));
-//         }        
-//     }
-//     while(1);
+    _delay_ms(1000);
+    enable_bias_voltage(4411);
+    while(1)
+    {
+        for (uint8_t i = 0; i <= CUR_MES_16X; i++)
+        {
+            set_current_measurement_mode(i);
+            print_compute_cur_formula(cur_measurement_loop(17));
+        }        
+    }
+    while(1);
 
     enable_bias_voltage(1000);
     set_capacitance_measurement_mode(FREQ_1HZ, TC_CLKSEL_DIV1024_gc);
