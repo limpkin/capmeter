@@ -210,11 +210,26 @@ void functional_test(void)
     disable_vbias_quenching();
     
     // Check current measurement
-    uint16_t cur_measure;
-    enable_bias_voltage(4411);
-    set_current_measurement_mode(CUR_MES_1X);
+    // Here we are using the opamp 3.3V output through the res mux at 100k
+    // To force the opamp output at 3.3V, we set IN- to 0V
+    // Hence, the 100k resistor pin will be connected to 0V through (1K2 + 100R) and (1K + 10K)
+    // Equivalent resistor therefore is 1163, voltage at the node is 3.3V * 1163 / 101163 = 0.0379377836 volts
+    // And measured current should be 0.0379377836 / 11000 = 3.44888942 * 10-6 A = 3.45uA
+    // If we use 10k instead of 100k, voltage becomes 0.3438V, and current therefore should be 31uA
+    // 
+    // Vadc = I(A) * 1k * 100 * ampl
+    // Vadc = I(A) * 100k * ampl
+    // Val(ADC) * (1.24 / 2047) = I(A) * 100k * ampl
+    // Val(ADC) = I(A) * 100k * ampl * 2047 / 1.24
+    // For 3.45uA, approximately 569
+    uint16_t cur_measure;    
+    PORTB.DIRSET = PIN2_bm;
+    PORTB.OUTCLR = PIN2_bm;
+    set_measurement_mode_io(RES_100K);    
+    configure_adc_channel(ADC_CHANNEL_CUR, CUR_MES_1X, TRUE);
+    enable_cur_meas_mos();
     cur_measure = cur_measurement_loop(15);
-    if (check_value_range(cur_measure, 11200, 11550) == FALSE)
+    if (check_value_range(cur_measure, 540, 600) == FALSE)
     {
         testdprintf("- PROBLEM CUR MEASUREMENT: %u\r\n", cur_measure);
         print_compute_cur_formula(cur_measure);
@@ -223,6 +238,24 @@ void functional_test(void)
     else
     {
         testdprintf("- OK CUR MEASUREMENT: %u\r\n", cur_measure);
+    }
+    PORTB.DIRCLR = PIN2_bm;
+    
+    if (test_passed == TRUE)
+    {
+        testdprintf_P(PSTR("--------------------------\r\n"));
+        testdprintf_P(PSTR("--------------------------\r\n"));
+        testdprintf_P(PSTR("--------TEST PASSED-------\r\n"));
+        testdprintf_P(PSTR("--------------------------\r\n"));
+        testdprintf_P(PSTR("--------------------------\r\n"));
+    } 
+    else
+    {
+        testdprintf_P(PSTR("--------------------------\r\n"));
+        testdprintf_P(PSTR("--------------------------\r\n"));
+        testdprintf_P(PSTR("--------TEST FAILED-------\r\n"));
+        testdprintf_P(PSTR("--------------------------\r\n"));
+        testdprintf_P(PSTR("--------------------------\r\n"));
     }
     
     while(1);    

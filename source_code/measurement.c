@@ -16,6 +16,9 @@
 #include "vbias.h"
 #include "dac.h"
 #include "adc.h"
+// Discard error flags
+volatile uint8_t tc_error_flag2_discard = FALSE;
+volatile uint8_t tc_error_flag_discard = FALSE;
 // Error flag
 volatile uint8_t tc_error_flag2 = FALSE;
 // Error flag
@@ -41,8 +44,15 @@ uint16_t cur_freq_meas;
  */
 ISR(TCC0_OVF_vect)
 {
-    // If we have an overflow, it means we couldn't measure the pulse width :/
-    tc_error_flag = TRUE;
+    // If we have an overflow, it means we couldn't measure the pulse width
+    if (tc_error_flag_discard == TRUE)
+    {
+        tc_error_flag_discard = FALSE;
+    } 
+    else
+    {        
+        tc_error_flag = TRUE;
+    }
 }
 
 /*
@@ -51,7 +61,14 @@ ISR(TCC0_OVF_vect)
 ISR(TCC1_OVF_vect)
 {
     // If we have an overflow, it means we couldn't measure the pulse width :/
-    tc_error_flag2 = TRUE;
+    if (tc_error_flag2_discard == TRUE)
+    {
+        tc_error_flag2_discard = FALSE;
+    }
+    else
+    {
+        tc_error_flag2 = TRUE;
+    }
 }
 
 /*
@@ -123,16 +140,20 @@ void set_capacitance_measurement_mode(uint16_t freq, uint8_t counter_divider)
     EVSYS.CH3MUX = EVSYS_CHMUX_PORTE_PIN3_gc;                       // Use event line 3 for AN2_COMPOUT edges
     PORTCFG.CLKEVOUT = PORTCFG_EVOUT_PC7_gc;                        // Event line 0 output on PC7
     // TC0: pulse width capture of AN1_COMPOUT
+    TCC0.CNT = 0;                                                   // Reset counter
     TCC0.CTRLB = TC0_CCAEN_bm;                                      // Enable compare A on TCC0
     TCC0.CTRLD = TC_EVACT_PW_gc | TC_EVSEL_CH2_gc;                  // Pulse width capture on event line 2 (AN1_COMPOUT)
     TCC0.INTCTRLA = TC_OVFINTLVL_HI_gc;                             // Overflow interrupt
     TCC0.INTCTRLB = TC_CCAINTLVL_HI_gc;                             // High level interrupt on capture
     TCC0.CTRLA = counter_divider;                                   // Set correct counter divider
+    tc_error_flag_discard = TRUE;                                   // Discard first ovf
     // TC1: pulse width capture of AN2_COMPOUT
+    TCC1.CNT = 0;                                                   // Reset counter
     TCC1.CTRLB = TC1_CCAEN_bm;                                      // Enable compare A on TCC1
     TCC1.CTRLD = TC_EVACT_PW_gc | TC_EVSEL_CH3_gc;                  // Pulse width capture on event line 3 (AN2_COMPOUT)
     TCC1.INTCTRLA = TC_OVFINTLVL_HI_gc;                             // Overflow interrupt
     TCC1.CTRLA = counter_divider;                                   // Set correct counter divider
+    tc_error_flag2_discard = TRUE;                                  // Discard first ovf
     
     switch(freq)
     {
@@ -158,6 +179,9 @@ void set_capacitance_measurement_mode(uint16_t freq, uint8_t counter_divider)
         }
         default: break;
     }
+    
+    // Set bigger resistor to start
+    set_measurement_mode_io(RES_100K);
 }
 
 /*

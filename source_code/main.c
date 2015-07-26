@@ -90,29 +90,23 @@ int main(void)
     while(1);*/
     
     // Current mes
-    _delay_ms(1000);
-    enable_bias_voltage(4411);
-    while(1)
-    {
-        for (uint8_t i = 0; i <= CUR_MES_16X; i++)
-        {
-            set_current_measurement_mode(i);
-            print_compute_cur_formula(cur_measurement_loop(17));
-        }        
-    }
-    while(1);
+//     _delay_ms(1000);
+//     enable_bias_voltage(4411);
+//     while(1)
+//     {
+//         for (uint8_t i = 0; i <= CUR_MES_16X; i++)
+//         {
+//             set_current_measurement_mode(i);
+//             print_compute_cur_formula(cur_measurement_loop(17));
+//         }        
+//     }
+//     while(1);
 
     enable_bias_voltage(1000);
-    set_capacitance_measurement_mode(FREQ_1HZ, TC_CLKSEL_DIV1024_gc);
+    set_capacitance_measurement_mode(FREQ_1HZ, TC_CLKSEL_DIV1_gc);
     while(1)
     {
-        for (uint8_t i = RES_270; i <= RES_10K; i++)
-        {
-            set_measurement_mode_io(i);
-            while(cap_measurement_loop(FALSE) == FALSE);
-            while(cap_measurement_loop(FALSE) == FALSE);
-            while(cap_measurement_loop(FALSE) == FALSE);
-        }        
+        cap_measurement_loop(FALSE);       
     }
     
     // Freq mes
