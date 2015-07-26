@@ -21,8 +21,10 @@
     #define calibdprintf_P
 #endif
 
-// Prototypes
+// Defines
+#define THRESHOLD_AVG_BIT_SHIFT     6
 
+// Prototypes
 uint16_t get_calib_second_thres_down(void);
 uint16_t get_calib_first_thres_down(void);
 uint16_t get_calib_second_thres_up(void);

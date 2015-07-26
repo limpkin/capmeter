@@ -123,52 +123,97 @@ void calibrate_thresholds(void)
     _delay_ms(1000);
     uint16_t dac_val = DAC_MIN_VAL;
     setup_opampin_dac(dac_val);
-    calib_second_thres_down = 0;
-    calib_first_thres_down = 0;
-    calib_second_thres_up = 0;
-    calib_first_thres_up = 0;
+    uint32_t calib_second_thres_down_agg = 0;
+    uint32_t calib_first_thres_down_agg = 0;
+    uint32_t calib_second_thres_up_agg = 0;
+    uint32_t calib_first_thres_up_agg = 0;
+    uint8_t temp_bool = TRUE;
     
-    // Ramp up, wait for all the toggles
-    calibdprintf_P(PSTR("\r\nRamping up...\r\n"));
-    while(dac_val != DAC_MAX_VAL)
+    for (uint16_t i = 0; i < (1 << THRESHOLD_AVG_BIT_SHIFT); i++)
     {
-        update_opampin_dac(++dac_val);
-        _delay_us(10);
-        // First threshold crossed
-        if ((calib_first_thres_down == 0) && ((PORTE_IN & PIN2_bm) == 0))
+        // Ramp up, wait for all the toggles
+        temp_bool = TRUE;
+        while(dac_val != DAC_MAX_VAL && temp_bool == TRUE)
         {
-            calib_first_thres_down = dac_val;
+            update_opampin_dac(++dac_val);
+            _delay_us(10);
+            // First threshold crossed
+            if ((calib_first_thres_down == 0) && ((PORTE_IN & PIN2_bm) == 0))
+            {
+                calib_first_thres_down = dac_val;
+                calib_first_thres_down_agg += calib_first_thres_down;
+            }
+            // Second threshold crossed
+            if ((calib_second_thres_down == 0) && ((PORTE_IN & PIN3_bm) != 0))
+            {
+                temp_bool = FALSE;
+                calib_second_thres_down = dac_val;
+                calib_second_thres_down_agg += calib_second_thres_down;
+            }
         }
-        // Second threshold crossed
-        if ((calib_second_thres_down == 0) && ((PORTE_IN & PIN3_bm) != 0))
-        {
-            calib_second_thres_down = dac_val;
-        }
-    }
-    
-    calibdprintf("First thres found: %u, approx %umV\r\n", calib_first_thres_down, compute_voltage_from_se_adc_val(calib_first_thres_down));
-    calibdprintf("Second thres found: %u, approx %umV\r\n\r\n", calib_second_thres_down, compute_voltage_from_se_adc_val(calib_second_thres_down));
         
-    // Ramp low, wait for toggle
-    calibdprintf_P(PSTR("Ramping down...\r\n"));
-    while(dac_val != DAC_MIN_VAL)
-    {
-        update_opampin_dac(--dac_val);
-        _delay_us(10);
-        // First threshold crossed
-        if ((calib_first_thres_up == 0) && ((PORTE_IN & PIN2_bm) != 0))
+        // Get a little margin before ramping down
+        if (dac_val < DAC_MAX_VAL - 100)
         {
-            calib_first_thres_up = dac_val;
-        }
-        // Second threshold crossed
-        if ((calib_second_thres_up == 0) && ((PORTE_IN & PIN3_bm) == 0))
+            dac_val += 100;
+        } 
+        else
         {
-            calib_second_thres_up = dac_val;
+            dac_val = DAC_MAX_VAL;
+        }    
+        update_opampin_dac(dac_val);
+        _delay_us(20);    
+        
+        // Ramp low, wait for toggle
+        temp_bool = TRUE;
+        while(dac_val != DAC_MIN_VAL && temp_bool == TRUE)
+        {
+            update_opampin_dac(--dac_val);
+            _delay_us(10);
+            // First threshold crossed
+            if ((calib_first_thres_up == 0) && ((PORTE_IN & PIN2_bm) != 0))
+            {
+                temp_bool = FALSE;
+                calib_first_thres_up = dac_val;
+                calib_first_thres_up_agg += calib_first_thres_up;
+            }
+            // Second threshold crossed
+            if ((calib_second_thres_up == 0) && ((PORTE_IN & PIN3_bm) == 0))
+            {
+                calib_second_thres_up = dac_val;
+                calib_second_thres_up_agg += calib_second_thres_up;
+            }
         }
-    }
+        
+        // Get a little margin before ramping up
+        if (dac_val > 100)
+        {
+            dac_val -= 100;
+        } 
+        else
+        {
+            dac_val = DAC_MIN_VAL;
+        }    
+        update_opampin_dac(dac_val);
+        _delay_us(20);   
+        
+        // Reset values
+        calib_first_thres_down = 0;
+        calib_second_thres_down = 0;
+        calib_first_thres_up = 0;
+        calib_second_thres_up = 0;
+    }    
     
+    // Compute values
+    
+    calib_first_thres_down = (uint16_t)(calib_first_thres_down_agg >> THRESHOLD_AVG_BIT_SHIFT);
+    calib_second_thres_down = (uint16_t)(calib_second_thres_down_agg >> THRESHOLD_AVG_BIT_SHIFT);
+    calib_first_thres_up = (uint16_t)(calib_first_thres_up_agg >> THRESHOLD_AVG_BIT_SHIFT);
+    calib_second_thres_up = (uint16_t)(calib_second_thres_up_agg >> THRESHOLD_AVG_BIT_SHIFT);
+    calibdprintf("First thres found: %u, approx %umV\r\n", calib_first_thres_down, compute_voltage_from_se_adc_val(calib_first_thres_down));
+    calibdprintf("Second thres found: %u, approx %umV\r\n", calib_second_thres_down, compute_voltage_from_se_adc_val(calib_second_thres_down));
     calibdprintf("First thres found: %u, approx %umV\r\n", calib_first_thres_up, compute_voltage_from_se_adc_val(calib_first_thres_up));
-    calibdprintf("Second thres found: %u, approx %umV\r\n\r\n", calib_second_thres_up, compute_voltage_from_se_adc_val(calib_second_thres_up));
+    calibdprintf("Second thres found: %u, approx %umV\r\n", calib_second_thres_up, compute_voltage_from_se_adc_val(calib_second_thres_up));
     
     disable_opampin_dac();
     disable_bias_voltage();

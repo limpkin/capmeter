@@ -180,7 +180,7 @@ uint8_t cap_measurement_loop(uint8_t temp)
     {
         new_val_flag = FALSE;
         //measdprintf_P(PSTR("."));
-        //measdprintf("agg: %lu, counter: %lu\r\n", last_agg, last_counter);
+        measdprintf("agg: %lu, counter: %lu\r\n", last_agg, last_counter);
         if (temp == FALSE)
         {
             print_compute_c_formula(last_agg, last_counter, cur_counter_divider, get_cur_res_mux());

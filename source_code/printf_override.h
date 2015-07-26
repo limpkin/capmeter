@@ -18,11 +18,11 @@
     #undef ADC_PRINTF
     #undef CALIB_PRINTF
     #undef VBIAS_PRINTF
-    #undef TESTS_PRINTF
-    #undef CONV_PRINTF
 #endif
 
 // This file was made to facilitate automated testing through uart
 //#undef AUTOMATED_TESTS_PRINTF
+//#undef TESTS_PRINTF
+//#undef CONV_PRINTF
 
 #endif /* PRINTF_OVERRIDE_H_ */

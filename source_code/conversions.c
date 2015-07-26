@@ -35,18 +35,17 @@ uint16_t compute_vbias_for_adc_value(uint16_t adc_val)
     /******************* INTERVAL ARITHMETIC *******************/
     // 0.1% resistors
     // Vadc = Vbias * [1198.8,1201.2] / ([1198.8,1201.2]+[14985,15015])
-    // Vadc = Vbias * [1198.8,1201.2] / ([16183.8,16216,2])
-    // Vbias = Vadc * [16183.8,16216,2] / [1198.8,1201.2]
-    // Vbias = Vadc * [16183.8,16216,2] * [1/1201.2, 1/1198.8]
+    // Vbias = Vadc * ([1198.8,1201.2]+[14985,15015]) / [1198.8,1201.2]
+    // Vbias = Vadc * ([1198.8,1201.2]+[14985,15015]) * [1/1201.2, 1/1198.8] (for same resistor)
     // Multiplication: [x1,x2]*[y2,y1] = [min(x1y1, x1y2, x2y1, x2y2), max(x1y1, x1y2, x2y1, x2y2)]
-    // Vbias = Vadc * [13,473, 13.527]
+    // Vbias = Vadc * [13.475, 13.525]
     // 1.24V 0.25% voltage reference
-    // Vbias = VALadc * [1243.1, 1236.9] * [13,473, 13.527] / 4095
-    // Vbias = VALadc * [16664.7537, 16815,4137] / 4095
-    // Vbias = VALadc * 16740.0837 (+-0.45%) / 4095
+    // Vbias = VALadc * [1243.1, 1236.9] * [13.475, 13.525] / 4095
+    // Vbias = VALadc * [16667,2275, 16812,9275] / 4095
+    // Vbias = VALadc * 16740,0775 (+-0.435%) / 4095
     // Taking into account a +-3lsb INL
-    // Vbias = VALadc * 16740.0837 (+-0.45%) / 4095 +- 3 * 16740.0837 (+-0.45%) / 4095
-    // Vbias = VALadc * 16740.0837 (+-0.45%) / 4095 +- 12mV (+-0.45%)
+    // Vbias = VALadc * 16740.0775 (+-0.435%) / 4095 +- 3 * 16740.0775 (+-0.435%) / 4095
+    // Vbias = VALadc * 16740.0775 (+-0.435%) / 4095 +- 12mV (+-0.435%)
     
     uint16_t return_value = (adc_val * 16 / 182);
     return_value += (adc_val * 4);

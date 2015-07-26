@@ -44,7 +44,7 @@ void wait_for_0v_bias(void)
     // Wait for bias voltage to be under ~400mV
     configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
     enable_vbias_quenching();
-    while (measured_vbias > 100)
+    while (measured_vbias > 80)
     {
         measured_vbias = get_averaged_stabilized_adc_value(6, 15, FALSE);
     }

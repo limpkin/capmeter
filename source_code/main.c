@@ -63,10 +63,10 @@ int main(void)
     //automated_current_testing();
     //automated_vbias_testing();
     //peak_to_peak_adc_noise_measurement_test();
-    bias_voltage_test();
-    //ramp_bias_voltage_test();                            // Check accuracy of bias voltages
+    //ramp_bias_voltage_test();
     //ramp_current_test();
-    while(1);
+    functional_test();
+    //while(1);
     //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
     //calibrate_current_measurement();                // Calibrate the ADC for current measurements
@@ -100,13 +100,26 @@ int main(void)
 //         }        
 //     }
 //     while(1);
+
+    enable_bias_voltage(1000);
+    set_capacitance_measurement_mode(FREQ_1HZ, TC_CLKSEL_DIV1024_gc);
+    while(1)
+    {
+        for (uint8_t i = RES_270; i <= RES_10K; i++)
+        {
+            set_measurement_mode_io(i);
+            while(cap_measurement_loop(FALSE) == FALSE);
+            while(cap_measurement_loop(FALSE) == FALSE);
+            while(cap_measurement_loop(FALSE) == FALSE);
+        }        
+    }
     
     // Freq mes
     uint16_t voltage = 1000;
     uint8_t temp_bool = FALSE;
     enable_bias_voltage(voltage);
-    set_capacitance_measurement_mode(FREQ_1HZ, TC_CLKSEL_DIV4_gc);
-    set_measurement_mode_io(RES_270);   
+    set_capacitance_measurement_mode(FREQ_1HZ, TC_CLKSEL_DIV1024_gc);
+    set_measurement_mode_io(RES_1K);   
     while(1)
     {
         if (cap_measurement_loop(temp_bool) == TRUE)

@@ -8,6 +8,7 @@
  #include <string.h>
  #include <avr/io.h>
  #include <stdio.h>
+ #include "defines.h"
 
 
 /*! \brief Function for GCC to read out calibration byte.
@@ -26,4 +27,22 @@ uint8_t ReadCalibrationByte(uint8_t index)
 	NVM_CMD = NVM_CMD_NO_OPERATION_gc;
 
 	return result;
+}
+
+/*! \brief Check a value's range
+ *  \param val  The value
+ *  \param min  The min
+ *  \param max  The max
+ *  \return TRUE or FALSE
+ */
+uint8_t check_value_range(uint16_t val, uint16_t min, uint16_t max)
+{
+    if ((val < min) || (val > max))
+    {
+        return FALSE;
+    } 
+    else
+    {
+        return TRUE;
+    }    
 }
