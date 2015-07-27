@@ -30,7 +30,7 @@ void functional_test(void)
     uint8_t test_passed = TRUE;
     
     // Check the single ended offset
-    if (check_value_range(get_single_ended_offset(), 170, 200) == FALSE)
+    if (check_value_range(get_single_ended_offset(), 170, 190) == FALSE)
     {
         testdprintf("- PROBLEM OFFSET: %u\r\n", get_single_ended_offset());
         test_passed = FALSE;
@@ -107,10 +107,15 @@ void functional_test(void)
     // Check AVCC, select ADC channel for AVCC / 10
     // Vadc = Val(ADC) * (1.24 / 4095)
     // Val(ADC) = Vadc * (4095 / 1.24+-0.25%)
-    // Between 1087 and 1093 for 0.33V >> setting +-17 LSB, which is +-50mV
+    // From http://atmel.force.com/support/articles/en_US/FAQ/Accuracy-of-Vcc-Scaled?q=xmega+adc&l=en_US&fs=Search&pn=1, error is +-1mV hence +-4LSB
+    // Vadc is the 3.3V / 10
+    // Vout = Vref (R1 + R2) / R2
+    // Min Vout = 1.176 * (2.15 * 0.99 + 1.2 * 1.01) / (1.2 * 1.01) = 3.241V
+    // Max Vout = 1.212 * (2.15 * 1.01 + 1.2 * 0.99) / (1.2 * 0.99) = 3.427V
+    // >> Between 1067 and 1134
     configure_adc_channel(ADC_CHANNEL_AVCCDIV10, 0, FALSE);
     uint16_t avcc = get_averaged_adc_value(13);
-    if (check_value_range(avcc, 1070, 1110) == FALSE)
+    if (check_value_range(avcc, 1067, 1134) == FALSE)
     {
         testdprintf("- PROBLEM AVCC: %u (~%umV)\r\n", avcc, compute_voltage_from_se_adc_val(avcc)*10);
         test_passed = FALSE;
@@ -121,15 +126,29 @@ void functional_test(void)
     }
     
     // Check AREF    
-    // Vadc ~= Val(ADC) * 3.3 / (1.6 * 4095)
-    // Val(ADC) = Vadc * (6552 / 3.3)
-    // Val(ADC) = 1.24 * (6552 / 3.3)
-    // Approximately 2462 +-50LSB (2.5mV)
+    // Vadc = Val(ADC) * AVcc / (1.6 * 4095)
+    // Val(ADC) = Vadc * (6552 / AVcc)
+    // Val(ADC) = 1.24 * (6552 / AVcc)
+    // Val(ADC) = 1.24+-0.25% * 6552 / (10 * avcc * (1.24+-0.25% / 4095))
+    // Val(ADC) = 6552 * 4095 / 10 * avcc
+    // Val(ADC) = 2683044 / avcc
+    // Avcc error can be 3 LSB, we'll put 5 though
     delete_single_ended_offset();
     configure_adc_channel(ADC_CHANNEL_GND_EXT_VCCDIV16, 0, FALSE);
     uint16_t aref_offset = get_averaged_adc_value(13);
     configure_adc_channel(ADC_CHANNEL_AREF, 0, FALSE);
     uint16_t aref = get_averaged_adc_value(13);
+    uint32_t min_total = ((aref-aref_offset)-3)*(avcc-3-4);
+    uint32_t max_total = ((aref-aref_offset)+3)*(avcc+3+4);    
+    if (check_value_range_uint32(2683044, min_total, max_total) == FALSE)
+    {
+        testdprintf("- PROBLEM AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
+        test_passed = FALSE;
+    }
+    else
+    {
+        testdprintf("- OK AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
+    }
     if (check_value_range(aref-aref_offset, 2412, 2512) == FALSE)
     {
         testdprintf("- PROBLEM AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
@@ -145,16 +164,28 @@ void functional_test(void)
     // Vref = VR2 + Vdac
     // VR2 = (Vout - Vdac) * R2 / (R1 + R2)
     // Vout = Vref * (R1 + R2) / R2 - Vdac * R1 / R2
+    // Vref between 1.176 and 1.212, components resistance are 1% accurate
+    // For perfect value:
     // Vout = 1.188 * 16.2 / 1.2 - Vdac * 15 / 1.2
     // Vout = 16.038 - Val(DAC) * (1.24 / 4095) * (15 / 1.2)
     // Vout = 16,038 - Val(DAC) * 0,0037851
-    // For 3210 : 3.888, setting allowable range of +-150mV
+    // For 3210 : 3.888
+    // for minimum (vdac never above 1.176 anyway)
+    // Vout = 1.176 * ((15*0.99) + (1.2 * 1.01)) / (1.2 * 1.01) - Vdac * 15 * 0.99 / (1.2 * 1.01)
+    // Vout = 15.5849108911 - Val(DAC) * (1.24 / 4095) * (15 * 0.99 / (1.2 * 1.01))
+    // Vout = 15.5849108911 - Val(DAC) * 0.00371015123
+    // For 3210: 3.6753254428
+    // for maximum (vdac never above 1.176 anyway)
+    // Vout = 1.212 * ((15*1.01) + (1.2 * 0.99)) / (1.2 * 0.99) - Vdac * 15 * 1.01 / (1.2 * 0.99)
+    // Vout = 16.6680606061 - Val(DAC) * (1.24 / 4095) * (15 * 1.01 / (1.2 * 0.99))
+    // Vout = 16.6680606061 - Val(DAC) * 0.00386157052
+    // For 3210: 4.2724192369
     setup_vbias_dac(3210);
     enable_ldo();
     _delay_ms(200);
     configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
     uint16_t voltage = compute_vbias_for_adc_value(get_averaged_adc_value(14));
-    if (check_value_range(voltage, 3738, 4038) == FALSE)
+    if (check_value_range(voltage, 3675, 4272) == FALSE)
     {
         testdprintf("- PROBLEM VBIAS GENERATION (LDO): %u\r\n", voltage);
         test_passed = FALSE;
@@ -165,13 +196,13 @@ void functional_test(void)
     }
     
     // Check Vbias generation (stepup)
-    // For 1234 : 11.367, setting allowable range of +-150mV
+    // For 1234 : min 11.006, max 11.903
     setup_vbias_dac(1234);
     enable_stepup();
     _delay_ms(200);
     configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
     voltage = compute_vbias_for_adc_value(get_averaged_adc_value(14));
-    if (check_value_range(voltage, 11217, 11517) == FALSE)
+    if (check_value_range(voltage, 11006, 11903) == FALSE)
     {
         testdprintf("- PROBLEM VBIAS GENERATION (STEPUP): %u\r\n", voltage);
         test_passed = FALSE;
@@ -225,7 +256,9 @@ void functional_test(void)
     uint16_t cur_measure;    
     PORTB.DIRSET = PIN2_bm;
     PORTB.OUTCLR = PIN2_bm;
-    set_measurement_mode_io(RES_100K);    
+    //enable_res_mux(RES_100K);
+    //enable_feedback_mos();
+    //set_measurement_mode_io(RES_100K);  
     configure_adc_channel(ADC_CHANNEL_CUR, CUR_MES_1X, TRUE);
     enable_cur_meas_mos();
     cur_measure = cur_measurement_loop(15);

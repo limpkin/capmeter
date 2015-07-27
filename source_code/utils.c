@@ -46,3 +46,21 @@ uint8_t check_value_range(uint16_t val, uint16_t min, uint16_t max)
         return TRUE;
     }    
 }
+
+/*! \brief Check a value's range
+ *  \param val  The value
+ *  \param min  The min
+ *  \param max  The max
+ *  \return TRUE or FALSE
+ */
+uint8_t check_value_range_uint32(uint32_t val, uint32_t min, uint32_t max)
+{
+    if ((val < min) || (val > max))
+    {
+        return FALSE;
+    } 
+    else
+    {
+        return TRUE;
+    }    
+}

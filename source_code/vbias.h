@@ -34,13 +34,14 @@
 #define BIT_AVG_APPROACH        3                     // Bit averaging for approach
 #define BIT_AVG_FINE            14                    // Bit averaging for fine approach
 #define CONV_DELAY_FINE         5                     // How long we should wait before launching a conversion (ms)
-#define VBIAS_OVERSHOOT_MV      0                     // The overshoot we want (due to the capacitors)
+#define VBIAS_OVERSHOOT_MV      2                     // The overshoot we want (due to the capacitors)
 
 // Prototypes
 uint16_t update_bias_voltage(uint16_t val_mv);
 uint16_t enable_bias_voltage(uint16_t val_mv);
 uint16_t get_last_measured_vbias(void);
 void disable_bias_voltage(void);
+void wait_for_0v4_bias(void);
 void wait_for_0v_bias(void);
 
 

@@ -239,7 +239,7 @@ void init_calibration(void)
     calibrate_single_ended_offset();
     
     // Wait for 0V bias
-    wait_for_0v_bias();
+    wait_for_0v4_bias();
     
     // Calibrate thresholds
     calibrate_thresholds();

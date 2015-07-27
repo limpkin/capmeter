@@ -66,7 +66,7 @@ int main(void)
     //peak_to_peak_adc_noise_measurement_test();
     //ramp_bias_voltage_test();
     //ramp_current_test();
-    //functional_test();
+    functional_test();
     //while(1);
     //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom

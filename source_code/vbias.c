@@ -32,9 +32,9 @@ uint16_t get_last_measured_vbias(void)
 }
 
 /*
- * Wait for 0v bias
+ * Wait for 0v4 bias
  */
-void wait_for_0v_bias(void)
+void wait_for_0v4_bias(void)
 {
     uint16_t measured_vbias = 2000;
     
@@ -51,6 +51,29 @@ void wait_for_0v_bias(void)
     
     disable_vbias_quenching();
     vbiasdprintf_P(PSTR("Bias voltage at 0.4V\r\n"));
+    vbiasdprintf_P(PSTR("-----------------------\r\n"));
+}
+
+/*
+ * Wait for 0v bias
+ */
+void wait_for_0v_bias(void)
+{
+    uint16_t measured_vbias = 2000;
+    
+    vbiasdprintf_P(PSTR("-----------------------\r\n"));
+    vbiasdprintf_P(PSTR("Waiting for low bias voltage...\r\n"));
+    
+    // Wait for bias voltage to be at 0V exactly
+    configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
+    enable_vbias_quenching();
+    while (measured_vbias != 0)
+    {
+        measured_vbias = get_averaged_adc_value(6);
+    }
+    
+    disable_vbias_quenching();
+    vbiasdprintf_P(PSTR("Bias voltage at 0V\r\n"));
     vbiasdprintf_P(PSTR("-----------------------\r\n"));
 }
 
@@ -80,7 +103,7 @@ void disable_bias_voltage(void)
     disable_ldo();                                      // Disable LDO
     disable_stepup();                                   // Disable stepup
     disable_vbias_dac();                                // Disable DAC controlling the ldo
-    wait_for_0v_bias();                                 // Wait bias voltage to be at 0v
+    wait_for_0v4_bias();                                 // Wait bias voltage to be at 0v
 }
 
 /*

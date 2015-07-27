@@ -143,14 +143,14 @@ void configure_adc_channel(uint8_t channel, uint8_t ampl, uint8_t debug)
         PORTA.PIN5CTRL = PORT_ISC_INPUT_DISABLE_gc;                                 // Disable digital input buffer
         if (debug)
         {
-            adcdprintf_P(PSTR("ADC GND EXT channel set with AVCC/2 ref\r\n"));
+            adcdprintf_P(PSTR("ADC GND EXT channel set with AVCC/1.6 ref\r\n"));
         }
     }   
     else if (channel == ADC_CHANNEL_AVCCDIV10)
     {
         ADCA.CTRLB = 0;                                                             // No current limit, high impedance, unsigned mode, 12-bit right adjusted
         ADCA.REFCTRL = ADC_REFSEL_AREFB_gc;                                         // External 1.24V ref
-        ADCA.PRESCALER = ADC_PRESCALER_DIV128_gc;                                   // Divide clock by 128, resulting in fadc of 250Hz (best accuracy)
+        ADCA.PRESCALER = ADC_PRESCALER_DIV256_gc;                                   // Divide clock by 256, resulting in fadc of 125Hz (cf AVR1300)
         ADCA.CH0.CTRL = ADC_CH_GAIN_1X_gc | ADC_CH_INPUTMODE_INTERNAL_gc;           // Internal input, no gain
         ADCA.CH0.MUXCTRL = ADC_CH_MUXINT_SCALEDVCC_gc;                              // Avcc / 10
         if (debug)
