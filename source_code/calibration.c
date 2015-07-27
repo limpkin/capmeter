@@ -9,6 +9,7 @@
 #include <avr/io.h>
 #include <string.h>
 #include <stdio.h>
+#include "measurement.h"
 #include "conversions.h"
 #include "calibration.h"
 #include "meas_io.h"
@@ -25,6 +26,8 @@
 // current measurements when ampl is 1X
 //
 /////////////////////////////////////
+// Current measurement offsets
+uint16_t cur_measurement_offsets[7];
 // Calibrated second threshold, ramping up
 uint16_t calib_second_thres_down;
 // Calibrated first threshold, ramping up
@@ -85,6 +88,16 @@ uint16_t get_single_ended_offset(void)
 }
 
 /*
+ * Get ADC value for current measurement offset
+ * @param   ampl    The amplification used
+ * @return  ADC value
+ */
+uint16_t get_offset_for_current_measurement(uint8_t ampl)
+{
+    return cur_measurement_offsets[ampl];
+}
+
+/*
  * Delete single ended offset
  */
 void delete_single_ended_offset(void)
@@ -110,8 +123,31 @@ void calibrate_single_ended_offset(void)
     calibdprintf_P(PSTR("Single Ended Offset Calibration...\r\n\r\n"));
     configure_adc_channel(ADC_CHANNEL_GND_EXT, 0, TRUE);
     calib_0v_value_se = 0;
-    calib_0v_value_se = get_averaged_adc_value(16);
+    calib_0v_value_se = get_averaged_adc_value(15);
     calibdprintf("0V ADC value: %u, approx %umV\r\n", calib_0v_value_se, compute_voltage_from_se_adc_val(calib_0v_value_se));    
+}
+
+/*
+ * Measure the offset for current measurements
+ */
+void calibrate_cur_measurement_offsets(void)
+{
+    calibdprintf_P(PSTR("-----------------------\r\n"));
+    calibdprintf_P(PSTR("Current Measurement Offset Calibration...\r\n\r\n"));
+    
+    set_opampin_low();                      // Set opampin low to remove all voltage on that branch
+    enable_feedback_mos();                  // Enable feedback mos to allow current passage    
+    
+    for (uint8_t i = CUR_MES_1X; i < CUR_MES_4X; i++)
+    {
+        configure_adc_channel(ADC_CHANNEL_CUR, i, TRUE);
+        cur_measurement_offsets[i] = get_averaged_adc_value(15);
+        calibdprintf("Offset for ampl %u: %u\r\n", 1 << i, cur_measurement_offsets[i]);
+    }
+    
+    
+    disable_feedback_mos();                 // Disable feedback mos
+    opampin_as_input();                     // Reset opampin as input
 }
 
 /*
@@ -237,6 +273,9 @@ void init_calibration(void)
     
     // Calibrate single ended offset
     calibrate_single_ended_offset();
+    
+    // Calibrate current measurement offsets
+    calibrate_cur_measurement_offsets();
     
     // Wait for 0V bias
     wait_for_0v4_bias();

@@ -257,11 +257,11 @@ void functional_test(void)
     PORTB.DIRSET = PIN2_bm;
     PORTB.OUTCLR = PIN2_bm;
     //enable_res_mux(RES_100K);
-    //enable_feedback_mos();
+    enable_feedback_mos();
     //set_measurement_mode_io(RES_100K);  
     configure_adc_channel(ADC_CHANNEL_CUR, CUR_MES_1X, TRUE);
     enable_cur_meas_mos();
-    cur_measure = cur_measurement_loop(15);
+    cur_measure = cur_measurement_loop(16);
     if (check_value_range(cur_measure, 540, 600) == FALSE)
     {
         testdprintf("- PROBLEM CUR MEASUREMENT: %u\r\n", cur_measure);

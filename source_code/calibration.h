@@ -25,6 +25,7 @@
 #define THRESHOLD_AVG_BIT_SHIFT     6
 
 // Prototypes
+uint16_t get_offset_for_current_measurement(uint8_t ampl);
 uint16_t get_calib_second_thres_down(void);
 uint16_t get_calib_first_thres_down(void);
 uint16_t get_calib_second_thres_up(void);

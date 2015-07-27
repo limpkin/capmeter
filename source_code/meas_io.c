@@ -58,6 +58,25 @@ void disable_cur_meas_mos(void)
 }
 
 /*
+ * Set opampin- low
+ */
+void set_opampin_low(void)
+{    
+    PORTB.DIRSET = PIN2_bm;
+    PORTB.OUTCLR = PIN2_bm;
+    iodprintf_P(PSTR("Opampin low\r\n"));
+}
+
+/*
+ * Set opampin- as input
+ */
+void opampin_as_input(void)
+{    
+    PORTB.DIRCLR = PIN2_bm;
+    iodprintf_P(PSTR("Opampin as input\r\n"));
+}
+
+/*
  * Enable the oscillator feedback mosfet
  */
 void enable_feedback_mos(void)

@@ -205,7 +205,8 @@ int16_t start_and_wait_for_adc_conversion(void)
     }
     else
     {
-        return return_value;    
+        // Current measurement
+        return (uint16_t)return_value - get_offset_for_current_measurement(current_ampl);
     }
 }
 
