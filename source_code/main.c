@@ -65,8 +65,9 @@ int main(void)
     //automated_vbias_testing();
     //peak_to_peak_adc_noise_measurement_test();
     //ramp_bias_voltage_test();
+    //printf("blah\r\n");_delay_ms(3333);
     //ramp_current_test();
-    functional_test();
+    //functional_test();
     //while(1);
     //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
@@ -102,8 +103,8 @@ int main(void)
 //     }
 //     while(1);
 
-    enable_bias_voltage(1000);
-    set_capacitance_measurement_mode(FREQ_1HZ, TC_CLKSEL_DIV1_gc);
+    enable_bias_voltage(4500);
+    set_capacitance_measurement_mode();
     while(1)
     {
         cap_measurement_loop(FALSE);       
@@ -113,7 +114,7 @@ int main(void)
     uint16_t voltage = 1000;
     uint8_t temp_bool = FALSE;
     enable_bias_voltage(voltage);
-    set_capacitance_measurement_mode(FREQ_1HZ, TC_CLKSEL_DIV1024_gc);
+    set_capacitance_measurement_mode();
     set_measurement_mode_io(RES_1K);   
     while(1)
     {

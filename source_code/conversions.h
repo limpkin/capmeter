@@ -29,6 +29,7 @@ uint16_t compute_cur_mes_numerator_from_adc_val(uint16_t adc_val);
 uint16_t compute_voltage_from_se_adc_val(uint16_t adc_val);
 uint16_t get_half_val_for_res_mux_define(uint16_t define);
 uint16_t compute_vbias_for_adc_value(uint16_t adc_val);
+uint8_t get_bit_shift_for_freq_define(uint16_t define);
 uint16_t get_val_for_counter_divider(uint8_t divider);
 uint16_t get_val_for_freq_define(uint16_t define);
 void print_compute_cur_formula(uint16_t adc_val);

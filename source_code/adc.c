@@ -157,7 +157,19 @@ void configure_adc_channel(uint8_t channel, uint8_t ampl, uint8_t debug)
         {
             adcdprintf_P(PSTR("ADC AVCC div 10 channel set\r\n"));
         }
-    }         
+    }     
+    else if (channel == ADC_CHANNEL_AVCCDIV10_VCCDIV16)
+    {
+        ADCA.CTRLB = 0;                                                             // No current limit, high impedance, unsigned mode, 12-bit right adjusted
+        ADCA.REFCTRL = ADC_REFSEL_INTVCC_gc;                                        // AVcc / 1.6 REF
+        ADCA.PRESCALER = ADC_PRESCALER_DIV256_gc;                                   // Divide clock by 256, resulting in fadc of 125Hz (cf AVR1300)
+        ADCA.CH0.CTRL = ADC_CH_GAIN_1X_gc | ADC_CH_INPUTMODE_INTERNAL_gc;           // Internal input, no gain
+        ADCA.CH0.MUXCTRL = ADC_CH_MUXINT_SCALEDVCC_gc;                              // Avcc / 10
+        if (debug)
+        {
+            adcdprintf_P(PSTR("ADC AVCC div 10 channel set, VCCINT ref\r\n"));
+        }
+    }        
     
     // Launch dummy conversion
     ADCA.CTRLA |= ADC_CH0START_bm;

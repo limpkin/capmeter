@@ -64,7 +64,7 @@ void set_opampin_low(void)
 {    
     PORTB.DIRSET = PIN2_bm;
     PORTB.OUTCLR = PIN2_bm;
-    iodprintf_P(PSTR("Opampin low\r\n"));
+    iodprintf_P(PSTR("Opampin Low\r\n"));
 }
 
 /*
@@ -73,7 +73,7 @@ void set_opampin_low(void)
 void opampin_as_input(void)
 {    
     PORTB.DIRCLR = PIN2_bm;
-    iodprintf_P(PSTR("Opampin as input\r\n"));
+    iodprintf_P(PSTR("Opampin as Input\r\n"));
 }
 
 /*
@@ -199,6 +199,7 @@ void enable_res_mux(uint8_t val)
  */
 void set_measurement_mode_io(uint8_t res)
 {
+    opampin_as_input();
     enable_res_mux(res);
     enable_feedback_mos();
     disable_cur_meas_mos();
@@ -224,6 +225,7 @@ void init_ios(void)
     disable_vbias_quenching();                              // Disable vbias quenching
     disable_feedback_mos();                                 // Disable opamp feedback
     disable_res_mux();                                      // Disable resistor mux
+    set_opampin_low();                                      // Prevent oscillations
     disable_stepup();                                       // Disable stepup
     disable_ldo();                                          // Disable LDO
     PORTA_DIRSET = PIN0_bm | PIN2_bm | PIN3_bm | PIN4_bm;   // CON_SH, MUX_A1, MUX_A0, MUX_EN

@@ -111,11 +111,12 @@ void functional_test(void)
     // Vadc is the 3.3V / 10
     // Vout = Vref (R1 + R2) / R2
     // Min Vout = 1.176 * (2.15 * 0.99 + 1.2 * 1.01) / (1.2 * 1.01) = 3.241V
+    // Val(ADC)min = ((1.176 * (2.15 * 0.99 + 1.2 * 1.01) / (1.2 * 1.01)) - 0.001) * (409.5 / (1.24*1.0025)) - 3 = 1064.4
     // Max Vout = 1.212 * (2.15 * 1.01 + 1.2 * 0.99) / (1.2 * 0.99) = 3.427V
-    // >> Between 1067 and 1134
+    // Val(ADC)max = ((1.212 * (2.15 * 1.01 + 1.2 * 0.99) / (1.2 * 0.99)) + 0.001) * (409.5 / (1.24*0.9975)) + 3 = 1138
     configure_adc_channel(ADC_CHANNEL_AVCCDIV10, 0, FALSE);
     uint16_t avcc = get_averaged_adc_value(13);
-    if (check_value_range(avcc, 1067, 1134) == FALSE)
+    if (check_value_range(avcc, 1064, 1138) == FALSE)
     {
         testdprintf("- PROBLEM AVCC: %u (~%umV)\r\n", avcc, compute_voltage_from_se_adc_val(avcc)*10);
         test_passed = FALSE;
@@ -137,9 +138,12 @@ void functional_test(void)
     configure_adc_channel(ADC_CHANNEL_GND_EXT_VCCDIV16, 0, FALSE);
     uint16_t aref_offset = get_averaged_adc_value(13);
     configure_adc_channel(ADC_CHANNEL_AREF, 0, FALSE);
-    uint16_t aref = get_averaged_adc_value(13);
+    uint16_t aref = get_averaged_adc_value(13);    
+    configure_adc_channel(ADC_CHANNEL_AVCCDIV10_VCCDIV16, 0, FALSE);
+    uint16_t div10_avccint_ref = get_averaged_adc_value(13);
     uint32_t min_total = ((aref-aref_offset)-3)*(avcc-3-4);
-    uint32_t max_total = ((aref-aref_offset)+3)*(avcc+3+4);    
+    uint32_t max_total = ((aref-aref_offset)+3)*(avcc+3+4);
+    testdprintf("Div10int = %u, Div10ref = %u, vref = %u\r\n", div10_avccint_ref-aref_offset, avcc, aref-aref_offset);
     if (check_value_range_uint32(2683044, min_total, max_total) == FALSE)
     {
         testdprintf("- PROBLEM AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
@@ -273,6 +277,9 @@ void functional_test(void)
         testdprintf("- OK CUR MEASUREMENT: %u\r\n", cur_measure);
     }
     PORTB.DIRCLR = PIN2_bm;
+    
+    // Check oscillator
+    
     
     if (test_passed == TRUE)
     {

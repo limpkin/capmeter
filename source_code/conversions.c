@@ -141,6 +141,27 @@ uint16_t get_val_for_freq_define(uint16_t define)
 }
 
 /*
+ * Get bit shift for freq measurement define
+ * @param   define  The define
+ * @return  the value
+ */
+uint8_t get_bit_shift_for_freq_define(uint16_t define)
+{
+    switch(define)
+    {
+        case FREQ_1HZ:      return 0;
+        case FREQ_2HZ:      return 1;
+        case FREQ_4HZ:      return 2;
+        case FREQ_8HZ:      return 4;
+        case FREQ_16HZ:     return 5;
+        case FREQ_32HZ:     return 6;
+        case FREQ_64HZ:     return 7;
+        case FREQ_128HZ:    return 8;
+    }
+    return 0;    
+}
+
+/*
  * Get value for counter divider
  * @param   divider  The divider
  * @return  the value

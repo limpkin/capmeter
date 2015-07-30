@@ -135,8 +135,8 @@ void calibrate_cur_measurement_offsets(void)
     calibdprintf_P(PSTR("-----------------------\r\n"));
     calibdprintf_P(PSTR("Current Measurement Offset Calibration...\r\n\r\n"));
     
-    set_opampin_low();                      // Set opampin low to remove all voltage on that branch
-    enable_feedback_mos();                  // Enable feedback mos to allow current passage    
+    enable_feedback_mos();                  // Enable feedback mos to allow current passage   
+    enable_cur_meas_mos();                  // Enable current measurement mosfet (or not?)
     
     for (uint8_t i = CUR_MES_1X; i < CUR_MES_4X; i++)
     {
@@ -145,9 +145,8 @@ void calibrate_cur_measurement_offsets(void)
         calibdprintf("Offset for ampl %u: %u\r\n", 1 << i, cur_measurement_offsets[i]);
     }
     
-    
+    disable_cur_meas_mos();                 // Disable current measurement technique
     disable_feedback_mos();                 // Disable feedback mos
-    opampin_as_input();                     // Reset opampin as input
 }
 
 /*
@@ -160,6 +159,7 @@ void calibrate_thresholds(void)
     
     // Set bias voltage above vcc so Q1 comes into play if there's a cap between the terminals
     disable_feedback_mos();
+    opampin_as_input();
     _delay_ms(10);
     enable_bias_voltage(4000);
     
@@ -261,6 +261,7 @@ void calibrate_thresholds(void)
     
     disable_opampin_dac();
     disable_bias_voltage();
+    set_opampin_low();
 }
 
 /*
