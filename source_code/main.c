@@ -67,7 +67,7 @@ int main(void)
     //ramp_bias_voltage_test();
     //printf("blah\r\n");_delay_ms(3333);
     //ramp_current_test();
-    //functional_test();
+    functional_test();
     //while(1);
     //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom

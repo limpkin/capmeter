@@ -40,7 +40,18 @@ uint16_t calib_first_thres_up;
 uint16_t calib_0v_value_se = 0;
 // Maximum voltage that can be generated
 uint16_t max_voltage = 0;
+// Calibrated low voltage oscillator value
+uint16_t calib_osc_low_v;
 
+
+/*
+ * Get calibrated oscillator low value
+ * @return  DAC value
+ */
+uint16_t get_calib_osc_low_v(void)
+{
+    return calib_osc_low_v;
+}
 
 /*
  * Get calibrated second threshold, ramping up
@@ -95,6 +106,14 @@ uint16_t get_single_ended_offset(void)
 uint16_t get_offset_for_current_measurement(uint8_t ampl)
 {
     return cur_measurement_offsets[ampl];
+}
+
+/*
+ * Delete current measurement offsets
+ */
+void delete_cur_measurement_offsets(void)
+{
+    memset((void*)cur_measurement_offsets, 0x00, sizeof(cur_measurement_offsets));
 }
 
 /*
@@ -155,7 +174,7 @@ void calibrate_cur_measurement_offsets(void)
 void calibrate_thresholds(void)
 {
     calibdprintf_P(PSTR("-----------------------\r\n"));
-    calibdprintf_P(PSTR("Threshold calibration\r\n\r\n"));
+    calibdprintf_P(PSTR("Threshold Calibration\r\n\r\n"));
     
     // Set bias voltage above vcc so Q1 comes into play if there's a cap between the terminals
     disable_feedback_mos();
@@ -182,15 +201,15 @@ void calibrate_thresholds(void)
             update_opampin_dac(++dac_val);
             _delay_us(10);
             // First threshold crossed
-            if ((calib_first_thres_down == 0) && ((PORTE_IN & PIN2_bm) == 0))
+            if ((calib_first_thres_down == 0) && ((PORTE_IN & PIN0_bm) == 0))
             {
+                temp_bool = FALSE;
                 calib_first_thres_down = dac_val;
                 calib_first_thres_down_agg += calib_first_thres_down;
             }
             // Second threshold crossed
-            if ((calib_second_thres_down == 0) && ((PORTE_IN & PIN3_bm) != 0))
+            if ((calib_second_thres_down == 0) && ((PORTE_IN & PIN1_bm) != 0))
             {
-                temp_bool = FALSE;
                 calib_second_thres_down = dac_val;
                 calib_second_thres_down_agg += calib_second_thres_down;
             }
@@ -215,15 +234,15 @@ void calibrate_thresholds(void)
             update_opampin_dac(--dac_val);
             _delay_us(10);
             // First threshold crossed
-            if ((calib_first_thres_up == 0) && ((PORTE_IN & PIN2_bm) != 0))
+            if ((calib_first_thres_up == 0) && ((PORTE_IN & PIN0_bm) != 0))
             {
-                temp_bool = FALSE;
                 calib_first_thres_up = dac_val;
                 calib_first_thres_up_agg += calib_first_thres_up;
             }
             // Second threshold crossed
-            if ((calib_second_thres_up == 0) && ((PORTE_IN & PIN3_bm) == 0))
+            if ((calib_second_thres_up == 0) && ((PORTE_IN & PIN1_bm) == 0))
             {
+                temp_bool = FALSE;
                 calib_second_thres_up = dac_val;
                 calib_second_thres_up_agg += calib_second_thres_up;
             }
@@ -248,8 +267,7 @@ void calibrate_thresholds(void)
         calib_second_thres_up = 0;
     }    
     
-    // Compute values
-    
+    // Compute values    
     calib_first_thres_down = (uint16_t)(calib_first_thres_down_agg >> THRESHOLD_AVG_BIT_SHIFT);
     calib_second_thres_down = (uint16_t)(calib_second_thres_down_agg >> THRESHOLD_AVG_BIT_SHIFT);
     calib_first_thres_up = (uint16_t)(calib_first_thres_up_agg >> THRESHOLD_AVG_BIT_SHIFT);
@@ -263,6 +281,41 @@ void calibrate_thresholds(void)
     disable_bias_voltage();
     set_opampin_low();
 }
+
+/*
+ * Measure the oscillator low voltage
+ */
+void calibrate_osc_low_v(void)
+{
+    calibdprintf_P(PSTR("-----------------------\r\n"));
+    calibdprintf_P(PSTR("Oscillator Low Voltage Calibration\r\n\r\n"));
+    
+    // Set bias voltage above vcc so Q1 comes into play if there's a cap between the terminals
+    set_opampin_high();
+    disable_feedback_mos();
+    enable_bias_voltage(4000);
+    
+    // Leave time for a possible cap to charge
+    _delay_ms(1000);
+    uint16_t dac_val = DAC_MAX_VAL;
+    opampin_as_input();
+    setup_opampin_dac(dac_val);
+    
+    // Wait for compout toggle
+    while (((PORTA_IN & PIN6_bm) == 0) && (dac_val != 0))
+    {
+        update_opampin_dac(--dac_val);
+        _delay_us(20);
+    }
+    
+    // Store result
+    calib_osc_low_v = dac_val;
+    calibdprintf("Osc Low Voltage found: %u\r\n", calib_osc_low_v);
+    
+    disable_opampin_dac();
+    disable_bias_voltage();
+    set_opampin_low();
+}    
 
 /*
  * Init calibration part
@@ -283,6 +336,9 @@ void init_calibration(void)
     
     // Calibrate thresholds
     calibrate_thresholds();
+    
+    // Calibrate low oscillator value
+    calibrate_osc_low_v();
     
     // Find max voltage
     calibdprintf_P(PSTR("-----------------------\r\n"));

@@ -68,6 +68,16 @@ void set_opampin_low(void)
 }
 
 /*
+ * Set opampin- high
+ */
+void set_opampin_high(void)
+{    
+    PORTB.DIRSET = PIN2_bm;
+    PORTB.OUTSET = PIN2_bm;
+    //iodprintf_P(PSTR("Opampin High\r\n"));
+}
+
+/*
  * Set opampin- as input
  */
 void opampin_as_input(void)

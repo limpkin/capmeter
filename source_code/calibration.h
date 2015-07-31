@@ -30,10 +30,12 @@ uint16_t get_calib_second_thres_down(void);
 uint16_t get_calib_first_thres_down(void);
 uint16_t get_calib_second_thres_up(void);
 uint16_t get_calib_first_thres_up(void);
+void delete_cur_measurement_offsets(void);
 void calibrate_single_ended_offset(void);
 uint16_t get_single_ended_offset(void);
 void delete_single_ended_offset(void);
 uint16_t get_max_vbias_voltage(void);
+uint16_t get_calib_osc_low_v(void);
 void init_calibration(void);
 
 #endif /* CALIBRATION_H_ */

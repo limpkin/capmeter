@@ -29,7 +29,11 @@ void functional_test(void)
     testdprintf_P(PSTR("-\r\n"));
     uint8_t test_passed = TRUE;
     
-    // Check the single ended offset
+    /*******************************************************************/
+    /*******************************************************************/
+    /******************** CHECK THE SINGLE ENDED OFFSET ****************/
+    /*******************************************************************/
+    /*******************************************************************/
     if (check_value_range(get_single_ended_offset(), 170, 190) == FALSE)
     {
         testdprintf("- PROBLEM OFFSET: %u\r\n", get_single_ended_offset());
@@ -40,7 +44,11 @@ void functional_test(void)
         testdprintf("- OK OFFSET: %u\r\n", get_single_ended_offset());
     }
     
-    // Check the max voltage
+    /*******************************************************************/
+    /*******************************************************************/
+    /********************* CHECK MAX VOLTAGE ***************************/
+    /*******************************************************************/
+    /*******************************************************************/
     if (get_max_vbias_voltage() < 15000)
     {
         testdprintf("- PROBLEM MAX VOLTAGE: %u\r\n", get_max_vbias_voltage());
@@ -51,15 +59,19 @@ void functional_test(void)
         testdprintf("- OK MAX VOLTAGE: %u\r\n", get_max_vbias_voltage());
     }
     
-    // Check thresholds
-    // Thres1: Vthres = 3.3V * 2.15 / (2.15 + 10)
+    /*******************************************************************/
+    /*******************************************************************/
+    /********************* CHECK THRESHOLD 1 ***************************/
+    /*******************************************************************/
+    /*******************************************************************/
+    // Thres1: Vthres = 3.3V * 5.49 / (5.49 + 20.5)
     // Taking into account 1% tolerances, but not 1.24V ref tolerance
-    // low: 3.3*0.99*2.15*0.99 / (2.15 * 0.99 + 10 * 1.01)
-    // high: 3.3*1.01*2.15*1.01 / (2.15 * 1.01 + 10 * 0.99)
+    // low: 3.3*0.99*5.49*0.99 / (5.49 * 0.99 + 20.5 * 1.01)
+    // high: 3.3*1.01*5.49*1.01 / (5.49 * 1.01 + 20.5 * 0.99)
     // dac values: Vdac = Val(DAC) * 1.24 / 4095 >> Val(DAC) = Vdac * 4095 / 1.24
-    // low: 3.3*0.99*2.15*0.99*4095 / ((2.15 * 0.99 + 10 * 1.01) * 1.24) = 1878
-    // high: 3.3*1.01*2.15*1.01*4095 / ((2.15 * 1.01 + 10 * 0.99) * 1.24) = 1980
-    if (check_value_range(get_calib_first_thres_down(), 1878, 1980) == FALSE)
+    // low: 3.3*0.99*5.49*0.99*4095 / ((5.49 * 0.99 + 20.5 * 1.01) * 1.24) = 2243
+    // high: 3.3*1.01*5.49*1.01*4095 / ((5.49 * 1.01 + 20.5 * 0.99) * 1.24) = 2362
+    if (check_value_range(get_calib_first_thres_down(), 2243, 2362) == FALSE)
     {
         testdprintf("- PROBLEM FIRST THRES DOWN: %u\r\n", get_calib_first_thres_down());
         test_passed = FALSE;
@@ -68,7 +80,7 @@ void functional_test(void)
     {
         testdprintf("- OK FIRST THRES DOWN: %u\r\n", get_calib_first_thres_down());
     }
-    if (check_value_range(get_calib_first_thres_up(), 1878, 1980) == FALSE)
+    if (check_value_range(get_calib_first_thres_up(), 2243, 2362) == FALSE)
     {
         testdprintf("- PROBLEM FIRST THRES UP: %u\r\n", get_calib_first_thres_up());
         test_passed = FALSE;
@@ -78,14 +90,19 @@ void functional_test(void)
         testdprintf("- OK FIRST THRES UP: %u\r\n", get_calib_first_thres_up());
     }
     
-    // Thres1: Vthres = 3.3V * 10 / (10 + 20.5)
+    /*******************************************************************/
+    /*******************************************************************/
+    /********************* CHECK THRESHOLD 2 ***************************/
+    /*******************************************************************/
+    /*******************************************************************/
+    // Thres2: Vthres = 3.3V * 1 / (1 + 5.49)
     // Taking into account 1% tolerances, but not 1.24V ref tolerance
-    // low: 3.3*0.99*10*0.99 / (10 * 0.99 + 20.5 * 1.01)
-    // high: 3.3*1.01*10*1.01 / (10 * 1.01 + 20.5 * 0.99)
+    // low: 3.3*0.99*1*0.99 / (1 * 0.99 + 5.49 * 1.01)
+    // high: 3.3*1.01*1*1.01 / (1 * 1.01 + 5.49 * 0.99)
     // dac values: Vdac = Val(DAC) * 1.24 / 4095 >> Val(DAC) = Vdac * 4095 / 1.24
-    // low: 3.3*0.99*10*0.99*4095 / ((10 * 0.99 + 20.5 * 1.01) * 1.24) = 3490
-    // high: 3.3*1.01*10*1.01*4095 / ((10 * 1.01 + 20.5 * 0.99) * 1.24) = 3658
-    if (check_value_range(get_calib_second_thres_down(), 3490, 3658) == FALSE)
+    // low: 3.3*0.99*1*0.99*4095 / ((1 * 0.99 + 5.49 * 1.01) * 1.24) = 1634
+    // high: 3.3*1.01*1*1.01*4095 / ((1 * 1.01 + 5.49 * 0.99) * 1.24) = 1725
+    if (check_value_range(get_calib_second_thres_down(), 1634, 1725) == FALSE)
     {
         testdprintf("- PROBLEM SECOND THRES DOWN: %u\r\n", get_calib_second_thres_down());
         test_passed = FALSE;
@@ -94,7 +111,7 @@ void functional_test(void)
     {
         testdprintf("- OK SECOND THRES DOWN: %u\r\n", get_calib_second_thres_down());
     }
-    if (check_value_range(get_calib_second_thres_up(), 3490, 3658) == FALSE)
+    if (check_value_range(get_calib_second_thres_up(), 1634, 1725) == FALSE)
     {
         testdprintf("- PROBLEM SECOND THRES UP: %u\r\n", get_calib_second_thres_up());
         test_passed = FALSE;
@@ -104,6 +121,73 @@ void functional_test(void)
         testdprintf("- OK SECOND THRES UP: %u\r\n", get_calib_second_thres_up());
     }
     
+    /*******************************************************************/
+    /*******************************************************************/
+    /******************* CHECK OSCILLATOR LOW V VALUE *****************/
+    /*******************************************************************/
+    /*******************************************************************/
+    // Oscillator low value: Vosclow = 0.6V * 46.4 / (15 + 46.4)
+    // Taking into account 1% tolerances, but not 1.24V ref tolerance
+    // low: 0.6*0.99*46.4*0.99 / (46.4 * 0.99 + 15 * 1.01)
+    // high: 0.6*1.01*46.4*1.01 / (46.4 * 1.01 + 15 * 0.99)
+    // dac values: Vdac = Val(DAC) * 1.24 / 4095 >> Val(DAC) = Vdac * 4095 / 1.24
+    // low: 0.6*0.99*46.4*0.99*4095 / ((46.4 * 0.99 + 15 * 1.01) * 1.24) = 1475
+    // high: 0.6*1.01*46.4*1.01*4095 / ((46.4 * 1.01 + 15 * 0.99) * 1.24) = 1520
+    if (check_value_range(get_calib_osc_low_v(), 1475, 1520) == FALSE)
+    {
+        testdprintf("- PROBLEM OSC LOW V: %u\r\n", get_calib_osc_low_v());
+        test_passed = FALSE;
+    }
+    else
+    {
+        testdprintf("- OK OSC LOW V: %u\r\n", get_calib_osc_low_v());
+    }
+    
+    /*******************************************************************/
+    /*******************************************************************/
+    /********************* AND GATE CHECKING ***************************/
+    /*******************************************************************/
+    /*******************************************************************/
+    uint8_t and_gate_test_passed = TRUE;                                                    // Boolean to store test result
+    disable_feedback_mos();                                                                 // Disable feedback mos
+    opampin_as_input();                                                                     // Opampin as input
+    _delay_ms(10);                                                                          // Wait
+    setup_opampin_dac(get_calib_first_thres_down() + 200);                                  // Set opampin outside the AND range
+    _delay_ms(10);                                                                          // Wait
+    if ((PORTE_IN & PIN0_bm) != 0)                                                          // AND gate output should be 0
+    {
+        and_gate_test_passed = FALSE;
+    }
+    update_opampin_dac((get_calib_second_thres_down() + get_calib_first_thres_up())/2);     // Set opampin between thresholds
+    _delay_ms(10);                                                                          // Wait
+    if ((PORTE_IN & PIN0_bm) == 0)                                                          // AND gate output should be 1
+    {
+        and_gate_test_passed = FALSE;
+    }
+    update_opampin_dac(get_calib_second_thres_up() - 200);                                  // Set opampin outside the AND range
+    _delay_ms(10);                                                                          // Wait
+    if ((PORTE_IN & PIN0_bm) != 0)                                                          // AND gate output should be 0
+    {
+        and_gate_test_passed = FALSE;
+    }
+    // Tests done, check boolean
+    if (and_gate_test_passed == FALSE)
+    {
+        testdprintf_P(PSTR("- PROBLEM AND GATE & THRESHOLDS\r\n"));
+        test_passed = FALSE;
+    }
+    else
+    {
+        testdprintf_P(PSTR("- OK AND GATE & THRESHOLDS\r\n"));
+    }
+    disable_opampin_dac();
+    set_opampin_low();   
+    
+    /*******************************************************************/
+    /*******************************************************************/
+    /************************ AVCC CHECK *******************************/
+    /*******************************************************************/
+    /*******************************************************************/
     // Check AVCC, select ADC channel for AVCC / 10
     // Vadc = Val(ADC) * (1.24 / 4095)
     // Val(ADC) = Vadc * (4095 / 1.24+-0.25%)
@@ -126,7 +210,11 @@ void functional_test(void)
         testdprintf("- OK AVCC: %u (~%umV)\r\n", avcc, compute_voltage_from_se_adc_val(avcc)*10);
     }
     
-    // Check AREF    
+    /*******************************************************************/
+    /*******************************************************************/
+    /*************************** VREF CHECK ****************************/
+    /*******************************************************************/
+    /*******************************************************************/
     // Vadc = Val(ADC) * AVcc / (1.6 * 4095)
     // Val(ADC) = Vadc * (6552 / AVcc)
     // Val(ADC) = 1.24 * (6552 / AVcc)
@@ -134,25 +222,30 @@ void functional_test(void)
     // Val(ADC) = 6552 * 4095 / 10 * avcc
     // Val(ADC) = 2683044 / avcc
     // Avcc error can be 3 LSB, we'll put 5 though
-    delete_single_ended_offset();
-    configure_adc_channel(ADC_CHANNEL_GND_EXT_VCCDIV16, 0, FALSE);
-    uint16_t aref_offset = get_averaged_adc_value(13);
-    configure_adc_channel(ADC_CHANNEL_AREF, 0, FALSE);
-    uint16_t aref = get_averaged_adc_value(13);    
-    configure_adc_channel(ADC_CHANNEL_AVCCDIV10_VCCDIV16, 0, FALSE);
-    uint16_t div10_avccint_ref = get_averaged_adc_value(13);
-    uint32_t min_total = ((aref-aref_offset)-3)*(avcc-3-4);
-    uint32_t max_total = ((aref-aref_offset)+3)*(avcc+3+4);
-    testdprintf("Div10int = %u, Div10ref = %u, vref = %u\r\n", div10_avccint_ref-aref_offset, avcc, aref-aref_offset);
-    if (check_value_range_uint32(2683044, min_total, max_total) == FALSE)
-    {
-        testdprintf("- PROBLEM AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
-        test_passed = FALSE;
-    }
-    else
-    {
-        testdprintf("- OK AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
-    }
+    delete_single_ended_offset();                                       // Delete single ended offset as we switch references
+    configure_adc_channel(ADC_CHANNEL_GND_EXT_VCCDIV16, 0, FALSE);      // Select GND pin to measure the new offset
+    uint16_t aref_offset = get_averaged_adc_value(13);                  // Measure the offset
+    configure_adc_channel(ADC_CHANNEL_AREF, 0, FALSE);                  // Select aref channel
+    uint16_t aref = get_averaged_adc_value(13);                         // Measure aref value
+    configure_adc_channel(ADC_CHANNEL_AVCCDIV10_VCCDIV16, 0, FALSE);    // Select avcc/10 channel with VCC/1.6 as reference
+    uint16_t div10_avccint_ref = get_averaged_adc_value(13);            // Measure avcc/10
+    uint32_t min_total = ((aref-aref_offset)-3)*(avcc-3-4);             // Min multiplication
+    uint32_t max_total = ((aref-aref_offset)+3)*(avcc+3+4);             // Max multiplication value
+    //testdprintf("Div10int = %u, Div10ref = %u, vref = %u\r\n", div10_avccint_ref-aref_offset, avcc, aref-aref_offset);
+//     if (check_value_range_uint32(2683044, min_total, max_total) == FALSE)
+//     {
+//         testdprintf("- PROBLEM AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
+//         test_passed = FALSE;
+//     }
+//     else
+//     {
+//         testdprintf("- OK AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
+//     }
+    // Check AREF
+    // Vadc ~= Val(ADC) * 3.3 / (1.6 * 4095)
+    // Val(ADC) = Vadc * (6552 / 3.3)
+    // Val(ADC) = 1.24 * (6552 / 3.3)
+    // Approximately 2462 +-50LSB (2.5mV)
     if (check_value_range(aref-aref_offset, 2412, 2512) == FALSE)
     {
         testdprintf("- PROBLEM AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
@@ -164,7 +257,11 @@ void functional_test(void)
     }
     calibrate_single_ended_offset();
     
-    // Check Vbias generation (LDO)
+    /*******************************************************************/
+    /*******************************************************************/
+    /***************** CHECK VBIAS GENERATION WITH LDO ****************/
+    /*******************************************************************/
+    /*******************************************************************/
     // Vref = VR2 + Vdac
     // VR2 = (Vout - Vdac) * R2 / (R1 + R2)
     // Vout = Vref * (R1 + R2) / R2 - Vdac * R1 / R2
@@ -199,7 +296,11 @@ void functional_test(void)
         testdprintf("- OK VBIAS GENERATION (LDO): %u\r\n", voltage);
     }
     
-    // Check Vbias generation (stepup)
+    /*******************************************************************/
+    /*******************************************************************/
+    /************** CHECK VBIAS GENERATION WITH STEPUP ****************/
+    /*******************************************************************/
+    /*******************************************************************/
     // For 1234 : min 11.006, max 11.903
     setup_vbias_dac(1234);
     enable_stepup();
@@ -216,7 +317,11 @@ void functional_test(void)
         testdprintf("- OK VBIAS GENERATION (STEPUP): %u\r\n", voltage);
     }
     
-    // Check vbias quenching
+    /*******************************************************************/
+    /*******************************************************************/
+    /********************** VBIAS QUENCHING TEST ***********************/
+    /*******************************************************************/
+    /*******************************************************************/
     RTC.CNT = 0;                                                    // Reset counter
     RTC.INTCTRL = 0;                                                // Disable Interrupts
     RTC.PER = 0xFFFF;                                               // Set max period for RTC
@@ -244,7 +349,11 @@ void functional_test(void)
     }    
     disable_vbias_quenching();
     
-    // Check current measurement
+    /*******************************************************************/
+    /*******************************************************************/
+    /******************** CURRENT MEASUREMENT CHECK ********************/
+    /*******************************************************************/
+    /*******************************************************************/
     // Here we are using the opamp 3.3V output through the res mux at 100k
     // To force the opamp output at 3.3V, we set IN- to 0V
     // Hence, the 100k resistor pin will be connected to 0V through (1K2 + 100R) and (1K + 10K)
@@ -257,29 +366,31 @@ void functional_test(void)
     // Val(ADC) * (1.24 / 2047) = I(A) * 100k * ampl
     // Val(ADC) = I(A) * 100k * ampl * 2047 / 1.24
     // For 3.45uA, approximately 569
-    uint16_t cur_measure;    
-    PORTB.DIRSET = PIN2_bm;
-    PORTB.OUTCLR = PIN2_bm;
-    //enable_res_mux(RES_100K);
-    enable_feedback_mos();
-    //set_measurement_mode_io(RES_100K);  
-    configure_adc_channel(ADC_CHANNEL_CUR, CUR_MES_1X, TRUE);
+    set_opampin_low();
     enable_cur_meas_mos();
-    cur_measure = cur_measurement_loop(16);
-    if (check_value_range(cur_measure, 540, 600) == FALSE)
+    enable_feedback_mos();
+    enable_res_mux(RES_100K);
+    delete_cur_measurement_offsets(); _delay_us(20);
+    configure_adc_channel(ADC_CHANNEL_CUR, CUR_MES_1X, TRUE);
+    uint16_t cur_measure_100k = cur_measurement_loop(16);    
+    enable_res_mux(RES_10K); _delay_us(20);
+    uint16_t cur_measure_rest = cur_measurement_loop(13);
+    enable_res_mux(RES_1K); _delay_us(20);
+    cur_measure_rest += cur_measurement_loop(13);
+    enable_res_mux(RES_270); _delay_us(20);
+    cur_measure_rest += cur_measurement_loop(13);
+    if ((check_value_range(cur_measure_100k, 540, 600) == FALSE) || (cur_measure_rest < 6100))
     {
-        testdprintf("- PROBLEM CUR MEASUREMENT: %u\r\n", cur_measure);
-        print_compute_cur_formula(cur_measure);
+        testdprintf("- PROBLEM CUR MEASUREMENT: %u & %u\r\n", cur_measure_100k, cur_measure_rest);
+        //print_compute_cur_formula(cur_measure);
         test_passed = FALSE;
     }
     else
     {
-        testdprintf("- OK CUR MEASUREMENT: %u\r\n", cur_measure);
+        testdprintf("- OK CUR MEASUREMENT: %u & %u\r\n", cur_measure_100k, cur_measure_rest);
     }
-    PORTB.DIRCLR = PIN2_bm;
-    
-    // Check oscillator
-    
+    disable_res_mux();
+    disable_feedback_mos();    
     
     if (test_passed == TRUE)
     {

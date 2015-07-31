@@ -34,6 +34,7 @@ void enable_feedback_mos(void);
 void disable_feedback_mos(void);
 void enable_vbias_quenching(void);
 void disable_vbias_quenching(void);
+void set_opampin_high(void);
 void set_opampin_low(void);
 void opampin_as_input(void);
 void enable_stepup(void);
