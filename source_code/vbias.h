@@ -27,7 +27,7 @@
 #define VBIAS_MIN_V             700                   // Min V we can reach for Vbias
 #define STEPUP_ACTIV_V          4300                  // Technically 4500mV should work
 #define STEPUP_ACTIV_DAC_V      3070                  // Around 4350mV
-#define MV_APPROCH              55                    // When to start fine approach
+#define MV_APPROCH              60                    // When to start fine approach
 #define BIT_AVG_APPROACH        3                     // Bit averaging for approach
 #define BIT_AVG_FINE            13                    // Bit averaging for fine approach
 #define CONV_DELAY_FINE         1                     // How long we should wait before launching a conversion (ms)

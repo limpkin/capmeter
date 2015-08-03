@@ -34,7 +34,7 @@ void functional_test(void)
     /******************** CHECK THE SINGLE ENDED OFFSET ****************/
     /*******************************************************************/
     /*******************************************************************/
-    if (check_value_range(get_single_ended_offset(ADC_CHANNEL_GND_EXT), 170, 190) == FALSE)
+    if (check_value_range(get_single_ended_offset(ADC_CHANNEL_GND_EXT), 160, 190) == FALSE)
     {
         testdprintf("- PROBLEM OFFSET: %u\r\n", get_single_ended_offset(ADC_CHANNEL_GND_EXT));
         test_passed = FALSE;
@@ -42,6 +42,15 @@ void functional_test(void)
     else
     {
         testdprintf("- OK OFFSET: %u\r\n", get_single_ended_offset(ADC_CHANNEL_GND_EXT));
+    }
+    if (check_value_range(get_single_ended_offset(ADC_CHANNEL_VBIAS), 160, 190) == FALSE)
+    {
+        testdprintf("- PROBLEM OFFSET VBIAS: %u\r\n", get_single_ended_offset(ADC_CHANNEL_VBIAS));
+        test_passed = FALSE;
+    } 
+    else
+    {
+        testdprintf("- OK OFFSET VBIAS: %u\r\n", get_single_ended_offset(ADC_CHANNEL_VBIAS));
     }
     
     /*******************************************************************/

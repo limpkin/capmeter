@@ -31,10 +31,9 @@ void automated_vbias_testing(void)
     while(1)
     {
         restart = FALSE;
-        calibrate_single_ended_offset();
+        enable_bias_voltage(VBIAS_MIN_V);
         for (uint16_t added_v = 0; (added_v < 100) && (restart == FALSE); added_v+=10)
         {
-            enable_bias_voltage(VBIAS_MIN_V);
             for (uint16_t main_v = VBIAS_MIN_V; (main_v <= get_max_vbias_voltage()) && (restart == FALSE); main_v+=100)
             {
                 temp_return = update_bias_voltage(main_v + added_v);
@@ -51,7 +50,6 @@ void automated_vbias_testing(void)
                     restart = TRUE;
                 }
             }
-            disable_bias_voltage();
         }        
     }
 }
