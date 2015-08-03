@@ -27,14 +27,11 @@
 #define VBIAS_MIN_V             700                   // Min V we can reach for Vbias
 #define STEPUP_ACTIV_V          4300                  // Technically 4500mV should work
 #define STEPUP_ACTIV_DAC_V      3070                  // Around 4350mV
-#define MV_APPROCH              50                    // When to start fine approach
-#define PEAKPEAK_APPROCH_UP     13                    // Maximum peak peak allowed during vramp up
-#define PEAKPEAK_APPROCH_LOW    3                     // Maximum peak peak allowed during vramp low
-#define PEAKPEAK_FINE           35                    // Maximum peak peak allowed during fine tuning
+#define MV_APPROCH              55                    // When to start fine approach
 #define BIT_AVG_APPROACH        3                     // Bit averaging for approach
-#define BIT_AVG_FINE            14                    // Bit averaging for fine approach
-#define CONV_DELAY_FINE         5                     // How long we should wait before launching a conversion (ms)
-#define VBIAS_OVERSHOOT_MV      2                     // The overshoot we want (due to the capacitors)
+#define BIT_AVG_FINE            13                    // Bit averaging for fine approach
+#define CONV_DELAY_FINE         1                     // How long we should wait before launching a conversion (ms)
+#define VBIAS_OVERSHOOT_MV      6                     // The overshoot we want (due to the capacitors)
 
 // Prototypes
 uint16_t update_bias_voltage(uint16_t val_mv);
@@ -43,6 +40,5 @@ uint16_t get_last_measured_vbias(void);
 void disable_bias_voltage(void);
 void wait_for_0v4_bias(void);
 void wait_for_0v_bias(void);
-
 
 #endif /* VBIAS_H_ */

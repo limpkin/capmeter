@@ -26,13 +26,13 @@
 
 // Prototypes
 uint16_t get_offset_for_current_measurement(uint8_t ampl);
+uint16_t get_single_ended_offset(uint8_t current_channel);
 uint16_t get_calib_second_thres_down(void);
 uint16_t get_calib_first_thres_down(void);
 uint16_t get_calib_second_thres_up(void);
 uint16_t get_calib_first_thres_up(void);
 void delete_cur_measurement_offsets(void);
 void calibrate_single_ended_offset(void);
-uint16_t get_single_ended_offset(void);
 void delete_single_ended_offset(void);
 uint16_t get_max_vbias_voltage(void);
 uint16_t get_calib_osc_low_v(void);

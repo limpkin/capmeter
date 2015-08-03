@@ -9,8 +9,8 @@
 #ifndef PRINTF_OVERRIDE_H_
 #define PRINTF_OVERRIDE_H_
 
-#define OVERRIDE
-#ifdef OVERRIDE
+#define PRINTF_OVERRIDE
+#ifdef PRINTF_OVERRIDE
     #undef IO_PRINTF
     #undef SERIAL_PRINTF
     #undef MEAS_PRINTF

@@ -23,6 +23,7 @@
 
 void peak_to_peak_adc_noise_measurement_test(void);
 void ramp_bias_voltage_test(void);
+void voltage_settling_test(void);
 void ramp_current_test(void);
 void functional_test(void);
 

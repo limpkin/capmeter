@@ -206,13 +206,13 @@ int16_t start_and_wait_for_adc_conversion(void)
     if (((ADCA.CH0.CTRL & ADC_CH_INPUTMODE_gm) == ADC_CH_INPUTMODE_SINGLEENDED_gc) || ((ADCA.CH0.CTRL & ADC_CH_INPUTMODE_gm) == ADC_CH_INPUTMODE_INTERNAL_gc))
     {
         // Single ended, check we're not under 0v
-        if ((uint16_t)return_value < get_single_ended_offset())
+        if ((uint16_t)return_value < get_single_ended_offset(current_channel))
         {
             return 0;
         } 
         else
         {
-            return (uint16_t)return_value - get_single_ended_offset();
+            return (uint16_t)return_value - get_single_ended_offset(current_channel);
         }
     }
     else

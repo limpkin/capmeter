@@ -7,6 +7,7 @@
 #include <avr/pgmspace.h>
 #include <avr/io.h>
 #include <stdio.h>
+#include "printf_override.h"
 #include "serial.h"
 
 
@@ -36,8 +37,10 @@ int uart_getchar(FILE* stream)
     // Temporarily store received data
     char data = USARTC0_DATA;
     
-    // Send to console what has been received, so we can see when typing
-    uart_putchar(data, stream); 
+    #ifndef PRINTF_OVERRIDE
+        // Send to console what has been received, so we can see when typing
+        uart_putchar(data, stream); 
+    #endif
     
     return data;
 }

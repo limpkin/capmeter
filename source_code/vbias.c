@@ -44,9 +44,9 @@ void wait_for_0v4_bias(void)
     // Wait for bias voltage to be under ~400mV
     configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
     enable_vbias_quenching();
-    while (measured_vbias > 80)
+    while (measured_vbias > 60)
     {
-        measured_vbias = get_averaged_stabilized_adc_value(6, 15, FALSE);
+        measured_vbias = get_averaged_adc_value(8);
     }
     
     disable_vbias_quenching();
@@ -90,7 +90,7 @@ uint16_t enable_bias_voltage(uint16_t val_mv)
     configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);  // Enable ADC for vbias monitoring
     setup_vbias_dac(cur_vbias_dac_val);                 // Start with lowest voltage possible
     enable_ldo();                                       // Enable ldo
-    _delay_ms(200);                                     // Soft start wait
+    _delay_ms(44);                                      // Soft start wait
     return update_bias_voltage(val_mv);                 // Return the actual voltage that was set
 }
 
@@ -165,7 +165,7 @@ uint16_t update_bias_voltage(uint16_t val_mv)
             // Update DAC, wait and get measured vbias
             update_vbias_dac(++cur_vbias_dac_val);
             _delay_us(10);
-            measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(BIT_AVG_APPROACH, PEAKPEAK_APPROCH_LOW, FALSE));
+            measured_vbias = compute_vbias_for_adc_value(get_averaged_adc_value(BIT_AVG_APPROACH));
         }
         while ((measured_vbias > voltage_to_reach) && (cur_vbias_dac_val != DAC_MAX_VAL));
         disable_vbias_quenching();
@@ -185,6 +185,7 @@ uint16_t update_bias_voltage(uint16_t val_mv)
         if (((val_mv - measured_vbias) < MV_APPROCH) && (precise_phase == FALSE))
         {
             precise_phase = TRUE;
+            //enable_cur_meas_mos();
         }
             
         // Update DAC, wait and get measured vbias
@@ -192,13 +193,11 @@ uint16_t update_bias_voltage(uint16_t val_mv)
         _delay_us(10);
         if (precise_phase == FALSE)
         {
-            // During approach phase we use the peak-peak to make sure we don't miss the fine approach
-            measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(BIT_AVG_APPROACH, PEAKPEAK_APPROCH_UP, FALSE));
+            measured_vbias = compute_vbias_for_adc_value(get_averaged_adc_value(BIT_AVG_APPROACH));
         } 
         else
         {
             _delay_ms(CONV_DELAY_FINE);
-            // During fine approach we use averaging
             measured_vbias = compute_vbias_for_adc_value(get_averaged_adc_value(BIT_AVG_FINE));
         }            
     }
@@ -207,7 +206,7 @@ uint16_t update_bias_voltage(uint16_t val_mv)
     // Wait before continuing
     _delay_ms(10);
     cur_set_vbias_voltage = val_mv;      
-    last_measured_vbias = measured_vbias;                           
-    vbiasdprintf("Vbias set, actual value: %umV\r\n", measured_vbias);
-    return measured_vbias;
+    last_measured_vbias = measured_vbias + VBIAS_OVERSHOOT_MV;                           
+    vbiasdprintf("Vbias set, actual value: %umV\r\n", measured_vbias + VBIAS_OVERSHOOT_MV);
+    return measured_vbias + VBIAS_OVERSHOOT_MV;
 }

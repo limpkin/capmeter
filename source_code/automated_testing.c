@@ -10,11 +10,13 @@
 #include <string.h>
 #include <stdio.h>
 #include "automated_testing.h"
+#include "conversions.h"
 #include "measurement.h"
 #include "calibration.h"
 #include "meas_io.h"
 #include "vbias.h"
 #include "dac.h"
+#include "adc.h"
 
 
 /*
@@ -22,20 +24,26 @@
  */
 void automated_vbias_testing(void)
 {
+    uint16_t temp_return, correct_voltage;
+    uint8_t restart, peak_peak;
     char received_char = 0;
-    uint8_t restart;
     
     while(1)
     {
         restart = FALSE;
         calibrate_single_ended_offset();
-        for (uint16_t added_v = 0; (added_v < 100) && (restart == FALSE); added_v++)
+        for (uint16_t added_v = 0; (added_v < 100) && (restart == FALSE); added_v+=10)
         {
             enable_bias_voltage(VBIAS_MIN_V);
             for (uint16_t main_v = VBIAS_MIN_V; (main_v <= get_max_vbias_voltage()) && (restart == FALSE); main_v+=100)
             {
-                update_bias_voltage(main_v + added_v);
+                temp_return = update_bias_voltage(main_v + added_v);
+                peak_peak = measure_peak_to_peak_on_channel(BIT_AVG_FINE, ADC_CHANNEL_VBIAS, 0);
+                correct_voltage = compute_vbias_for_adc_value(get_averaged_adc_value(14));
                 auttestdprintf("%d\r\n", main_v + added_v);
+                auttestdprintf("%d\r\n", temp_return);
+                auttestdprintf("%d\r\n", correct_voltage);
+                auttestdprintf("%d\r\n", peak_peak);
                 // Wait for input from the script
                 scanf("%c", &received_char);
                 if (received_char == '!')

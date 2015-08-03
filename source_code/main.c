@@ -62,7 +62,9 @@ int main(void)
     enable_interrupts();                            // Enable interrupts
     //enable_bias_voltage(850);while(1);
     //automated_current_testing();
-    //automated_vbias_testing();
+    //ramp_bias_voltage_test();
+    //voltage_settling_test();
+    automated_vbias_testing();
     //peak_to_peak_adc_noise_measurement_test();
     //ramp_bias_voltage_test();
     //printf("blah\r\n");_delay_ms(3333);

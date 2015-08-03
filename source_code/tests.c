@@ -34,14 +34,14 @@ void functional_test(void)
     /******************** CHECK THE SINGLE ENDED OFFSET ****************/
     /*******************************************************************/
     /*******************************************************************/
-    if (check_value_range(get_single_ended_offset(), 170, 190) == FALSE)
+    if (check_value_range(get_single_ended_offset(ADC_CHANNEL_GND_EXT), 170, 190) == FALSE)
     {
-        testdprintf("- PROBLEM OFFSET: %u\r\n", get_single_ended_offset());
+        testdprintf("- PROBLEM OFFSET: %u\r\n", get_single_ended_offset(ADC_CHANNEL_GND_EXT));
         test_passed = FALSE;
     } 
     else
     {
-        testdprintf("- OK OFFSET: %u\r\n", get_single_ended_offset());
+        testdprintf("- OK OFFSET: %u\r\n", get_single_ended_offset(ADC_CHANNEL_GND_EXT));
     }
     
     /*******************************************************************/
@@ -489,4 +489,19 @@ void ramp_current_test(void)
     
     disable_bias_voltage();
     disable_current_measurement_mode();
+}
+
+/*
+ * Enable disable voltage test
+ */
+void voltage_settling_test(void)
+{
+    // Decomment the enable/disable_cur_most in vbias.c for debug   
+    while(1)
+    {
+        enable_bias_voltage(2000);
+        disable_cur_meas_mos();
+        _delay_ms(333);
+        disable_bias_voltage();
+    }
 }

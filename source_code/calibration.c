@@ -36,6 +36,8 @@ uint16_t calib_first_thres_down;
 uint16_t calib_second_thres_up;
 // Calibrated first threshold, ramping down
 uint16_t calib_first_thres_up;
+// Single ended measurement offset for vbias
+uint16_t calib_0v_value_vbias = 0;
 // Single ended measurement offset
 uint16_t calib_0v_value_se = 0;
 // Maximum voltage that can be generated
@@ -91,11 +93,19 @@ uint16_t get_calib_first_thres_up(void)
 
 /*
  * Get ADC value for single ended offset
+ * @param   current_channel     The channel
  * @return  ADC value
  */
-uint16_t get_single_ended_offset(void)
+uint16_t get_single_ended_offset(uint8_t current_channel)
 {
-    return calib_0v_value_se;
+    if ((current_channel == ADC_CHANNEL_VBIAS) && (calib_0v_value_vbias != 0))
+    {
+        return calib_0v_value_vbias;
+    } 
+    else
+    {
+        return calib_0v_value_se;
+    }    
 }
 
 /*
@@ -131,6 +141,37 @@ void delete_single_ended_offset(void)
 uint16_t get_max_vbias_voltage(void)
 {
     return max_voltage;
+}
+
+/*
+ * Measure the offset for vbias
+ */
+void calibrate_single_ended_offset_for_vbias(void)
+{
+    calibdprintf_P(PSTR("-----------------------\r\n"));
+    calibdprintf_P(PSTR("Single Ended Offset Calibration For Vbias...\r\n\r\n"));
+    
+    // Configure correct ADC channel, enable vbias quenching
+    configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
+    enable_vbias_quenching();
+    
+    // If we're not near the dedicated 0v adc value, add a delay
+    if (get_averaged_adc_value(4) > 8)
+    {
+         while(get_averaged_adc_value(4) > 8);
+        _delay_ms(3210);
+    }        
+    _delay_ms(500);
+    
+    // Delete current single ended offset, get vbias offset
+    uint16_t calib_0v_value_se_copy = calib_0v_value_se;
+    calib_0v_value_se = 0;
+    calib_0v_value_vbias = get_averaged_adc_value(15);
+    
+    // Restore current single ended offset
+    disable_vbias_quenching();
+    calib_0v_value_se = calib_0v_value_se_copy;
+    calibdprintf("0V ADC value for vbias: %u, approx %umV\r\n", calib_0v_value_vbias, compute_voltage_from_se_adc_val(calib_0v_value_vbias));    
 }
 
 /*
@@ -327,6 +368,9 @@ void init_calibration(void)
     
     // Calibrate single ended offset
     calibrate_single_ended_offset();
+    
+    // Calibrate single ended offset for vbias
+    calibrate_single_ended_offset_for_vbias();
     
     // Calibrate current measurement offsets
     calibrate_cur_measurement_offsets();
