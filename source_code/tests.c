@@ -37,6 +37,7 @@ void functional_test(void)
     if (check_value_range(get_single_ended_offset(ADC_CHANNEL_GND_EXT), 160, 190) == FALSE)
     {
         testdprintf("- PROBLEM OFFSET: %u\r\n", get_single_ended_offset(ADC_CHANNEL_GND_EXT));
+        testdprintf_P(PSTR("  Likely suspects: bad MCU\r\n"));
         test_passed = FALSE;
     } 
     else
@@ -46,6 +47,7 @@ void functional_test(void)
     if (check_value_range(get_single_ended_offset(ADC_CHANNEL_VBIAS), 160, 190) == FALSE)
     {
         testdprintf("- PROBLEM OFFSET VBIAS: %u\r\n", get_single_ended_offset(ADC_CHANNEL_VBIAS));
+        testdprintf_P(PSTR("  Likely suspects: bad MCU or defective U5\r\n"));
         test_passed = FALSE;
     } 
     else
@@ -61,6 +63,7 @@ void functional_test(void)
     if (get_max_vbias_voltage() < 15000)
     {
         testdprintf("- PROBLEM MAX VOLTAGE: %u\r\n", get_max_vbias_voltage());
+        testdprintf_P(PSTR("  Likely suspects: U1, U5 and their passives\r\n"));
         test_passed = FALSE;
     } 
     else
@@ -83,6 +86,7 @@ void functional_test(void)
     if (check_value_range(get_calib_first_thres_down(), 2243, 2362) == FALSE)
     {
         testdprintf("- PROBLEM FIRST THRES DOWN: %u\r\n", get_calib_first_thres_down());
+        testdprintf_P(PSTR("  Likely suspects: U11 R33 R35\r\n"));
         test_passed = FALSE;
     }
     else
@@ -92,6 +96,7 @@ void functional_test(void)
     if (check_value_range(get_calib_first_thres_up(), 2243, 2362) == FALSE)
     {
         testdprintf("- PROBLEM FIRST THRES UP: %u\r\n", get_calib_first_thres_up());
+        testdprintf_P(PSTR("  Likely suspects: U11 R33 R35\r\n"));
         test_passed = FALSE;
     }
     else
@@ -114,6 +119,7 @@ void functional_test(void)
     if (check_value_range(get_calib_second_thres_down(), 1634, 1725) == FALSE)
     {
         testdprintf("- PROBLEM SECOND THRES DOWN: %u\r\n", get_calib_second_thres_down());
+        testdprintf_P(PSTR("  Likely suspects: U11 R34 R36\r\n"));
         test_passed = FALSE;
     }
     else
@@ -123,6 +129,7 @@ void functional_test(void)
     if (check_value_range(get_calib_second_thres_up(), 1634, 1725) == FALSE)
     {
         testdprintf("- PROBLEM SECOND THRES UP: %u\r\n", get_calib_second_thres_up());
+        testdprintf_P(PSTR("  Likely suspects: U11 R34 R36\r\n"));
         test_passed = FALSE;
     }
     else
@@ -145,6 +152,7 @@ void functional_test(void)
     if (check_value_range(get_calib_osc_low_v(), 1475, 1520) == FALSE)
     {
         testdprintf("- PROBLEM OSC LOW V: %u\r\n", get_calib_osc_low_v());
+        testdprintf_P(PSTR("  Likely suspects: U2 R4 R5 U10 R2\r\n"));
         test_passed = FALSE;
     }
     else
@@ -182,7 +190,8 @@ void functional_test(void)
     // Tests done, check boolean
     if (and_gate_test_passed == FALSE)
     {
-        testdprintf_P(PSTR("- PROBLEM AND GATE & THRESHOLDS\r\n"));
+        testdprintf_P(PSTR("- PROBLEM AND GATE\r\n"));
+        testdprintf_P(PSTR("  Likely suspects: U12\r\n"));
         test_passed = FALSE;
     }
     else
@@ -212,6 +221,7 @@ void functional_test(void)
     if (check_value_range(avcc, 1064, 1138) == FALSE)
     {
         testdprintf("- PROBLEM AVCC: %u (~%umV)\r\n", avcc, compute_voltage_from_se_adc_val(avcc)*10);
+        testdprintf_P(PSTR("  Likely suspects: U8 R26 R27\r\n"));
         test_passed = FALSE;
     }
     else
@@ -258,6 +268,7 @@ void functional_test(void)
     if (check_value_range(aref-aref_offset, 2412, 2512) == FALSE)
     {
         testdprintf("- PROBLEM AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
+        testdprintf_P(PSTR("  Likely suspects: U3 or U8 and passives (contact me though!)\r\n"));
         test_passed = FALSE;
     }
     else
@@ -298,6 +309,7 @@ void functional_test(void)
     if (check_value_range(voltage, 3675, 4272) == FALSE)
     {
         testdprintf("- PROBLEM VBIAS GENERATION (LDO): %u\r\n", voltage);
+        testdprintf_P(PSTR("  Likely suspects: U5 and passives around\r\n"));
         test_passed = FALSE;
     }
     else
@@ -319,6 +331,7 @@ void functional_test(void)
     if (check_value_range(voltage, 11006, 11903) == FALSE)
     {
         testdprintf("- PROBLEM VBIAS GENERATION (STEPUP): %u\r\n", voltage);
+        testdprintf_P(PSTR("  Likely suspects: U5 U1 and passives around\r\n"));
         test_passed = FALSE;
     }
     else
@@ -350,6 +363,7 @@ void functional_test(void)
     if (RTC.CNT > 100)
     {
         testdprintf("- PROBLEM VBIAS QUENCHING: %u/32 secs\r\n", time_to_quench);
+        testdprintf_P(PSTR("  Likely suspects: Q5 R37 R38\r\n"));
         test_passed = FALSE;
     }
     else
@@ -391,6 +405,7 @@ void functional_test(void)
     if ((check_value_range(cur_measure_100k, 540, 600) == FALSE) || (cur_measure_rest < 6100))
     {
         testdprintf("- PROBLEM CUR MEASUREMENT: %u & %u\r\n", cur_measure_100k, cur_measure_rest);
+        testdprintf_P(PSTR("  Likely suspects: R3 Q1 R29 U2 U4 R13 R16 R14 R15 R29 Q3 U7 R21 R28 Q2 R19\r\n"));
         //print_compute_cur_formula(cur_measure);
         test_passed = FALSE;
     }

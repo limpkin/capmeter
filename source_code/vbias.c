@@ -84,7 +84,7 @@ void wait_for_0v_bias(void)
  */
 uint16_t enable_bias_voltage(uint16_t val_mv)
 {
-    last_measured_vbias = VBIAS_MIN_V;                  // Set min vbias voltage by default
+    last_measured_vbias = VBIAS_MIN_V-1;                // Set min vbias voltage by default
     cur_set_vbias_voltage = VBIAS_MIN_V-1;              // Set min vbias voltage by default
     cur_vbias_dac_val = VBIAS_MIN_DAC_VAL;              // Set min vbias voltage by default
     configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);  // Enable ADC for vbias monitoring
@@ -164,8 +164,8 @@ uint16_t update_bias_voltage(uint16_t val_mv)
         {                        
             // Update DAC, wait and get measured vbias
             update_vbias_dac(++cur_vbias_dac_val);
-            _delay_us(10);
-            measured_vbias = compute_vbias_for_adc_value(get_averaged_adc_value(BIT_AVG_APPROACH));
+            _delay_us(20);
+            measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(BIT_AVG_APPROACH + 1, 3, FALSE));
         }
         while ((measured_vbias > voltage_to_reach) && (cur_vbias_dac_val != DAC_MAX_VAL));
         disable_vbias_quenching();

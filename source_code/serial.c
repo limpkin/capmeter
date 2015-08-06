@@ -7,7 +7,6 @@
 #include <avr/pgmspace.h>
 #include <avr/io.h>
 #include <stdio.h>
-#include "printf_override.h"
 #include "serial.h"
 
 

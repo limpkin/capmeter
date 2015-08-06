@@ -59,9 +59,9 @@ void automated_vbias_testing(void)
  */
 void automated_current_testing(void)
 {
+    uint8_t restart, stepup_enabled = FALSE;
     char received_char = 0;
     uint16_t cur_measure;
-    uint8_t restart;
     
     set_current_measurement_mode(CUR_MES_1X);
     setup_vbias_dac(VBIAS_MIN_DAC_VAL);
@@ -70,17 +70,24 @@ void automated_current_testing(void)
     while (1)
     {
         restart = FALSE;
-        for (uint16_t dac_val = VBIAS_MIN_DAC_VAL; (dac_val != 0) && (restart == FALSE); dac_val--)
+        for (uint16_t dac_val = VBIAS_MIN_DAC_VAL+1; (dac_val != 0) && (restart == FALSE); dac_val-=2)
         {
             update_vbias_dac(dac_val);
-            _delay_us(10);
-            cur_measure = cur_measurement_loop(15);
-            auttestdprintf("%d|%d\r\n", dac_val, cur_measure);
+            _delay_ms(10);
+            cur_measure = cur_measurement_loop(14);
+            auttestdprintf("%d\r\n", dac_val);
+            auttestdprintf("%d\r\n", cur_measure);
             // Wait for input from the script
             scanf("%c", &received_char);
             if (received_char == '!')
             {
                 restart = TRUE;
+            }
+            // Check if we need to enable the stepup
+            if ((dac_val < 3200) && (stepup_enabled == FALSE))
+            {
+                stepup_enabled = TRUE;
+                enable_stepup();
             }
         }
     }
