@@ -20,6 +20,7 @@
 #include "tests.h"
 #include "dac.h"
 #include "adc.h"
+#include "usb.h"
 // Define the bootloader function
 bootloader_f_ptr_type start_bootloader = (bootloader_f_ptr_type)(BOOT_SECTION_START/2);
 // RC Calibration values
@@ -60,6 +61,7 @@ int main(void)
     init_ios();                                     // Init IOs
     init_calibration();                             // Init calibration
     enable_interrupts();                            // Enable interrupts
+    USB_Init(); // TODO: Add this where you want (interrupts must be enabled)
     //enable_bias_voltage(850);while(1);
     //automated_current_testing();
     //ramp_bias_voltage_test();
