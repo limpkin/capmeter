@@ -213,7 +213,7 @@ void functional_test(void)
     // Vadc is the 3.3V / 10
     // Vout = Vref (R1 + R2) / R2
     // Min Vout = 1.176 * (2.15 * 0.99 + 1.2 * 1.01) / (1.2 * 1.01) = 3.241V
-    // Val(ADC)min = ((1.176 * (2.15 * 0.99 + 1.2 * 1.01) / (1.2 * 1.01)) - 0.001) * (409.5 / (1.24*1.0025)) - 3 = 1064.4
+    // Val(ADC)min = ((1.176 * (2.15 * 0.99 + 1.2 * 1.01) / (1.2 * 1.01)) - 0.001) * (409.5 / (1.24*1.0025)) - 3 = 1064
     // Max Vout = 1.212 * (2.15 * 1.01 + 1.2 * 0.99) / (1.2 * 0.99) = 3.427V
     // Val(ADC)max = ((1.212 * (2.15 * 1.01 + 1.2 * 0.99) / (1.2 * 0.99)) + 0.001) * (409.5 / (1.24*0.9975)) + 3 = 1138
     configure_adc_channel(ADC_CHANNEL_AVCCDIV10, 0, FALSE);
@@ -234,40 +234,30 @@ void functional_test(void)
     /*************************** VREF CHECK ****************************/
     /*******************************************************************/
     /*******************************************************************/
-    // Vadc = Val(ADC) * AVcc / (1.6 * 4095)
-    // Val(ADC) = Vadc * (6552 / AVcc)
-    // Val(ADC) = 1.24 * (6552 / AVcc)
-    // Val(ADC) = 1.24+-0.25% * 6552 / (10 * avcc * (1.24+-0.25% / 4095))
-    // Val(ADC) = 6552 * 4095 / 10 * avcc
-    // Val(ADC) = 2683044 / avcc
-    // Avcc error can be 3 LSB, we'll put 5 though
-    delete_single_ended_offset();                                       // Delete single ended offset as we switch references
-    configure_adc_channel(ADC_CHANNEL_GND_EXT_VCCDIV16, 0, FALSE);      // Select GND pin to measure the new offset
-    uint16_t aref_offset = get_averaged_adc_value(13);                  // Measure the offset
-    configure_adc_channel(ADC_CHANNEL_AREF, 0, FALSE);                  // Select aref channel
-    uint16_t aref = get_averaged_adc_value(13);                         // Measure aref value
-    configure_adc_channel(ADC_CHANNEL_AVCCDIV10_VCCDIV16, 0, FALSE);    // Select avcc/10 channel with VCC/1.6 as reference
-    uint16_t div10_avccint_ref = get_averaged_adc_value(13);            // Measure avcc/10
-    uint32_t min_total = ((aref-aref_offset)-3)*(avcc-3-4);             // Min multiplication
-    uint32_t max_total = ((aref-aref_offset)+3)*(avcc+3+4);             // Max multiplication value
-    //testdprintf("Div10int = %u, Div10ref = %u, vref = %u\r\n", div10_avccint_ref-aref_offset, avcc, aref-aref_offset);
-//     if (check_value_range_uint32(2683044, min_total, max_total) == FALSE)
-//     {
-//         testdprintf("- PROBLEM AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
-//         test_passed = FALSE;
-//     }
-//     else
-//     {
-//         testdprintf("- OK AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
-//     }
-    // Check AREF
-    // Vadc ~= Val(ADC) * 3.3 / (1.6 * 4095)
-    // Val(ADC) = Vadc * (6552 / 3.3)
-    // Val(ADC) = 1.24 * (6552 / 3.3)
-    // Approximately 2462 +-50LSB (2.5mV)
-    if (check_value_range(aref-aref_offset, 2412, 2512) == FALSE)
+    // Vadc = Val(ADC) * AVcc / 1.6 * 4095
+    // Following a ticket with Atmel, Avcc / 1.6 is only 1% precise. x is the error
+    // Vadc = Val(ADC) * Avcc * x / 1.6 * 4095
+    // Val(ADC) = Vadc * (6552 / AVcc * x)
+    // Val(ADC) = 1.24 * (6552 / AVcc * x)
+    // Avcc is avcc from before * 10 * 1.24 / 4095...
+    // Val(ADC) = 1.24+-0.25% * 6552 / (10 * avcc * (1.24+-0.25% / 4095) * x)
+    // Val(ADC) = 6552 * 4095 / 10 * avcc * x
+    // Val(ADC) = 2683044 / avcc * x
+    // Val(ADC) * avcc = 2683044 / x >> x is 0.99 & 1.01 >> 2656479 & 2710146
+    // Avcc error can be 3 LSB, we'll put 5 though as the offset isn't exactly the same between channels!
+    delete_single_ended_offset();                                                   // Delete single ended offset as we switch references
+    configure_adc_channel(ADC_CHANNEL_GND_EXT_VCCDIV16, 0, FALSE);                  // Select GND pin to measure the new offset
+    uint16_t aref_offset = get_averaged_adc_value(13);                              // Measure the offset
+    configure_adc_channel(ADC_CHANNEL_AREF, 0, FALSE);                              // Select aref channel
+    uint16_t aref = get_averaged_adc_value(13);                                     // Measure aref value
+    configure_adc_channel(ADC_CHANNEL_AVCCDIV10_VCCDIV16, 0, FALSE);                // Select avcc/10 channel with VCC/1.6 as reference
+    uint16_t div10_avccint_ref = get_averaged_adc_value(13);                        // Measure avcc/10
+    uint32_t min_total = ((uint32_t)(aref-aref_offset)-5)*((uint32_t)avcc-5-4);     // Min multiplication
+    uint32_t max_total = ((uint32_t)(aref-aref_offset)+5)*((uint32_t)avcc+5+4);     // Max multiplication value
+    if (((min_total < 265648) && (max_total < 265648)) || ((min_total > 271014) && (max_total > 271014)))
     {
         testdprintf("- PROBLEM AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
+        testdprintf("  min_total = %"PRIu32", max_total = %"PRIu32"\r\n", min_total, max_total);
         testdprintf_P(PSTR("  Likely suspects: U3 or U8 and passives (contact me though!)\r\n"));
         test_passed = FALSE;
     }

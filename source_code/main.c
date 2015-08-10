@@ -61,7 +61,7 @@ int main(void)
     init_ios();                                     // Init IOs
     init_calibration();                             // Init calibration
     enable_interrupts();                            // Enable interrupts
-    USB_Init(); // TODO: Add this where you want (interrupts must be enabled)
+    //USB_Init(); // TODO: Add this where you want (interrupts must be enabled)
     //enable_bias_voltage(850);while(1);
     //automated_current_testing();
     //ramp_bias_voltage_test();
