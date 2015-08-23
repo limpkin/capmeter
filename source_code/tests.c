@@ -171,21 +171,24 @@ void functional_test(void)
     _delay_ms(10);                                                                          // Wait
     setup_opampin_dac(get_calib_first_thres_down() + 200);                                  // Set opampin outside the AND range
     _delay_ms(10);                                                                          // Wait
-    if ((PORTE_IN & PIN0_bm) != 0)                                                          // AND gate output should be 0
+    if ((PORTE_IN & PIN3_bm) != 0)                                                          // AND gate output should be 0
     {
         and_gate_test_passed = FALSE;
+        testdprintf_P(PSTR("- AND STEP1 PROBLEM\r\n"));
     }
     update_opampin_dac((get_calib_second_thres_down() + get_calib_first_thres_up())/2);     // Set opampin between thresholds
     _delay_ms(10);                                                                          // Wait
-    if ((PORTE_IN & PIN0_bm) == 0)                                                          // AND gate output should be 1
+    if ((PORTE_IN & PIN3_bm) == 0)                                                          // AND gate output should be 1
     {
         and_gate_test_passed = FALSE;
+        testdprintf_P(PSTR("- AND STEP2 PROBLEM\r\n"));
     }
     update_opampin_dac(get_calib_second_thres_up() - 200);                                  // Set opampin outside the AND range
     _delay_ms(10);                                                                          // Wait
-    if ((PORTE_IN & PIN0_bm) != 0)                                                          // AND gate output should be 0
+    if ((PORTE_IN & PIN3_bm) != 0)                                                          // AND gate output should be 0
     {
         and_gate_test_passed = FALSE;
+        testdprintf_P(PSTR("- AND STEP3 PROBLEM\r\n"));
     }
     // Tests done, check boolean
     if (and_gate_test_passed == FALSE)

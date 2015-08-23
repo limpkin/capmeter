@@ -67,7 +67,7 @@ int main(void)
     //ramp_bias_voltage_test();
     //voltage_settling_test();
     //automated_vbias_testing();
-    //automated_current_testing();
+    automated_current_testing();
     //peak_to_peak_adc_noise_measurement_test();
     //ramp_bias_voltage_test();
     //printf("blah\r\n");_delay_ms(3333);

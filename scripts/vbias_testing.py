@@ -42,7 +42,7 @@ if __name__ == '__main__':
 	fluke_serial.parity = serial.PARITY_NONE
 	fluke_serial.stopbits = serial.STOPBITS_ONE
 	#fluke_serial.timeout = 0						#non-block read
-	fluke_serial.timeout = 30						#timeout block read
+	fluke_serial.timeout = 50						#timeout block read
 	fluke_serial.xonxoff = False					#disable software flow control
 	fluke_serial.rtscts = False						#disable hardware (RTS/CTS) flow control
 	fluke_serial.dsrdtr = False						#disable hardware (DSR/DTR) flow control
@@ -55,7 +55,7 @@ if __name__ == '__main__':
 	platform_serial.parity = serial.PARITY_NONE
 	platform_serial.stopbits = serial.STOPBITS_ONE
 	#platform_serial.timeout = 0					#non-block read
-	platform_serial.timeout = 30					#timeout block read
+	platform_serial.timeout = 50					#timeout block read
 	platform_serial.xonxoff = False					#disable software flow control
 	platform_serial.rtscts = False					#disable hardware (RTS/CTS) flow control
 	platform_serial.dsrdtr = False					#disable hardware (DSR/DTR) flow control
@@ -87,11 +87,16 @@ if __name__ == '__main__':
 			time_start = datetime.now()
 			platform_serial.write("!")
 			while counter != 2:
+				print "cmd read"
 				voltage_cmd = int(platform_serial.readline())
+				print "set read"
 				voltage_set = int(platform_serial.readline())
+				print "mes read"
 				voltage_mes = int(platform_serial.readline())
+				print "pk read"
 				voltage_peak_peak = int(platform_serial.readline())
 				time.sleep(1)
+				print "fluke read"
 				voltage_measured = get_averaged_value_from_fluke(fluke_serial, 10)
 				#check that we didn't loop
 				if voltage_cmd == VOLTAGE_MIN:

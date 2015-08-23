@@ -113,6 +113,22 @@ void disable_bias_voltage(void)
  */
 uint16_t update_bias_voltage(uint16_t val_mv)
 {
+    /******************* INTERVAL ARITHMETIC *******************/
+    // 0.1% resistors
+    // Vadc = Vbias * [1198.8,1201.2] / ([1198.8,1201.2]+[14985,15015])
+    // Vadc = Vbias * [1198.8,1201.2] / ([16183.8,16216,2])
+    // Vbias = Vadc * [16183.8,16216,2] / [1198.8,1201.2]
+    // Vbias = Vadc * [16183.8,16216,2] * [1/1201.2, 1/1198.8]
+    // Multiplication: [x1,x2]*[y2,y1] = [min(x1y1, x1y2, x2y1, x2y2), max(x1y1, x1y2, x2y1, x2y2)]
+    // Vbias = Vadc * [13,473, 13.527]
+    // 1.24V 0.25% voltage reference
+    // Vbias = VALadc * [1243.1, 1236.9] * [13,473, 13.527] / 4095
+    // Vbias = VALadc * [16664.7537, 16815,4137] / 4095
+    // Vbias = VALadc * 16740.0837 (+-0.45%) / 4095
+    // Taking into account a +-3lsb INL
+    // Vbias = VALadc * 16740.0837 (+-0.45%) / 4095 +- 3 * 16740.0837 (+-0.45%) / 4095
+    // Vbias = VALadc * 16740.0837 (+-0.45%) / 4095 +- 12mV (+-0.45%)
+    
     vbiasdprintf("Vbias call for %umV\r\n", val_mv);
     uint16_t measured_vbias = last_measured_vbias;
     uint8_t precise_phase = FALSE;
