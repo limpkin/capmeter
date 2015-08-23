@@ -19,10 +19,7 @@
 // Resistor mux modes in order of value
 uint8_t res_mux_modes[] = {RES_270, RES_1K, RES_10K, RES_100K};
 // Number of consecutive error flags
-volatile uint16_t tc_consecutive_errors_cnt2 = 0;
 volatile uint16_t tc_consecutive_errors_cnt = 0;
-// Error flag counters
-volatile uint8_t tc_error_flag2 = FALSE;
 // Error flag
 volatile uint8_t tc_error_flag = FALSE;
 // Current resistor for measure
@@ -54,21 +51,11 @@ ISR(TCC0_OVF_vect)
 }
 
 /*
- * Timer overflow interrupt
- */
-ISR(TCC1_OVF_vect)
-{
-    // If we have an overflow, it means we couldn't measure the pulse width
-    tc_error_flag2 = TRUE;
-    tc_consecutive_errors_cnt2++;
-}
-
-/*
  * Channel A capture interrupt on TC0
  */
 ISR(TCC0_CCA_vect)
 {
-    uint16_t cur_pulse_width = TCC0.CCA;
+    volatile uint16_t cur_pulse_width = TCC0.CCA;
     
     // Check if are measuring the right PW
     if (((PORTA_IN & PIN6_bm) == 0) && (tc_error_flag == FALSE))
@@ -93,7 +80,7 @@ ISR(RTC_OVF_vect)
     
     uint32_t current_osc_freq = last_counter << (uint32_t)get_bit_shift_for_freq_define(cur_freq_meas);
 
-    if (((tc_consecutive_errors_cnt > NB_ERROR_FLAGS_CHG_RES) || (tc_consecutive_errors_cnt2 > NB_ERROR_FLAGS_CHG_RES)) && (cur_resistor_index > 0))
+    if ((tc_consecutive_errors_cnt > NB_ERROR_FLAGS_CHG_RES) && (cur_resistor_index > 0))
     {
         // Check that the counters could actually measure the pulse width, change resistor otherwise
         enable_res_mux(res_mux_modes[--cur_resistor_index]);
@@ -109,7 +96,6 @@ ISR(RTC_OVF_vect)
         enable_res_mux(res_mux_modes[--cur_resistor_index]);
     }
     
-    tc_consecutive_errors_cnt2 = 0;
     tc_consecutive_errors_cnt = 0;
 }
 
@@ -167,12 +153,6 @@ void set_capacitance_measurement_mode(void)
     TCC0.INTCTRLA = TC_OVFINTLVL_HI_gc;                             // Overflow interrupt
     TCC0.INTCTRLB = TC_CCAINTLVL_HI_gc;                             // High level interrupt on capture
     TCC0.CTRLA = cur_counter_divider;                               // Set correct counter divider
-    // TC1: pulse width capture of AN2_COMPOUT
-    TCC1.CNT = 0;                                                   // Reset counter
-    TCC1.CTRLB = TC1_CCAEN_bm;                                      // Enable compare A on TCC1
-    TCC1.CTRLD = TC_EVACT_PW_gc | TC_EVSEL_CH3_gc;                  // Pulse width capture on event line 3 (AN2_COMPOUT)
-    TCC1.INTCTRLA = TC_OVFINTLVL_HI_gc;                             // Overflow interrupt
-    TCC1.CTRLA = cur_counter_divider;                               // Set correct counter divider
     
     switch(cur_freq_meas)
     {
