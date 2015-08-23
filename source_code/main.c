@@ -67,12 +67,12 @@ int main(void)
     //ramp_bias_voltage_test();
     //voltage_settling_test();
     //automated_vbias_testing();
-    automated_current_testing();
+    //automated_current_testing();
     //peak_to_peak_adc_noise_measurement_test();
     //ramp_bias_voltage_test();
     //printf("blah\r\n");_delay_ms(3333);
     //ramp_current_test();
-    functional_test();
+    //functional_test();
     //while(1);
     //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
     //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
@@ -100,7 +100,7 @@ int main(void)
 //     enable_bias_voltage(4411);
 //     while(1)
 //     {
-//         for (uint8_t i = 0; i <= CUR_MES_16X; i++)
+//         for (uint8_t i = 0; i <= CUR_MES_4X; i++)
 //         {
 //             set_current_measurement_mode(i);
 //             print_compute_cur_formula(cur_measurement_loop(17));

@@ -21,7 +21,7 @@
     #define measdprintf_P
 #endif
 
-// defines
+// defines state
 #define NB_ERROR_FLAGS_CHG_RES      10          // Number of consecutive error flags to change resistors
 #define MAX_FREQ_FOR_MEAS           100000UL    // Max oscillation frequency we allow
 #define MIN_FREQ_FOR_MEAS           5000UL      // Min oscillation frequency we allow

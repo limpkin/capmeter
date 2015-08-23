@@ -58,7 +58,7 @@ ISR(TCC0_OVF_vect)
  */
 ISR(TCC1_OVF_vect)
 {
-    // If we have an overflow, it means we couldn't measure the pulse width :/
+    // If we have an overflow, it means we couldn't measure the pulse width
     tc_error_flag2 = TRUE;
     tc_consecutive_errors_cnt2++;
 }
@@ -68,14 +68,16 @@ ISR(TCC1_OVF_vect)
  */
 ISR(TCC0_CCA_vect)
 {
-    if ((tc_error_flag == FALSE) && (tc_error_flag2 == FALSE))
+    uint16_t cur_pulse_width = TCC0.CCA;
+    
+    // Check if are measuring the right PW
+    if (((PORTA_IN & PIN6_bm) == 0) && (tc_error_flag == FALSE))
     {
-        // Pulse width of AN1_COMPOUT, subtract it with pulse width of AN2_COMPOUT
-        current_agg += (TCC0.CCA - TCC1.CCA);
+        current_agg += cur_pulse_width;
         current_counter++;
     }
+        
     tc_error_flag = FALSE;
-    tc_error_flag2 = FALSE;    
 }
 
 /*
@@ -90,23 +92,22 @@ ISR(RTC_OVF_vect)
     current_agg = 0;                    // Reset agg
     
     uint32_t current_osc_freq = last_counter << (uint32_t)get_bit_shift_for_freq_define(cur_freq_meas);
-    
+
     if (((tc_consecutive_errors_cnt > NB_ERROR_FLAGS_CHG_RES) || (tc_consecutive_errors_cnt2 > NB_ERROR_FLAGS_CHG_RES)) && (cur_resistor_index > 0))
     {
         // Check that the counters could actually measure the pulse width, change resistor otherwise
         enable_res_mux(res_mux_modes[--cur_resistor_index]);
-    }        
+    }
     else if ((current_osc_freq > MAX_FREQ_FOR_MEAS) && (cur_resistor_index < sizeof(res_mux_modes)-1))
     {
         // Check that we're not oscillating too fast
-        enable_res_mux(res_mux_modes[++cur_resistor_index]);        
-    }   
+        enable_res_mux(res_mux_modes[++cur_resistor_index]);
+    }
     else if ((current_osc_freq < MIN_FREQ_FOR_MEAS) && (cur_resistor_index > 0))
     {
         // Check that we're not oscillating too slow
-        enable_res_mux(res_mux_modes[--cur_resistor_index]);        
+        enable_res_mux(res_mux_modes[--cur_resistor_index]);
     }
-    
     
     tc_consecutive_errors_cnt2 = 0;
     tc_consecutive_errors_cnt = 0;
@@ -149,18 +150,20 @@ void set_capacitance_measurement_mode(void)
     // IOs and event lines
     PORTA.DIRCLR = PIN6_bm;                                         // Set COMP_OUT as input
     PORTC.DIRSET = PIN7_bm;                                         // Set PC7 as EVOUT
-    PORTE.DIRCLR = PIN2_bm | PIN3_bm;                               // Set PE2 & PE3 as inputs
+    PORTE.DIRCLR = PIN0_bm | PIN1_bm | PIN3_bm;                     // Set PE0 & PE1 & PE3 as inputs
     PORTA.PIN6CTRL = PORT_ISC_RISING_gc;                            // Generate event on rising edge of COMPOUT
-    PORTE.PIN3CTRL = PORT_ISC_BOTHEDGES_gc;                         // Generate events on both edges of AN2_COMPOUT
-    PORTE.PIN2CTRL = PORT_ISC_BOTHEDGES_gc | PORT_INVEN_bm;         // Generate events on both edges of AN1_COMPOUT, invert
-    EVSYS.CH0MUX = EVSYS_CHMUX_PORTA_PIN6_gc;                       // Use event line 0 for COMP_OUT rising edge
-    EVSYS.CH2MUX = EVSYS_CHMUX_PORTE_PIN2_gc;                       // Use event line 2 for AN1_COMPOUT edges
-    EVSYS.CH3MUX = EVSYS_CHMUX_PORTE_PIN3_gc;                       // Use event line 3 for AN2_COMPOUT edges
+    PORTE.PIN3CTRL = PORT_ISC_BOTHEDGES_gc;                         // Generate events on both edges of TFALL
+    PORTE.PIN0CTRL = PORT_ISC_BOTHEDGES_gc;                         // Generate events on both edges of AN1_COMPOUT
+    PORTE.PIN1CTRL = PORT_ISC_BOTHEDGES_gc | PORT_INVEN_bm;         // Generate events on both edges of AN2_COMPOUT, invert
+    EVSYS.CH0MUX = EVSYS_CHMUX_PORTE_PIN3_gc;                       // Use event line 0 for T_FALL edges
+    EVSYS.CH2MUX = EVSYS_CHMUX_PORTA_PIN6_gc;                       // Use event line 2 for COMP_OUT rising edge
+    EVSYS.CH3MUX = EVSYS_CHMUX_PORTE_PIN0_gc;                       // Use event line 3 for AN1_COMPOUT edges
+    EVSYS.CH4MUX = EVSYS_CHMUX_PORTE_PIN1_gc;                       // Use event line 4 for AN2_COMPOUT edges
     PORTCFG.CLKEVOUT = PORTCFG_EVOUT_PC7_gc;                        // Event line 0 output on PC7
     // TC0: pulse width capture of AN1_COMPOUT
     TCC0.CNT = 0;                                                   // Reset counter
     TCC0.CTRLB = TC0_CCAEN_bm;                                      // Enable compare A on TCC0
-    TCC0.CTRLD = TC_EVACT_PW_gc | TC_EVSEL_CH2_gc;                  // Pulse width capture on event line 2 (AN1_COMPOUT)
+    TCC0.CTRLD = TC_EVACT_PW_gc | TC_EVSEL_CH0_gc;                  // Pulse width capture on event line 0 (T_FALL)
     TCC0.INTCTRLA = TC_OVFINTLVL_HI_gc;                             // Overflow interrupt
     TCC0.INTCTRLB = TC_CCAINTLVL_HI_gc;                             // High level interrupt on capture
     TCC0.CTRLA = cur_counter_divider;                               // Set correct counter divider
@@ -213,10 +216,15 @@ uint8_t cap_measurement_loop(uint8_t temp)
         if (temp == FALSE)
         {
             //print_compute_c_formula(last_agg, last_counter, cur_counter_divider, get_cur_res_mux());
-        }        
+        }              
         return TRUE;
         //print_compute_c_formula(last_agg);
     }
+    if (tc_error_flag == TRUE)
+    {
+        measdprintf_P(PSTR("ERR\r\n"));
+    }
+    
     return FALSE;
 }
 
