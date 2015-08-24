@@ -22,16 +22,26 @@ uint8_t res_mux_modes[] = {RES_270, RES_1K, RES_10K, RES_100K};
 volatile uint16_t tc_consecutive_errors_cnt = 0;
 // Error flag
 volatile uint8_t tc_error_flag = FALSE;
+// Current counter for the fall/rise
+volatile uint32_t current_counter_rise;
+volatile uint32_t current_counter_fall;
+// Current aggregate for the fall/rise
+volatile uint32_t current_agg_rise;
+volatile uint32_t current_agg_fall;
+// Last counter for the fall/rise
+volatile uint32_t last_counter_rise;
+volatile uint32_t last_counter_fall;
+// Last aggregate for the fall/rise
+volatile uint32_t last_agg_rise;
+volatile uint32_t last_agg_fall;
+// Frequency counter current value
+volatile uint16_t cur_freq_counter_val;
+// Last frequency counter value
+volatile uint16_t last_counter_val;
+// Number of freq timer overflows
+volatile uint8_t nb_freq_overflows;
 // Current resistor for measure
 volatile uint8_t cur_resistor_index;
-// Current counter
-volatile uint32_t current_counter;
-// Current aggregate
-volatile uint32_t current_agg;
-// Last counter
-volatile uint32_t last_counter;
-// Last aggregate
-volatile uint32_t last_agg;
 // New measurement value
 volatile uint8_t new_val_flag;
 // Current counter divider
@@ -41,7 +51,7 @@ uint16_t cur_freq_meas;
 
 
 /*
- * Timer overflow interrupt
+ * Timer counter 0 overflow interrupt
  */
 ISR(TCC0_OVF_vect)
 {
@@ -51,17 +61,56 @@ ISR(TCC0_OVF_vect)
 }
 
 /*
+ * Timer counter 1 overflow interrupt
+ */
+ISR(TCC1_OVF_vect)
+{
+    nb_freq_overflows++;
+}
+
+/*
+ * Channel A capture interrupt on TC1
+ */
+ISR(TCC1_CCA_vect)
+{
+    uint16_t count_value = TCC1.CCA;
+    
+    // Check if the count number isn't more than uint16_t
+    if (((nb_freq_overflows == 1) && (count_value > last_counter_val)) || (nb_freq_overflows > 1))
+    {
+        cur_freq_counter_val = 0xFFFF;
+    }
+    else
+    {
+        cur_freq_counter_val = count_value - last_counter_val;
+    }
+    
+    // Set correct values
+    nb_freq_overflows = 0;
+    last_counter_val = count_value;
+}    
+
+/*
  * Channel A capture interrupt on TC0
  */
 ISR(TCC0_CCA_vect)
 {
     volatile uint16_t cur_pulse_width = TCC0.CCA;
     
-    // Check if are measuring the right PW
-    if (((PORTA_IN & PIN6_bm) == 0) && (tc_error_flag == FALSE))
+    // Record value only if it is valid
+    if(tc_error_flag == FALSE)
     {
-        current_agg += cur_pulse_width;
-        current_counter++;
+        // Aggregate depending if we voltage is rising / falling
+        if ((PORTA_IN & PIN6_bm) == 0)
+        {
+            current_agg_fall += cur_pulse_width;
+            current_counter_fall++;
+        }
+        else
+        {
+            current_counter_rise += cur_pulse_width;
+            current_counter_rise++;
+        }        
     }
         
     tc_error_flag = FALSE;
@@ -72,13 +121,23 @@ ISR(TCC0_CCA_vect)
  */
 ISR(RTC_OVF_vect)
 {
-    new_val_flag = TRUE;                // Indicate new values to be read
-    last_agg = current_agg;             // Copy current aggregate
-    last_counter = current_counter;     // Copy current counter
-    current_counter = 0;                // Reset counter
-    current_agg = 0;                    // Reset agg
-    
-    uint32_t current_osc_freq = last_counter << (uint32_t)get_bit_shift_for_freq_define(cur_freq_meas);
+    new_val_flag = TRUE;                            // Indicate new values to be read
+    last_agg_fall = current_agg_fall;               // Copy current aggregate
+    last_agg_rise = current_agg_rise;               // Copy current aggregate
+    last_counter_fall = current_counter_fall;       // Copy current counter
+    last_counter_rise = current_counter_rise;       // Copy current counter
+    current_counter_fall = 0;                       // Reset counter
+    current_counter_rise = 0;                       // Reset counter
+    current_agg_fall = 0;                           // Reset agg
+    current_agg_rise = 0;                           // Reset agg
+}
+
+/*
+ * Capacitance measurement logic - change resistor, freq measurement...
+ */
+void cap_measurement_logic(void)
+{    
+    uint32_t current_osc_freq = last_counter_fall << (uint32_t)get_bit_shift_for_freq_define(cur_freq_meas);
 
     if ((tc_consecutive_errors_cnt > NB_ERROR_FLAGS_CHG_RES) && (cur_resistor_index > 0))
     {
@@ -96,7 +155,7 @@ ISR(RTC_OVF_vect)
         enable_res_mux(res_mux_modes[--cur_resistor_index]);
     }
     
-    tc_consecutive_errors_cnt = 0;
+    tc_consecutive_errors_cnt = 0;    
 }
 
 /*
@@ -132,27 +191,36 @@ void set_capacitance_measurement_mode(void)
     RTC.CTRL = RTC_PRESCALER_DIV1_gc;                               // Keep the 32kHz base clock for the RTC
     EVSYS.CH1MUX = EVSYS_CHMUX_RTC_OVF_gc;                          // Event line 1 for RTC overflow
     CLK.RTCCTRL = CLK_RTCSRC_TOSC32_gc | CLK_RTCEN_bm;              // Select 32kHz crystal for the RTC, enable it
-    RTC.INTCTRL = RTC_OVFINTLVL_gm;                                 // Interrupt on RTC overflow
+    RTC.INTCTRL = RTC_OVFINTLVL_LO_gc;                              // Interrupt on RTC overflow (low priority)
     // IOs and event lines
     PORTA.DIRCLR = PIN6_bm;                                         // Set COMP_OUT as input
     PORTC.DIRSET = PIN7_bm;                                         // Set PC7 as EVOUT
     PORTE.DIRCLR = PIN0_bm | PIN1_bm | PIN3_bm;                     // Set PE0 & PE1 & PE3 as inputs
     PORTA.PIN6CTRL = PORT_ISC_RISING_gc;                            // Generate event on rising edge of COMPOUT
-    PORTE.PIN3CTRL = PORT_ISC_BOTHEDGES_gc;                         // Generate events on both edges of TFALL
+    PORTE.PIN3CTRL = PORT_ISC_BOTHEDGES_gc;                         // Generate events on both edges of T_FALL
     PORTE.PIN0CTRL = PORT_ISC_BOTHEDGES_gc;                         // Generate events on both edges of AN1_COMPOUT
     PORTE.PIN1CTRL = PORT_ISC_BOTHEDGES_gc | PORT_INVEN_bm;         // Generate events on both edges of AN2_COMPOUT, invert
     EVSYS.CH0MUX = EVSYS_CHMUX_PORTE_PIN3_gc;                       // Use event line 0 for T_FALL edges
+    //EVSYS.CH0CTRL = EVSYS_DIGFILT_2SAMPLES_gc;                      // Apply a digital filter of 2 samples
     EVSYS.CH2MUX = EVSYS_CHMUX_PORTA_PIN6_gc;                       // Use event line 2 for COMP_OUT rising edge
     EVSYS.CH3MUX = EVSYS_CHMUX_PORTE_PIN0_gc;                       // Use event line 3 for AN1_COMPOUT edges
     EVSYS.CH4MUX = EVSYS_CHMUX_PORTE_PIN1_gc;                       // Use event line 4 for AN2_COMPOUT edges
     PORTCFG.CLKEVOUT = PORTCFG_EVOUT_PC7_gc;                        // Event line 0 output on PC7
-    // TC0: pulse width capture of AN1_COMPOUT
+    // TC0: pulse width capture of T_FALL
     TCC0.CNT = 0;                                                   // Reset counter
     TCC0.CTRLB = TC0_CCAEN_bm;                                      // Enable compare A on TCC0
     TCC0.CTRLD = TC_EVACT_PW_gc | TC_EVSEL_CH0_gc;                  // Pulse width capture on event line 0 (T_FALL)
     TCC0.INTCTRLA = TC_OVFINTLVL_HI_gc;                             // Overflow interrupt
     TCC0.INTCTRLB = TC_CCAINTLVL_HI_gc;                             // High level interrupt on capture
     TCC0.CTRLA = cur_counter_divider;                               // Set correct counter divider
+    // TC1: frequency counter
+    TCC1.CNT = 0;                                                   // Reset counter
+    TCC1.PER = 0xFFFF;                                              // Set max period
+    TCC1.CTRLB = TC1_CCAEN_bm;                                      // Enable compare A
+    TCC1.CTRLD = TC_EVACT_CAPT_gc | TC_EVSEL_CH1_gc;                // Capture event on channel 1
+    TCC1.CTRLA = TC_CLKSEL_EVCH2_gc;                                // Use event line 0 as frequency input
+    TCC1.INTCTRLA = TC_OVFINTLVL_MED_gc;                            // Overflow interrupt
+    TCC1.INTCTRLB = TC_CCAINTLVL_MED_gc;                            // Medium level interrupt on capture    
     
     switch(cur_freq_meas)
     {
@@ -190,15 +258,18 @@ uint8_t cap_measurement_loop(uint8_t temp)
 {
     if (new_val_flag == TRUE)
     {
+        cap_measurement_logic();
         new_val_flag = FALSE;
         //measdprintf_P(PSTR("."));
-        measdprintf("agg: %lu, counter: %lu\r\n", last_agg, last_counter);
+        measdprintf("agg fall: %lu, counter fall: %lu\r\n", last_agg_fall, last_counter_fall);
+        measdprintf("agg rise: %lu, counter rise: %lu\r\n", last_agg_rise, last_counter_rise);
+        measdprintf("freq counter: %u\r\n", cur_freq_counter_val);
         if (temp == FALSE)
         {
-            //print_compute_c_formula(last_agg, last_counter, cur_counter_divider, get_cur_res_mux());
+            //print_compute_c_formula(last_agg_fall, last_counter_fall, cur_counter_divider, get_cur_res_mux());
         }              
         return TRUE;
-        //print_compute_c_formula(last_agg);
+        //print_compute_c_formula(last_agg_fall);
     }
     if (tc_error_flag == TRUE)
     {
