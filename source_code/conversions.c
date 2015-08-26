@@ -211,9 +211,21 @@ uint16_t get_half_val_for_res_mux_define(uint16_t define)
  */
 void print_compute_c_formula(uint32_t aggregate, uint32_t counter, uint16_t counter_divider, uint8_t res_mux)
 {
-    // C = T / 2 * half_r * (ln(3300-Vl/3300-vh) + ln(vh/vl))
-    // C = counter divider * aggregate / 32M * counter * 2 * half_r * (ln(3300-Vl/3300-vh) + ln(vh/vl))
-    convdprintf("(%u * %lu) / (32000000 * %lu * 2 * %u * (ln((3300-%u)/(3300-%u)) + ln(%u/%u)))\r\n", get_val_for_counter_divider(counter_divider), aggregate, counter, get_half_val_for_res_mux_define(res_mux), compute_voltage_from_se_adc_val(get_calib_first_thres_down()), compute_voltage_from_se_adc_val(get_calib_second_thres_down()), compute_voltage_from_se_adc_val(get_calib_second_thres_down()), compute_voltage_from_se_adc_val(get_calib_first_thres_down()));
+    // Vc = V0 exp(-t/RC)
+    // Vt2 = Vt1 exp(-t/RC)
+    // Vt2/Vt1 = exp(-t/RC)
+    // -t/RC = ln(Vt2/Vt1)
+    // C = -t / R*ln(Vt2/Vt1)
+    // C = -t / 2 * half_r * ln(Vt2/Vt1)
+    // C = -t / 2 * half_r * ln(Vt2/Vt1)
+    // C =  - counter divider * aggregate / 32M * counter * 2 * half_r * ln(Vt2/Vt1)
+    convdprintf("-(%u * %lu) / (32000000 * %lu * 2 * %u * ln(%u/%u))\r\n",\
+                get_val_for_counter_divider(counter_divider),\
+                aggregate,\
+                counter,\
+                get_half_val_for_res_mux_define(res_mux),\
+                get_calib_second_thres_up(),\
+                get_calib_first_thres_up());
 }
 
 /*

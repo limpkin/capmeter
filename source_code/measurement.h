@@ -22,9 +22,10 @@
 #endif
 
 // defines state
+#define NB_CONSEQ_FREQ_PB_CHG_RES   1           // Number of consecutive freq problem before changing resistors
 #define NB_ERROR_FLAGS_CHG_RES      10          // Number of consecutive error flags to change resistors
-#define MAX_FREQ_FOR_MEAS           100000UL    // Max oscillation frequency we allow
-#define MIN_FREQ_FOR_MEAS           5000UL      // Min oscillation frequency we allow
+#define MAX_FREQ_FOR_MEAS           5000UL      // Max oscillation frequency we allow
+#define MIN_FREQ_FOR_MEAS           500UL       // Min oscillation frequency we allow
 
 // enums
 enum mes_freq_t     {FREQ_1HZ = (32768-1), FREQ_2HZ = ((32768/2)-1), FREQ_4HZ = ((32768/4)-1), FREQ_8HZ = ((32768/8)-1), FREQ_16HZ = ((32768/16)-1), FREQ_32HZ = ((32768/32)-1), FREQ_64HZ = ((32768/64)-1), FREQ_128HZ = ((32768/128)-1)};
