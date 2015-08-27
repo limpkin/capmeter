@@ -18,8 +18,6 @@
 #include "adc.h"
 // Resistor mux modes in order of value
 uint8_t res_mux_modes[] = {RES_270, RES_1K, RES_10K, RES_100K};
-// Number of consecutive error flags
-volatile uint16_t tc_consecutive_errors_cnt = 0;
 // Error flag
 volatile uint8_t tc_error_flag = FALSE;
 // Current counter for the fall/rise
@@ -42,6 +40,8 @@ volatile uint16_t last_counter_val;
 volatile uint8_t nb_freq_overflows;
 // Current resistor for measure
 volatile uint8_t cur_resistor_index;
+// Counter to discard next measure
+volatile uint8_t discard_next_mes_cnt;
 // New measurement value
 volatile uint8_t new_val_flag;
 // Number of consecutive freq errors
@@ -58,9 +58,8 @@ uint16_t cur_freq_meas;
 ISR(TCC0_OVF_vect)
 {
     // If we have an overflow, it means we couldn't measure the pulse width
-    // That would mean 65536/32000000 = 2ms so around 200Hz as what we measure is a small portion
+    // That would mean 65536/32000000 = 2ms so around 500Hz oscillations when counter divider is 1 
     tc_error_flag = TRUE;
-    tc_consecutive_errors_cnt++;
 }
 
 /*
@@ -68,12 +67,13 @@ ISR(TCC0_OVF_vect)
  */
 ISR(TCC1_OVF_vect)
 {
-    // Counter rolled over
+    // Frequency counter rolled over
     nb_freq_overflows++;
 }
 
 /*
  * Channel A capture interrupt on TC1, triggered by the RTC
+ * Here we copy our counter values and aggregates
  */
 ISR(TCC1_CCA_vect)
 {
@@ -88,7 +88,6 @@ ISR(TCC1_CCA_vect)
     cur_freq_counter_val = nb_freq_overflows * 0x10000 + (count_value - last_counter_val);
     
     // Copy aggregates & counters, reset counters
-    new_val_flag = TRUE;                            // Indicate new values to be read
     last_counter_val = count_value;                 // Copy current freq counter val
     last_agg_fall = current_agg_fall;               // Copy current aggregate
     last_agg_rise = current_agg_rise;               // Copy current aggregate
@@ -99,32 +98,52 @@ ISR(TCC1_CCA_vect)
     current_agg_fall = 0;                           // Reset agg
     current_agg_rise = 0;                           // Reset agg
     nb_freq_overflows = 0;                          // Reset overflow
-}    
-
-/*
- * Channel A capture interrupt on TC0
- */
-ISR(TCC0_CCA_vect)
-{
-    volatile uint16_t cur_pulse_width = TCC0.CCA;
     
-    // Record value only if it is valid
-    if(tc_error_flag == FALSE)
+    // Only do the following operation if we weren't ask to discard next measure
+    if (discard_next_mes_cnt == 0)
     {
-        // Aggregate depending if the voltage is rising / falling
-        if ((PORTA_IN & PIN6_bm) == 0)
+        // If we got an error flag, the oscillations are too slow and the measurement isn't valid (pulse width at around 1k)
+        if (tc_error_flag == TRUE)
         {
-            current_agg_fall += cur_pulse_width;
-            current_counter_fall++;
+            if (cur_resistor_index > 0)
+            {
+                // Set smaller resistor, discard next measurement
+                enable_res_mux(res_mux_modes[--cur_resistor_index], FALSE);
+                discard_next_mes_cnt = 1;
+            }
+            tc_error_flag = FALSE;
         }
         else
         {
-            current_counter_rise += cur_pulse_width;
-            current_counter_rise++;
-        }        
+            // New values to be read
+            new_val_flag = TRUE;
+        }
+    }  
+    else
+    {
+        discard_next_mes_cnt--;
+        tc_error_flag = FALSE;
+    }  
+}    
+
+/*
+ * Channel A capture interrupt on TC0 (pulse width counter) 
+ */
+ISR(TCC0_CCA_vect)
+{
+    volatile uint16_t cur_pulse_width = TCC0.CCA;    
+
+    // Aggregate depending if the voltage is rising / falling
+    if ((PORTA_IN & PIN6_bm) == 0)
+    {
+        current_agg_fall += cur_pulse_width;
+        current_counter_fall++;
     }
-        
-    tc_error_flag = FALSE;
+    else
+    {
+        current_counter_rise += cur_pulse_width;
+        current_counter_rise++;
+    }        
 }
 
 /*
@@ -138,34 +157,20 @@ ISR(RTC_OVF_vect)
  * Capacitance measurement logic - change resistor, freq measurement...
  */
 void cap_measurement_logic(void)
-{    
-    uint32_t current_osc_freq = cur_freq_counter_val << (uint32_t)get_bit_shift_for_freq_define(cur_freq_meas);
-
-    // Todo: change the algo to take into account the counter value to maximize it!
-    if ((current_osc_freq > MAX_FREQ_FOR_MEAS) && (cur_resistor_index < sizeof(res_mux_modes)-1))
+{   
+    if ((last_agg_fall < (last_counter_fall<<10)) && (cur_resistor_index < sizeof(res_mux_modes)-1))
     {
-        // Check that we're not oscillating too fast
+        // Check that we're not oscillating too fast (average counter value less than 1024)
         if (nb_conseq_freq_pb++ > NB_CONSEQ_FREQ_PB_CHG_RES)
         {
-            enable_res_mux(res_mux_modes[++cur_resistor_index]);
+            enable_res_mux(res_mux_modes[++cur_resistor_index], TRUE);
             nb_conseq_freq_pb = 0;
         }         
-    }
-    else if ((current_osc_freq < MIN_FREQ_FOR_MEAS) && (cur_resistor_index > 0))
-    {
-        // Check that we're not oscillating too slow
-        if (nb_conseq_freq_pb++ > NB_CONSEQ_FREQ_PB_CHG_RES)
-        {
-            enable_res_mux(res_mux_modes[--cur_resistor_index]);
-            nb_conseq_freq_pb = 0;
-        }
     }
     else
     {
         nb_conseq_freq_pb = 0;
     }
-    
-    tc_consecutive_errors_cnt = 0;    
 }
 
 /*
@@ -193,6 +198,7 @@ void disable_current_measurement_mode(void)
  */
 void set_capacitance_measurement_mode(void)
 {    
+    discard_next_mes_cnt = 1;
     cur_freq_meas = FREQ_1HZ;
     cur_counter_divider = TC_CLKSEL_DIV1_gc;
     cur_resistor_index = sizeof(res_mux_modes)-1;
@@ -270,9 +276,10 @@ uint8_t cap_measurement_loop(uint8_t temp)
     {
         cap_measurement_logic();
         new_val_flag = FALSE;
-        //measdprintf("agg fall: %lu, counter fall: %lu\r\n", last_agg_fall, last_counter_fall);
-        //measdprintf("agg rise: %lu, counter rise: %lu\r\n", last_agg_rise, last_counter_rise);
-        //measdprintf("freq counter: %lu\r\n", cur_freq_counter_val);
+        print_res_mux_val();
+        measdprintf("agg fall: %lu, counter fall: %lu\r\n", last_agg_fall, last_counter_fall);
+        measdprintf("agg rise: %lu, counter rise: %lu\r\n", last_agg_rise, last_counter_rise);
+        measdprintf("freq counter: %lu\r\n", cur_freq_counter_val);
         if (temp == FALSE)
         {
             //print_compute_c_formula(last_agg_fall, cur_freq_counter_val, cur_counter_divider, get_cur_res_mux());
@@ -283,14 +290,14 @@ uint8_t cap_measurement_loop(uint8_t temp)
             measdprintf("%u\r\n", get_half_val_for_res_mux_define(get_cur_res_mux()));
             measdprintf("%u\r\n", get_calib_second_thres_up());
             measdprintf("%u\r\n", get_calib_first_thres_up());
-            measdprintf("%u\r\n", get_val_for_freq_define(cur_freq_meas));
+            measdprintf("%u\r\n\r\n", get_val_for_freq_define(cur_freq_meas));
         }              
         return TRUE;
         //print_compute_c_formula(last_agg_fall);
     }
-    if (tc_error_flag == TRUE)
+    if ((tc_error_flag == TRUE) && (discard_next_mes_cnt == 0))
     {
-        //measdprintf_P(PSTR("ERR\r\n"));
+        measdprintf_P(PSTR("ERR\r\n"));
     }
     
     return FALSE;

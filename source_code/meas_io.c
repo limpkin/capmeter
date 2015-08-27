@@ -151,33 +151,14 @@ void disable_res_mux(void)
     iodprintf_P(PSTR("Resistor Mux Off\r\n"));
 }
 
+
 /*
- * Enable resistor mux
- * @param   val     the resistor to be selected (see res_mux_t)
+ * Print current res_mux
  */
-void enable_res_mux(uint8_t val)
-{
-    cur_res_mux = val;
-    PORTA_OUTSET = PIN4_bm;
-    if (val & 0x01)
-    {
-        PORTA_OUTSET = PIN3_bm;
-    } 
-    else
-    {
-        PORTA_OUTCLR = PIN3_bm;
-    }
-    if (val & 0x02)
-    {
-        PORTA_OUTSET = PIN2_bm;
-    } 
-    else
-    {
-        PORTA_OUTCLR = PIN2_bm;
-    }
-    
+void print_res_mux_val(void)
+{ 
     // Debug print
-    switch(val)
+    switch(cur_res_mux)
     {
         case RES_270:
         {
@@ -204,15 +185,46 @@ void enable_res_mux(uint8_t val)
 }
 
 /*
+ * Enable resistor mux
+ * @param   val     the resistor to be selected (see res_mux_t)
+ * @param   debug   bool to indicate if we should printf
+ */
+void enable_res_mux(uint8_t val, uint8_t debug)
+{
+    cur_res_mux = val;
+    PORTA_OUTSET = PIN4_bm;
+    if (val & 0x01)
+    {
+        PORTA_OUTSET = PIN3_bm;
+    } 
+    else
+    {
+        PORTA_OUTCLR = PIN3_bm;
+    }
+    if (val & 0x02)
+    {
+        PORTA_OUTSET = PIN2_bm;
+    } 
+    else
+    {
+        PORTA_OUTCLR = PIN2_bm;
+    }
+    if (debug == TRUE)
+    {
+        print_res_mux_val();
+    }    
+}
+
+/*
  * Enable everything to allow freq measurement
  * @param   res     the resistor to be selected (see res_mux_t)
  */
 void set_measurement_mode_io(uint8_t res)
 {
     opampin_as_input();
-    enable_res_mux(res);
     enable_feedback_mos();
     disable_cur_meas_mos();
+    enable_res_mux(res, TRUE);
 }
 
 /*

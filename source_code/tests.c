@@ -385,15 +385,15 @@ void functional_test(void)
     set_opampin_low();
     enable_cur_meas_mos();
     enable_feedback_mos();
-    enable_res_mux(RES_100K);
+    enable_res_mux(RES_100K, TRUE);
     delete_cur_measurement_offsets(); _delay_us(20);
     configure_adc_channel(ADC_CHANNEL_CUR, CUR_MES_1X, TRUE);
     uint16_t cur_measure_100k = cur_measurement_loop(16);    
-    enable_res_mux(RES_10K); _delay_us(20);
+    enable_res_mux(RES_10K, TRUE); _delay_us(20);
     uint16_t cur_measure_rest = cur_measurement_loop(13);
-    enable_res_mux(RES_1K); _delay_us(20);
+    enable_res_mux(RES_1K, TRUE); _delay_us(20);
     cur_measure_rest += cur_measurement_loop(13);
-    enable_res_mux(RES_270); _delay_us(20);
+    enable_res_mux(RES_270, TRUE); _delay_us(20);
     cur_measure_rest += cur_measurement_loop(13);
     if ((check_value_range(cur_measure_100k, 540, 600) == FALSE) || (cur_measure_rest < 6100))
     {
