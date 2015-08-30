@@ -1,0 +1,64 @@
+doctype html
+html
+  head
+    meta(charset="utf-8")
+    title Capmeter
+    link(rel="stylesheet", href="/stylesheets/app.css")
+  body
+    .row
+      .column.small-4
+        h4 Capacitance Meter
+        a.button.expand(data-onclick="capmeter.calibration.calibrateCurrentX") Calibrate Current (X)
+        a.button.expand(data-onclick="capmeter.calibration.calibrateCurrentY") Calibrate Current (Y)
+        a.button.expand(data-onclick="capmeter.calibration.calibrateCapacitance") Calibrate Capacitance
+        a.button.expand(data-onclick="capmeter.calibration.calibratePlatform") Calibrate Platform
+      .column.small-8
+        .row
+          .column.small-12 &nbsp;
+        .row
+          .column.small-5
+            .row.collapse
+              .column.small-8
+                span.prefix Voltage [V]
+              .column.small-4
+                input(data-input="capmeter.measurement.voltageCurrent", type="text")
+          .column.small-4
+            a.button.tiny.expand(data-onclick="capmeter.measurement.measureCurrent") Measure Current
+          .column.small-3
+            .value(data-display="capmeter.measurement.get_current")
+        .row
+          .column.small-5
+            .row.collapse
+              .column.small-8
+                span.prefix Voltage [V]
+              .column.small-4
+                input(data-input="capmeter.measurement.voltageCapacitance", type="text")
+          .column.small-4
+            a.button.tiny.expand(data-onclick="capmeter.measurement.measureCapacitance") Measure Capacitance
+          .column.small-3
+            .value(data-display="capmeter.measurement.get_capacitance")
+
+        .row
+          .column.small-12.graph-container.text-center 
+            h3 Place for graph
+
+        .row
+          .column.small-6
+            .row.collapse
+              .column.small-8
+                span.prefix Max. Voltage [V]
+              .column.small-4
+                input(data-input="capmeter.visualisation.maxVoltage", type="text")
+          .column.small-3
+            a.button.tiny.expand(data-onclick="capmeter.visualisation.capacitance") Capacitance
+          .column.small-3
+            a.button.tiny.expand(data-onclick="capmeter.visualisation.current") Current
+
+    script(src="/bower_components/jquery/dist/jquery.min.js")
+    script(src="/js/capmeter/helper.js")
+    script(src="/js/capmeter/measurement.js")
+    script(src="/js/capmeter/visualisation.js")
+    script(src="/js/capmeter/calibration.js")
+    script(src="/js/app.js")
+
+

@@ -1,0 +1,3 @@
+This project is using jade templating to generate html files. If you need to edit the html templates of this Chrome App, manipulate files listed under ../jade, and compile them with jade from jade-lang.com.
+
+ALL CHANGES MADE TO FILES IN THIS FOLDER WILL BE AUTOMATICALLY OVERWRITTEN WHEN A JADE FILE IS CHANGED.

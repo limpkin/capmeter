@@ -1,0 +1,3 @@
+This project is using scss to generate css files. If you need to edit stylesheets of this Chrome App, manipulate files listed under ../scss, and compile them with compass, or any scss compiler of your choice.
+
+ALL CHANGES MADE TO FILES IN THIS FOLDER WILL BE AUTOMATICALLY OVERWRITTEN WHEN A SCSS FILE IS CHANGED.
