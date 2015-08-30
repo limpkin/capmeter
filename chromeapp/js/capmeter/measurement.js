@@ -5,22 +5,22 @@ capmeter.measurement._current = 500;
 capmeter.measurement._capacitance = 900;
 
 capmeter.measurement.measureCurrent = function($button) {
-  log("capmeter.measurement.measureCurrent");
+  console.log("capmeter.measurement.measureCurrent");
   $button.css("background", "orange");
 }
 
 capmeter.measurement.measureCapacitance = function($button) {
-  log("capmeter.measurement.voltageCurrent");
+  console.log("capmeter.measurement.voltageCurrent");
   $button.css("background", "orange");
 }
 
 capmeter.measurement.voltageCurrent = function($input) {  
-  log("capmeter.measurement.voltageCurrent - " + $input.val());
+  console.log("capmeter.measurement.voltageCurrent - " + $input.val());
   $input.css("background", "orange");
 }
 
 capmeter.measurement.voltageCapacitance = function($input) {  
-  log("capmeter.measurement.voltageCapacitance - " + $input.val());
+  console.log("capmeter.measurement.voltageCapacitance - " + $input.val());
   $input.css("background", "orange");
 }
 
