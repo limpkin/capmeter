@@ -2,21 +2,21 @@ if (typeof capmeter == 'undefined') capmeter = {};
 capmeter.calibration = capmeter.calibration || {};
 
 capmeter.calibration.calibrateCurrentX = function($button) {
-  console.log("capmeter.calibration.calibrateCurrentX");
+  log("capmeter.calibration.calibrateCurrentX");
   $button.css("background", "orange");
 }
 
 capmeter.calibration.calibrateCurrentY = function($button) {
-  console.log("capmeter.calibration.calibrateCurrentY");
+  log("capmeter.calibration.calibrateCurrentY");
   $button.css("background", "orange");
 }
 
 capmeter.calibration.calibrateCapacitance = function($button) {
-  console.log("capmeter.calibration.calibrateCapacitance");
+  log("capmeter.calibration.calibrateCapacitance");
   $button.css("background", "orange");
 }
 
 capmeter.calibration.calibratePlatform = function($button) {
-  console.log("capmeter.calibration.calibratePlatform");
+  log("capmeter.calibration.calibratePlatform");
   $button.css("background", "orange");
 }

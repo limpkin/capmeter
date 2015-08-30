@@ -9456,3 +9456,15 @@ div.value {
   height: 200px;
   margin-bottom: 2rem;
 }
+
+/* line 16, ../scss/_custom.scss */
+#log {
+  height: 13rem;
+  font-family: courier;
+  font-size: 0.8rem;
+  color: #FFF;
+  padding: 0.3rem;
+  margin: 0px 0px 16px;
+  background: #000;
+  border: none;
+}

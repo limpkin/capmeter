@@ -1,5 +1,12 @@
 // Frontend Javascript
 // This file is loaded in all frontend files of this app.
+var log = function(text) {
+  $("#log").val($("#log").val() + text + "\n");
+  $("#log").animate({
+        scrollTop:$("#log")[0].scrollHeight - $("#log").height()
+  }, 200);
+}
+
 $(function(){
   // Init buttons
   $("*[data-onclick]").on("click", function() {
