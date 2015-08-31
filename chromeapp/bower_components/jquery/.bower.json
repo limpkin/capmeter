@@ -1,0 +1,14 @@
+{
+  "name": "jquery",
+  "homepage": "https://github.com/jquery/jquery",
+  "version": "3.0.0-alpha1+compat",
+  "_release": "3.0.0-alpha1+compat",
+  "_resolution": {
+    "type": "version",
+    "tag": "3.0.0-alpha1+compat",
+    "commit": "ef64d82ec3d1717478979cba986d896aa0dda617"
+  },
+  "_source": "git://github.com/jquery/jquery.git",
+  "_target": ">=1.2",
+  "_originalSource": "jquery"
+}
