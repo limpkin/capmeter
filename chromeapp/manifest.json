@@ -1,6 +1,6 @@
 {
   "name": "Capmeter",
-  "description": "Visualising data gained by capmeter.",
+  "description": "Visualising data gained by the capmeter",
   "version": "0.1",
   "manifest_version": 2,
   "app": {
@@ -8,6 +8,15 @@
       "scripts": ["js/background.js"]
     }
   },
+  "permissions": [
+      "hid",
+      {
+          "usbDevices": [
+              { "vendorId": 5840, "productId": 2464 }
+          ]
+      },
+  {"fileSystem": ["write", "retainEntries"]} 
+  ],
   "icons": { 
     "256": "images/AppIcon.png"
   }

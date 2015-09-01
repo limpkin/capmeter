@@ -14,7 +14,7 @@
 /* Defines and Macros */
 #define MSB(x)  ( (x >> 8) & 0xFFu)
 #define LSB(x)  ( (x)      & 0xFFu)
-#define USB_DESCRIPTOR_LIST_LENGTH (6u)
+#define USB_DESCRIPTOR_LIST_LENGTH (7u)
 
 /* Configurable Defines */
 #define VID     (0x1209u)

@@ -77,17 +77,6 @@
         uint8_t         length;
     }USB_Descriptor_List_T;
 
-    typedef enum
-    {
-        DEVICE=1,
-        CONFIGURATION=2,
-        STRING=3,
-        INTERFACE=4,
-        ENDPOINT=5,
-        DEVICE_QUALIFIER=6,
-        OTHER_SPEED_CONFIGURATION=7,
-        INTERFACE_POWER=8,
-    } descriptorType_T;
 
     typedef struct USB_SrtingDescriptor
     {

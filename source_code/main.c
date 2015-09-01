@@ -59,9 +59,9 @@ int main(void)
     init_dac();                                     // Init DAC
     init_adc();                                     // Init ADC
     init_ios();                                     // Init IOs
-    init_calibration();                             // Init calibration
+    //init_calibration();                             // Init calibration
     enable_interrupts();                            // Enable interrupts
-    //USB_Init(); // TODO: Add this where you want (interrupts must be enabled)
+    init_usb(); 
     //enable_bias_voltage(850);while(1);
     //automated_current_testing();
     //ramp_bias_voltage_test();
@@ -108,11 +108,17 @@ int main(void)
 //     }
 //     while(1);
 
+    while(1)
+    {
+        _delay_ms(1000);
+        printf(".");
+    }
+
     enable_bias_voltage(4500);
     set_capacitance_measurement_mode();
     while(1)
     {
-        cap_measurement_loop(FALSE);       
+        cap_measurement_loop(FALSE);    
     }
     
     // Freq mes

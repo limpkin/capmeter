@@ -181,6 +181,21 @@
     <Compile Include="tests.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="usb.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb_descriptors.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb_descriptors.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="usb_types.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="utils.c">
       <SubType>compile</SubType>
     </Compile>

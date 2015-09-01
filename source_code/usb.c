@@ -46,31 +46,17 @@ void USB_setConfiguration(void);
 void USB_doNothing(void);
 void USB_HidGetReport(uint16_t wLength);
 
-void USB_Init(void)
+void init_usb(void)
 {
-    /* START PLL to 48Mhz for USB full speed
-     * Internal 2 MHz RC Oscillator
-     * Multiplied by 24
-     * */
-    OSC_CTRL |= OSC_RC2MEN_bm;
-    /* Wait until 2Mhz oscillator is stable */
-    while( (OSC_STATUS & OSC_RC2MRDY_bm) == 0 );
-
-    OSC_PLLCTRL = OSC_PLLSRC_RC2M_gc | (24u);
-    OSC_CTRL |= OSC_PLLEN_bm;
-    /* wait until pll is locked */
-    while( (OSC_STATUS & OSC_PLLRDY_bm) == 0 );
-
-    /* Select the 32kHz external clock as calibration ref for our 2M */
-    OSC_DFLLCTRL |= OSC_RC2MCREF_XOSC32K_gc;
-    DFLLRC2M_CTRL = DFLL_ENABLE_bm;
-
-    /* CLOCK USB Control register
-     * USB uses PLL
-     * No preescaler
-     * Enable USB clock
-     */
-    CLK_USBCTRL = CLK_USBSEN_bm;
+    /* USB pins factory calibration */
+    USB.CAL0 = ReadCalibrationByte(PROD_SIGNATURES_START+USBCAL0_offset);
+    USB.CAL1 = ReadCalibrationByte(PROD_SIGNATURES_START+USBCAL1_offset);
+    
+    // When arriving here, we are already running at 32MHz
+    OSC.PLLCTRL = OSC_PLLSRC_RC32M_gc | 0x06;               // 32MHz/4*6 = 48MHz for USB
+    OSC.CTRL |= OSC_PLLEN_bm;                               // Enable PLL
+    while((OSC.STATUS & OSC_PLLRDY_bm) == 0);               // Wait until PLL is locked
+    CLK.USBCTRL = CLK_USBSEN_bm;                            // Enable the USB clock, source is PLL
 
     /* USB CTRLA:
      * Bit 7 – ENABLE: USB Enable
@@ -129,9 +115,6 @@ void USB_Init(void)
 
 
 
-    /* USB pins factory calibration apply */
-    USB.CAL0 = ReadCalibrationByte(PROD_SIGNATURES_START+USBCAL0_offset);
-    USB.CAL1 = ReadCalibrationByte(PROD_SIGNATURES_START+USBCAL1_offset);
 
 
     USB_CTRLA |= USB_ENABLE_bm;
@@ -160,7 +143,6 @@ ISR(USB_BUSEVENT_vect)
 
 void USB_Task(void)
 {
-
     // Read once to prevent race condition where SETUP packet is interpreted as OUT
     uint8_t status = USB_SRAM.epCfgTable[0].STATUS;
     USB_Request_Header_t* usbMsg = USB_SRAM.epCfgTable[0].DATAPTR;
@@ -184,7 +166,7 @@ void USB_Task(void)
                     USB_doNothing();
                     break;
                 case SET_ADDRESS      :
-                    printf("Set address -> %02X", usbMsg->wValue);
+                    //printf("Set address -> %02X", usbMsg->wValue);
                     USB_setAddress(usbMsg->wValue);
                     break;
                 case SET_DESCRIPTOR   :

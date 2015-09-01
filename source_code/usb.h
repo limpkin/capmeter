@@ -8,8 +8,20 @@
 #define USB_H_
 
 /* Function prototypes */
-void USB_Init(void);
+void init_usb(void);
 void USB_Task(void);
+
+// configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
+// Configuration descriptor
+#define RAWHID_INTERFACE    0                   // Interface for the raw HID
+#define RAWHID_RX_ENDPOINT  1                   // Raw HID RX endpoint
+#define RAWHID_TX_ENDPOINT  2                   // Raw HID TX endpoint
+#define RAWHID_TX_SIZE      64                  // Raw HID transmit packet size
+#define RAWHID_RX_SIZE      64                  // Raw HID receive packet size
+#define RAWHID_RX_INTERVAL  10                  // RX interval
+#define RAWHID_TX_INTERVAL  10                  // TX interval
+#define RAWHID_USAGE_PAGE   0xFF31              // HID usage page, after 0xFF00: vendor-defined
+#define RAWHID_USAGE        0x0074              // HID usage
 
 /* USB CONFIGURATIION DEFINES */
 #define USB_MAXEP               (2u)
