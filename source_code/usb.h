@@ -7,9 +7,35 @@
 #ifndef USB_H_
 #define USB_H_
 
+#include <avr/io.h>
+#include "defines.h"
+#include "printf_override.h"
+
 /* Function prototypes */
 void init_usb(void);
-void USB_Task(void);
+
+// Usb printf
+#ifdef USB_PRINTF
+    #define usbdprintf   printf
+    #define usbdprintf_P printf_P
+#else
+    #define usbdprintf
+    #define usbdprintf_P
+#endif
+
+// Typedefs
+typedef union USB_EP_pair
+{
+    union
+    {
+        struct
+        {
+            USB_EP_t out;
+            USB_EP_t in;
+        };
+        USB_EP_t ep[2];
+    };
+} __attribute__ ((packed)) USB_EP_pair_t;
 
 // configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
 // Configuration descriptor
@@ -25,8 +51,8 @@ void USB_Task(void);
 
 /* USB CONFIGURATIION DEFINES */
 #define USB_MAXEP               (2u)
-#define USB_FRAMENUM_ENABLE     (0u)
-#define USB_FIFO_ENABLE         (0u)
+//#define USB_FRAMENUM_ENABLE     (0u)
+//#define USB_FIFO_ENABLE         (0u)
 
 /* EP0 configuration */
 #define EP0SIZE                 (64u)
@@ -43,5 +69,17 @@ void USB_Task(void);
 /* USB Calibration Offsets */
 #define USBCAL0_offset         (0x1A)
 #define USBCAL1_offset         (0x1B)
+
+/// From Atmel: Macros for XMEGA instructions not yet supported by the toolchain
+// Load and Clear 
+#ifdef __GNUC__
+#define LACR16(addr,msk) \
+	__asm__ __volatile__ ( \
+	"ldi r16, %1" "\n\t" \
+	".dc.w 0x9306" "\n\t"\
+	::"z" (addr), "M" (msk):"r16")
+#else
+	#define LACR16(addr,msk) __lac((unsigned char)msk,(unsigned char*)addr)
+#endif
 
 #endif

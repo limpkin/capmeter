@@ -111,7 +111,7 @@ int main(void)
     while(1)
     {
         _delay_ms(1000);
-        printf(".");
+        printf("-");
     }
 
     enable_bias_voltage(4500);
