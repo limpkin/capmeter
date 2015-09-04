@@ -13,6 +13,10 @@
 
 /* Function prototypes */
 void init_usb(void);
+/* RX callback function, here we receive HID messages from HOST */
+void USB_Rx(uint8_t* buffer, uint8_t size);
+/* TX function, call to send messages to HOST */
+void USB_Tx(uint8_t* buffer, uint8_t size);
 
 // Usb printf
 #ifdef USB_PRINTF

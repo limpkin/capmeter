@@ -170,13 +170,13 @@ ISR(USB_TRNCOMPL_vect)
     {
         //endpoints[2].in.CNT = 64;
         //endpoints[2].in.STATUS &= USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm;
+        printf("EP2|");
     }
     // Endpoint 1 handling
     if (ep1status & USB_EP_TRNCOMPL0_bm)
     {
-        //endpoints[2].in.CNT = 64;
-        //endpoints[2].in.STATUS &= USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm;
-        endpoints[2].in.STATUS &= USB_EP_TRNCOMPL0_bm;
+        USB_Rx(ep1_out, endpoints[1].out.CNT);
+        printf("EP1|");
     }
     printf("%02x %02x %02x %02x\r\n", endpoints[1].out.STATUS, endpoints[1].in.STATUS, endpoints[2].out.STATUS,endpoints[2].in.STATUS);
 	// Endpoint0 handling
@@ -340,4 +340,19 @@ ISR(USB_TRNCOMPL_vect)
  	else if(ep0status & USB_EP_TRNCOMPL0_bm)
  	{
  	}
+}
+
+/* RX callback function, here we receive HID messages from HOST */
+void USB_Rx(uint8_t* buffer, uint8_t size)
+{
+    /* Ping function, always reply the same */
+    USB_Tx(buffer, size);
+}
+
+/* TX function, call to send messages to HOST */
+void USB_Tx(uint8_t* buffer, uint8_t size)
+{
+    memcpy(ep2_in,buffer, size);
+    endpoints[2].in.CNT = size;
+    endpoints[2].in.STATUS &= USB_EP_TRNCOMPL0_bm;
 }

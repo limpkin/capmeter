@@ -14,11 +14,12 @@ import sys
 import os
 
 USB_VID                 = 0x1209
-USB_PID                 = 0x0001
+USB_PID                 = 0xdddd
 
 LEN_INDEX               = 0x00
 CMD_INDEX               = 0x01
 DATA_INDEX              = 0x02
+CMD_PING		= 0x05
 
 		
 def receiveHidPacket(epin):
@@ -73,8 +74,9 @@ def findHIDDevice(vendor_id, product_id, print_debug):
 	if platform.system() == "Linux":
 		# Need to do things differently
 		try:
+			print ""
 			hid_device.detach_kernel_driver(0)
-			hid_device.reset()
+			#hid_device.reset()
 		except Exception, e:
 			pass # Probably already detached
 	else:
