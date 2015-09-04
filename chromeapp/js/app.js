@@ -4,7 +4,7 @@ var CMD_DEBUG                = 0xA0;
 var CMD_PING                = 0xA1;
 var CMD_VERSION				= 0xA2;
 
-var device_info = { "vendorId": 0x1209, "productId": 0x0001 };      // Mooltipass
+var device_info = { "vendorId": 0x1209, "productId": 0xdddd };      // Mooltipass
 var version       = 'unknown'; 										// connected mooltipass version
 var connected     = false;  	 									// current connection state
 var connection    = null;   										// connection to the mooltipass
@@ -173,6 +173,7 @@ function onDeviceFound(devices)
 {
     if (devices.length <= 0)
     {
+		console.log('No devices found');
         return;
     }
 

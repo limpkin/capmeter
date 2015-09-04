@@ -17,11 +17,11 @@
 #define USB_DESCRIPTOR_LIST_LENGTH (7u)
 
 /* Configurable Defines */
-#define VID     (0x1209u)
-#define PID     (0x0001u)
+#define VID     0x1209
+#define PID     0xdddd
 
-#define STR_MANUFACTURER    L"ManufacturerStr"      // Manufacturer string
-#define STR_PRODUCT         L"ProductStr"           // Product string
+#define STR_MANUFACTURER    L"limpkin"              // Manufacturer string
+#define STR_PRODUCT         L"capmeter"             // Product string
 
 /* Descriptors */
 extern USB_Descriptor_List_T descriptor_list[USB_DESCRIPTOR_LIST_LENGTH];

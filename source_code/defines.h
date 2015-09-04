@@ -37,7 +37,7 @@ typedef void (*bootloader_f_ptr_type)(void);
 // Automated testing printf
 #define AUTOMATED_TESTS_PRINTF
 // USB printf
-//#define USB_PRINTF
+#define USB_PRINTF
 
 // Check if we need to enable printf
 #if defined(USB_PRINTF) || defined(AUTOMATED_TESTS_PRINTF) || defined(CONV_PRINTF) || defined(TESTS_PRINTF) || defined(IO_PRINTF) || defined(VBIAS_PRINTF) || defined(CALIB_PRINTF) || defined(SERIAL_PRINTF) || defined(MEAS_PRINTF) || defined(DAC_PRINTF) || defined(ADC_PRINTF)

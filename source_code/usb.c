@@ -51,7 +51,7 @@ void init_usb_configuration(void)
 	endpoints[0].out.CTRL = USB_EP_TYPE_CONTROL_gc | USB_EP_BUFSIZE_64_gc;
 	endpoints[0].out.DATAPTR = (unsigned)&ep0_out;
 	/* EP0 In */
-	endpoints[0].in.STATUS = 0;
+	endpoints[0].in.STATUS = USB_EP_BUSNACK0_bm;
 	endpoints[0].in.CTRL = USB_EP_TYPE_CONTROL_gc | USB_EP_BUFSIZE_64_gc;
 	endpoints[0].in.DATAPTR = (unsigned)&ep0_in;
     
@@ -86,7 +86,7 @@ void init_usb(void)
 
 ISR(USB_BUSEVENT_vect)
 {
-    //usbdprintf("<%02x>", USB_INTFLAGSACLR);
+    usbdprintf("<%02x>", USB_INTFLAGSACLR);
 	if (USB_INTFLAGSACLR & USB_SOFIF_bm)
 	{
 		// Start of frame
@@ -152,7 +152,7 @@ void wait_for_endpoint_packet_send(uint8_t endpoint_number)
 
 ISR(USB_TRNCOMPL_vect)
 {
-    //usbdprintf("!%02x!", USB_INTFLAGSBCLR);
+    usbdprintf("!%02x!", USB_INTFLAGSBCLR);
 	// Clear Interrupt flags
     USB.FIFOWP = 0;
 	USB_INTFLAGSBCLR = USB_SETUPIF_bm | USB_TRNIF_bm;
@@ -160,8 +160,25 @@ ISR(USB_TRNCOMPL_vect)
 	// Read once to prevent race condition where SETUP packet is interpreted as OUT
 	USB_Request_Header_t* usbMsg = (USB_Request_Header_t*)endpoints[0].out.DATAPTR;
 	uint8_t ep0status = endpoints[0].out.STATUS;
+    uint8_t ep1status = endpoints[1].out.STATUS;
+    uint8_t ep2status = endpoints[2].in.STATUS;
 	enable_ep0_out();
 	
+    printf("%02x %02x %02x %02x ", endpoints[1].out.STATUS, endpoints[1].in.STATUS, endpoints[2].out.STATUS,endpoints[2].in.STATUS);
+    // Endpoint 2 handling
+    if (ep2status & USB_EP_TRNCOMPL0_bm)
+    {
+        //endpoints[2].in.CNT = 64;
+        //endpoints[2].in.STATUS &= USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm;
+    }
+    // Endpoint 1 handling
+    if (ep1status & USB_EP_TRNCOMPL0_bm)
+    {
+        //endpoints[2].in.CNT = 64;
+        //endpoints[2].in.STATUS &= USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm;
+        endpoints[2].in.STATUS &= USB_EP_TRNCOMPL0_bm;
+    }
+    printf("%02x %02x %02x %02x\r\n", endpoints[1].out.STATUS, endpoints[1].in.STATUS, endpoints[2].out.STATUS,endpoints[2].in.STATUS);
 	// Endpoint0 handling
 	if (ep0status & USB_EP_SETUP_bm)
 	{
@@ -254,7 +271,7 @@ ISR(USB_TRNCOMPL_vect)
 			    {
     			    usbdprintf_P(PSTR("C|"));
     			    usb_configuration = usbMsg->wValue;
-                    endpoints[1].out.STATUS = USB_EP_BUSNACK0_bm;
+                    endpoints[1].out.STATUS = 0;
                     endpoints[1].out.CTRL = EP1CTRL_OUT;
                     endpoints[1].out.DATAPTR = (unsigned)ep1_out;
                     endpoints[1].in.STATUS = USB_EP_BUSNACK0_bm;
@@ -264,6 +281,7 @@ ISR(USB_TRNCOMPL_vect)
                     endpoints[2].out.CTRL = 0;
                     endpoints[2].out.DATAPTR = 0;
                     endpoints[2].in.STATUS = USB_EP_BUSNACK0_bm;
+                    endpoints[2].in.CNT = 0;
                     endpoints[2].in.CTRL = EP2CTRL_IN;
                     endpoints[2].in.DATAPTR = (unsigned)ep2_in;
     			    flush_ep0_endpoint_contents(0);
@@ -301,7 +319,13 @@ ISR(USB_TRNCOMPL_vect)
                     usbdprintf_P(PSTR("R|"));
                     flush_ep0_endpoint_contents(0);
                     break;
-                }                    
+                }    
+                case HID_SET_IDLE:
+                {
+                    usbdprintf_P(PSTR("I|"));
+                    flush_ep0_endpoint_contents(0);
+                    break;
+                }                   
 			    default:
 			    {
                     // Stall
