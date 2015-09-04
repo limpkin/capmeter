@@ -12,7 +12,7 @@
       "hid",
       {
           "usbDevices": [
-              { "vendorId": 5840, "productId": 2464 }
+              { "vendorId": 4617, "productId": 56797 }
           ]
       },
   {"fileSystem": ["write", "retainEntries"]} 
