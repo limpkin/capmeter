@@ -2,8 +2,6 @@
  *  usb.h
  *  Author: Miguel
  */
-
-
 #ifndef USB_H_
 #define USB_H_
 
@@ -13,12 +11,10 @@
 
 /* Function prototypes */
 void init_usb(void);
-/* RX callback function, here we receive HID messages from HOST */
-void USB_Rx(uint8_t* buffer, uint8_t size);
-/* TX function, call to send messages to HOST */
-void USB_Tx(uint8_t* buffer, uint8_t size);
+void usb_send_data(uint8_t* data);
+uint8_t usb_receive_data(uint8_t* data);
 
-// Usb printf
+// USB printf
 #ifdef USB_PRINTF
     #define usbdprintf   printf
     #define usbdprintf_P printf_P
@@ -41,8 +37,7 @@ typedef union USB_EP_pair
     };
 } __attribute__ ((packed)) USB_EP_pair_t;
 
-// configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
-// Configuration descriptor
+// Configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
 #define RAWHID_INTERFACE    0                   // Interface for the raw HID
 #define RAWHID_RX_ENDPOINT  1                   // Raw HID RX endpoint
 #define RAWHID_TX_ENDPOINT  2                   // Raw HID TX endpoint
@@ -52,38 +47,15 @@ typedef union USB_EP_pair
 #define RAWHID_TX_INTERVAL  10                  // TX interval
 #define RAWHID_USAGE_PAGE   0xFF31              // HID usage page, after 0xFF00: vendor-defined
 #define RAWHID_USAGE        0x0074              // HID usage
+#define RAWHID_EP0_SIZE     64                  // Endpoint 0 size
 
-/* USB CONFIGURATIION DEFINES */
-#define USB_MAXEP               (2u)
-//#define USB_FRAMENUM_ENABLE     (0u)
-//#define USB_FIFO_ENABLE         (0u)
-
-/* EP0 configuration */
-#define EP0SIZE                 (64u)
-#define EP0CTRL                 (USB_EP_TYPE_CONTROL_gc | \
-                                 USB_EP_BUFSIZE_64_gc       )
-
-#define EP1SIZE_OUT             (64u)
-#define EP1CTRL_OUT             (USB_EP_TYPE_BULK_gc | \
-                                 USB_EP_BUFSIZE_64_gc)
-#define EP2SIZE_IN              (64u)
-#define EP2CTRL_IN              (USB_EP_TYPE_BULK_gc | \
-                                 USB_EP_BUFSIZE_64_gc)
+// Command IDs defines
+#define CMD_DEBUG           0x00
+#define CMD_PING            0x01
+#define CMD_VERSION         0x02
 
 /* USB Calibration Offsets */
-#define USBCAL0_offset         (0x1A)
-#define USBCAL1_offset         (0x1B)
-
-/// From Atmel: Macros for XMEGA instructions not yet supported by the toolchain
-// Load and Clear 
-#ifdef __GNUC__
-#define LACR16(addr,msk) \
-	__asm__ __volatile__ ( \
-	"ldi r16, %1" "\n\t" \
-	".dc.w 0x9306" "\n\t"\
-	::"z" (addr), "M" (msk):"r16")
-#else
-	#define LACR16(addr,msk) __lac((unsigned char)msk,(unsigned char*)addr)
-#endif
+#define USBCAL0_offset      (0x1A)
+#define USBCAL1_offset      (0x1B)
 
 #endif

@@ -1,8 +1,8 @@
 // Frontend Javascript
 // This file is loaded in all frontend files of this app.
-var CMD_DEBUG                = 0xA0;
-var CMD_PING                = 0xA1;
-var CMD_VERSION				= 0xA2;
+var CMD_DEBUG               = 0x00;
+var CMD_PING                = 0x01;
+var CMD_VERSION				= 0x02;
 
 var device_info = { "vendorId": 0x1209, "productId": 0xdddd };      // Mooltipass
 var version       = 'unknown'; 										// connected mooltipass version
@@ -136,7 +136,7 @@ function onDataReceived(reportId, data)
         }
 		
         case CMD_PING:
-            //console.log('.');
+            console.log('.');
             break;
 			
         case CMD_VERSION:

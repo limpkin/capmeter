@@ -15,7 +15,7 @@ const PROGMEM uint8_t device_descriptor[] =
     0,                                  // bDeviceClass, see interface descriptors
     0,                                  // bDeviceSubClass
     0,                                  // bDeviceProtocol
-    EP0SIZE,                            // bMaxPacketSize0
+    RAWHID_EP0_SIZE,                    // bMaxPacketSize0
     LSB(VID), MSB(VID),                 // idVendor
     LSB(PID), MSB(PID),                 // idProduct
     0x00, 0x01,                         // bcdDevice

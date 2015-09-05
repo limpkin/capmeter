@@ -26,6 +26,8 @@ bootloader_f_ptr_type start_bootloader = (bootloader_f_ptr_type)(BOOT_SECTION_ST
 // RC Calibration values
 #define RCOSC32M_offset  0x03
 #define RCOSC32MA_offset 0x04
+// USB message
+usb_message_t usb_packet;
 
 
 /*
@@ -110,7 +112,28 @@ int main(void)
 
     while(1)
     {
-        _delay_ms(1000);
+        if (usb_receive_data((uint8_t*)&usb_packet) == TRUE)
+        {
+            printf("RECEIVED\r\n");
+            switch(usb_packet.command_id)
+            {
+                case CMD_PING: 
+                {
+                    usb_send_data((uint8_t*)&usb_packet);
+                    printf("ping\r\n");
+                    break;
+                }
+                case CMD_VERSION:
+                {
+                    usb_packet.payload[0] = VERSION;
+                    usb_send_data((uint8_t*)&usb_packet);
+                    printf("version\r\n");
+                    break;
+                }
+                default: break;
+            }
+        }
+        _delay_ms(100);
         printf("-");
     }
 

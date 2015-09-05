@@ -10,11 +10,25 @@
 #define DEFINES_H_
 
 // Val defines
-#define FALSE   0
-#define TRUE    (!FALSE)
+#define FALSE           0
+#define TRUE            (!FALSE)
+#define VERSION         0x00
 
 // Typedefs
 typedef void (*bootloader_f_ptr_type)(void);
+typedef union usb_message
+{
+    union
+    {
+        struct
+        {
+            uint8_t length;
+            uint8_t command_id;
+            uint8_t payload[62];
+        };
+       uint8_t data[64];
+    };
+} __attribute__ ((packed)) usb_message_t;
 
 // IO debug printf
 #define IO_PRINTF
@@ -37,7 +51,7 @@ typedef void (*bootloader_f_ptr_type)(void);
 // Automated testing printf
 #define AUTOMATED_TESTS_PRINTF
 // USB printf
-#define USB_PRINTF
+//#define USB_PRINTF
 
 // Check if we need to enable printf
 #if defined(USB_PRINTF) || defined(AUTOMATED_TESTS_PRINTF) || defined(CONV_PRINTF) || defined(TESTS_PRINTF) || defined(IO_PRINTF) || defined(VBIAS_PRINTF) || defined(CALIB_PRINTF) || defined(SERIAL_PRINTF) || defined(MEAS_PRINTF) || defined(DAC_PRINTF) || defined(ADC_PRINTF)

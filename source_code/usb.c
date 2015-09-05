@@ -16,14 +16,16 @@
 #include "utils.h"
 #include "usb.h"
 /* Data structure required by the USB controller */
-volatile USB_EP_pair_t endpoints[USB_MAXEP+1] __attribute__((section (".data,\"aw\",@progbits\n.p2align 1;")));
+volatile USB_EP_pair_t endpoints[2+1] __attribute__((section (".data,\"aw\",@progbits\n.p2align 1;")));
 /* Buffers where to store EP specific data */
-volatile uint8_t ep0_out[EP0SIZE];
-volatile uint8_t ep0_in[EP0SIZE];
-volatile uint8_t ep1_out[EP1SIZE_OUT];
-volatile uint8_t ep2_in[EP2SIZE_IN];
+volatile uint8_t ep0_out[RAWHID_EP0_SIZE];
+volatile uint8_t ep0_in[RAWHID_EP0_SIZE];
+volatile uint8_t ep1_out[RAWHID_RX_SIZE];
+volatile uint8_t ep2_in[RAWHID_TX_SIZE];
 /* Zero when we are not configured, non-zero when enumerated */
 volatile uint8_t usb_configuration = 0;
+/* Flag to set when we received data */
+volatile uint8_t received_data_flag = FALSE;
 
 
 void init_usb_clock(void)
@@ -59,7 +61,7 @@ void init_usb_configuration(void)
 	USB_ADDR = 0x0000;
 	
     /* Enable USB controller, full speed, specify number of endpoints */
-	USB_CTRLA = (USB_ENABLE_bm | USB_SPEED_bm | USB_MAXEP);
+	USB_CTRLA = (USB_ENABLE_bm | USB_SPEED_bm | 2);
 
 	/* Attach to USB bus */
 	USB_CTRLB = USB_ATTACH_bm;  
@@ -125,19 +127,18 @@ ISR(USB_BUSEVENT_vect)
 // Enable the OUT stage on the default control pipe
 inline void enable_ep0_out(void)
 {
-    LACR16(&endpoints[0].out.STATUS, USB_EP_SETUP_bm | USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
+    endpoints[0].out.STATUS &= ~(USB_EP_SETUP_bm | USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
 }
 
 void send_usb_packet(uint8_t endpoint_number, volatile uint8_t* addr, uint16_t size)
 {
     //TODO: the OVF, STALL, and TRNCOMPL flags are in b->STATUS. Clear them if anyone cares.
-    usbdprintf("%04x|", endpoints[endpoint_number].in.STATUS);   
-    endpoints[endpoint_number].in.DATAPTR = (unsigned)addr;                                      // Load pointer to the data to send
-    endpoints[endpoint_number].in.AUXDATA = 0;                                                   // Trigger message sending
-    endpoints[endpoint_number].in.CNT = size;                                                    // Set correct data size
-    LACR16(&endpoints[endpoint_number].in.STATUS, USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm);     // Clear correct flags
-    usbdprintf("%04x|", endpoints[endpoint_number].in.STATUS);
-    //_delay_us(150);
+    //usbdprintf("%04x|", endpoints[endpoint_number].in.STATUS);   
+    endpoints[endpoint_number].in.DATAPTR = (unsigned)addr;                                     // Load pointer to the data to send
+    endpoints[endpoint_number].in.AUXDATA = 0;                                                  // Trigger message sending
+    endpoints[endpoint_number].in.CNT = size;                                                   // Set correct data size
+    endpoints[endpoint_number].in.STATUS &= ~(USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm);        // Clear correct flags
+    //usbdprintf("%04x|", endpoints[endpoint_number].in.STATUS);
 }
 
 void flush_ep0_endpoint_contents(uint8_t size)
@@ -164,21 +165,19 @@ ISR(USB_TRNCOMPL_vect)
     uint8_t ep2status = endpoints[2].in.STATUS;
 	enable_ep0_out();
 	
-    printf("%02x %02x %02x %02x ", endpoints[1].out.STATUS, endpoints[1].in.STATUS, endpoints[2].out.STATUS,endpoints[2].in.STATUS);
+    usbdprintf("%02x %02x %02x %02x ", endpoints[1].out.STATUS, endpoints[1].in.STATUS, endpoints[2].out.STATUS,endpoints[2].in.STATUS);
     // Endpoint 2 handling
     if (ep2status & USB_EP_TRNCOMPL0_bm)
     {
-        //endpoints[2].in.CNT = 64;
-        //endpoints[2].in.STATUS &= USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm;
-        printf("EP2|");
+        usbdprintf("EP2|");
     }
     // Endpoint 1 handling
     if (ep1status & USB_EP_TRNCOMPL0_bm)
     {
-        USB_Rx(ep1_out, endpoints[1].out.CNT);
-        printf("EP1|");
+        endpoints[1].out.STATUS &= ~(USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
+        received_data_flag = TRUE;
+        usbdprintf("EP1|");
     }
-    printf("%02x %02x %02x %02x\r\n", endpoints[1].out.STATUS, endpoints[1].in.STATUS, endpoints[2].out.STATUS,endpoints[2].in.STATUS);
 	// Endpoint0 handling
 	if (ep0status & USB_EP_SETUP_bm)
 	{
@@ -272,7 +271,7 @@ ISR(USB_TRNCOMPL_vect)
     			    usbdprintf_P(PSTR("C|"));
     			    usb_configuration = usbMsg->wValue;
                     endpoints[1].out.STATUS = 0;
-                    endpoints[1].out.CTRL = EP1CTRL_OUT;
+                    endpoints[1].out.CTRL = USB_EP_TYPE_BULK_gc | USB_EP_BUFSIZE_64_gc;
                     endpoints[1].out.DATAPTR = (unsigned)ep1_out;
                     endpoints[1].in.STATUS = USB_EP_BUSNACK0_bm;
                     endpoints[1].in.CTRL = 0;
@@ -282,7 +281,7 @@ ISR(USB_TRNCOMPL_vect)
                     endpoints[2].out.DATAPTR = 0;
                     endpoints[2].in.STATUS = USB_EP_BUSNACK0_bm;
                     endpoints[2].in.CNT = 0;
-                    endpoints[2].in.CTRL = EP2CTRL_IN;
+                    endpoints[2].in.CTRL = USB_EP_TYPE_BULK_gc | USB_EP_BUFSIZE_64_gc;
                     endpoints[2].in.DATAPTR = (unsigned)ep2_in;
     			    flush_ep0_endpoint_contents(0);
     			    break;
@@ -310,8 +309,8 @@ ISR(USB_TRNCOMPL_vect)
                 case HID_GET_REPORT:
                 {
                     usbdprintf_P(PSTR("r|"));
-                    memset((void*)ep0_in, 0, EP0SIZE);
-                    flush_ep0_endpoint_contents(EP0SIZE);
+                    memset((void*)ep0_in, 0, RAWHID_EP0_SIZE);
+                    flush_ep0_endpoint_contents(RAWHID_EP0_SIZE);
                     break;
                 }
                 case HID_SET_REPORT:
@@ -342,17 +341,23 @@ ISR(USB_TRNCOMPL_vect)
  	}
 }
 
-/* RX callback function, here we receive HID messages from HOST */
-void USB_Rx(uint8_t* buffer, uint8_t size)
+void usb_send_data(uint8_t* data)
 {
-    /* Ping function, always reply the same */
-    USB_Tx(buffer, size);
+    endpoints[2].in.CNT = RAWHID_TX_SIZE;
+    memcpy((void*)ep2_in, data, RAWHID_TX_SIZE);
+    endpoints[2].in.STATUS &= ~(USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
 }
 
-/* TX function, call to send messages to HOST */
-void USB_Tx(uint8_t* buffer, uint8_t size)
+uint8_t usb_receive_data(uint8_t* data)
 {
-    memcpy(ep2_in,buffer, size);
-    endpoints[2].in.CNT = size;
-    endpoints[2].in.STATUS &= USB_EP_TRNCOMPL0_bm;
+    uint8_t return_data = received_data_flag;
+    
+    if (return_data == TRUE)
+    {
+        memcpy((void*)data, (void*)ep1_out, RAWHID_RX_SIZE);
+        // No need to stop interrupts, one cycle instruction
+        received_data_flag = FALSE;
+    }
+    
+    return return_data;
 }
