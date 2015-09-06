@@ -177,6 +177,7 @@ function onDataReceived(reportId, data)
 		case CMD_GET_OE_CALIB:
 		case CMD_OE_CALIB_START: 
 		{
+			console.log("Calibration Data Dated From " + bytes[34] + "/" + bytes[33] + "/" + bytes[32])
 			console.log("Max Voltage: " + (bytes[30] + bytes[31]*256) + "mV")
 			console.log("Single Ended Offset: " + (bytes[26] + bytes[27]*256) + " (" + ((bytes[26] + bytes[27]*256)*1.24/4.095).toFixed(2) + "mV)")
 			console.log("Single Ended Offset For Vbias: " + (bytes[24] + bytes[25]*256) + " (" + ((bytes[24] + bytes[25]*256)*1.24/4.095).toFixed(2) + "mV)")

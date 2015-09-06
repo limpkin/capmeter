@@ -376,6 +376,11 @@ void start_openended_calibration(uint8_t day, uint8_t month, uint8_t year)
     calibdprintf_P(PSTR("-----------------------\r\n"));
     calibdprintf_P(PSTR("Calibration Start\r\n\r\n"));
     
+    // Store date
+    oe_calib_data.day = day;
+    oe_calib_data.month = month;
+    oe_calib_data.year = year;
+    
     // Calibrate single ended offset
     calibrate_single_ended_offset();
     
@@ -404,9 +409,6 @@ void start_openended_calibration(uint8_t day, uint8_t month, uint8_t year)
     // Store calib flag
     eeprom_write_block((void*)&oe_calib_data, (void*)EEP_OE_CALIB_DATA, sizeof(oe_calib_data));
     eeprom_write_byte((uint8_t*)EEP_OE_CALIB_DONE_BOOL, EEPROM_BOOL_OK_VAL);
-    eeprom_write_byte((uint8_t*)EEP_OE_CALIB_MONTH, month);
-    eeprom_write_byte((uint8_t*)EEP_OE_CALIB_YEAR, year);
-    eeprom_write_byte((uint8_t*)EEP_OE_CALIB_DAY, day);
     calib_ok = TRUE; 
 }
 
@@ -420,13 +422,12 @@ void init_calibration(void)
     
     // Check if we stored calibration values in the eeprom
     if (eeprom_read_byte((uint8_t*)EEP_OE_CALIB_DONE_BOOL) == EEPROM_BOOL_OK_VAL)
-    {
-        calibdprintf("Calibration data from %d/%d/%d\r\n", eeprom_read_byte((uint8_t*)EEP_OE_CALIB_DAY), eeprom_read_byte((uint8_t*)EEP_OE_CALIB_MONTH), eeprom_read_byte((uint8_t*)EEP_OE_CALIB_YEAR));
-        
+    {        
         // Fetch values
         eeprom_read_block((void*)&oe_calib_data, (void*)EEP_OE_CALIB_DATA, sizeof(oe_calib_data));
         
         // Print values
+        calibdprintf("Calibration data from %d/%d/%d\r\n", oe_calib_data.day, oe_calib_data.month, oe_calib_data.year);
         calibdprintf("Max Voltage: %umV\r\n", oe_calib_data.max_voltage);
         calibdprintf("Single ended offset: %u, approx %umV\r\n", oe_calib_data.calib_0v_value_se, compute_voltage_from_se_adc_val(oe_calib_data.calib_0v_value_se));
         calibdprintf("Singled ended offset for Vbias: %u, approx %umV\r\n", oe_calib_data.calib_0v_value_vbias, compute_voltage_from_se_adc_val(oe_calib_data.calib_0v_value_vbias));        

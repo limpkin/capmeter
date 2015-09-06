@@ -36,6 +36,9 @@ typedef struct oe_calib_data_struct
     uint16_t calib_0v_value_se;             // Single ended measurement offset
     uint16_t calib_osc_low_v;               // Calibrated low voltage oscillator value
     uint16_t max_voltage;                   // Maximum voltage that can be generated
+    uint8_t year;                           // Calibration data year
+    uint8_t month;                          // Calibration data month
+    uint8_t day;                            // Calibration data day
 } oe_calib_data_t;
 
 // Prototypes
