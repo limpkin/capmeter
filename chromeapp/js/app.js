@@ -6,6 +6,8 @@ var CMD_VERSION				= 0x02;
 var CMD_OE_CALIB_STATE  	= 0x03;
 var CMD_OE_CALIB_START  	= 0x04;
 var CMD_GET_OE_CALIB  		= 0x05;
+var CMD_SET_VBIAS			= 0x06;
+var CMD_DISABLE_VBIAS		= 0x07;
 
 var device_info = { "vendorId": 0x1209, "productId": 0xdddd };      // capmeter
 var version       = 'unknown'; 										// connected capmeter version
@@ -93,6 +95,46 @@ function init_gui_state()
 {
 	// Request open ended calibration state
 	sendRequest(CMD_OE_CALIB_STATE, null);
+}
+
+/**
+ * Start current measurement
+ */
+function static_current_measurement_start(voltage)
+{
+	voltage = voltage * 1000;
+	
+	// Set desired voltage
+	if(voltage == 0)
+	{
+		console.log("Disabling Vbias");
+		sendRequest(CMD_DISABLE_VBIAS, null);
+	}
+	else
+	{
+		console.log("Requesting voltage set to " + voltage + "mV");
+		sendRequest(CMD_SET_VBIAS, [voltage%256, Math.floor(voltage/256)]);
+	}
+}
+
+/**
+ * Start capacitance measurement
+ */
+function static_capacitance_measurement_start(voltage)
+{
+	voltage = voltage * 1000;
+	
+	// Set desired voltage
+	if(voltage == 0)
+	{
+		console.log("Disabling Vbias");
+		sendRequest(CMD_DISABLE_VBIAS, null);
+	}
+	else
+	{
+		console.log("Requesting voltage set to " + voltage + "mV");
+		sendRequest(CMD_SET_VBIAS, [voltage%256, Math.floor(voltage/256)]);
+	}
 }
 
 /**
@@ -193,6 +235,18 @@ function onDataReceived(reportId, data)
 			console.log("Current offset for 16x: " + (bytes[10] + bytes[11]*256))
 			console.log("Current offset for 32x: " + (bytes[12] + bytes[13]*256))
 			console.log("Current offset for 64x: " + (bytes[14] + bytes[15]*256))
+			break;
+		}
+		
+		case CMD_SET_VBIAS:
+		{
+			console.log("Voltage set to " + (bytes[2] + bytes[3]*256) + "mV")
+			break;
+		}
+		
+		case CMD_DISABLE_VBIAS:
+		{
+			console.log("Vbias disabled")
 			break;
 		}
 

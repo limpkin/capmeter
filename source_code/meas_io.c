@@ -10,6 +10,8 @@
 #include "meas_io.h"
 // current res mux
 uint8_t cur_res_mux;
+// ldo enabled bool
+uint8_t ldo_enabled_bool;
 
 
 /*
@@ -128,6 +130,7 @@ void disable_stepup(void)
 void enable_ldo(void)
 {
     PORTC_OUTSET = PIN4_bm;
+    ldo_enabled_bool = TRUE;
     iodprintf_P(PSTR("LDO On\r\n"));
 }
 
@@ -137,8 +140,18 @@ void enable_ldo(void)
 void disable_ldo(void)
 {
     PORTC_OUTCLR = PIN4_bm;
+    ldo_enabled_bool = FALSE;
     iodprintf_P(PSTR("LDO Off\r\n"));
 }
+
+/*
+ * Know if LDO is enabled or not
+ * @return  The bool
+ */
+ uint8_t is_ldo_enabled(void)
+ {
+     return ldo_enabled_bool;
+ }
 
 /*
  * Disable the resistor mux

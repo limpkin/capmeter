@@ -56,6 +56,8 @@ typedef union USB_EP_pair
 #define CMD_OE_CALIB_STATE  0x03
 #define CMD_OE_CALIB_START  0x04
 #define CMD_GET_OE_CALIB    0x05
+#define CMD_SET_VBIAS       0x06
+#define CMD_DISABLE_VBIAS   0x07
 
 /* USB Calibration Offsets */
 #define USBCAL0_offset      (0x1A)

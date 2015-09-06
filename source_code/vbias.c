@@ -84,14 +84,18 @@ void wait_for_0v_bias(void)
  */
 uint16_t enable_bias_voltage(uint16_t val_mv)
 {
-    last_measured_vbias = VBIAS_MIN_V-1;                // Set min vbias voltage by default
-    cur_set_vbias_voltage = VBIAS_MIN_V-1;              // Set min vbias voltage by default
-    cur_vbias_dac_val = VBIAS_MIN_DAC_VAL;              // Set min vbias voltage by default
-    configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);  // Enable ADC for vbias monitoring
-    setup_vbias_dac(cur_vbias_dac_val);                 // Start with lowest voltage possible
-    enable_ldo();                                       // Enable ldo
-    _delay_ms(44);                                      // Soft start wait
-    return update_bias_voltage(val_mv);                 // Return the actual voltage that was set
+    if (is_ldo_enabled() == FALSE)
+    {
+        last_measured_vbias = VBIAS_MIN_V-1;                // Set min vbias voltage by default
+        cur_set_vbias_voltage = VBIAS_MIN_V-1;              // Set min vbias voltage by default
+        cur_vbias_dac_val = VBIAS_MIN_DAC_VAL;              // Set min vbias voltage by default
+        configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);  // Enable ADC for vbias monitoring
+        setup_vbias_dac(cur_vbias_dac_val);                 // Start with lowest voltage possible
+        enable_ldo();                                       // Enable ldo
+        _delay_ms(100);                                     // Soft start wait
+    }
+    
+    return update_bias_voltage(val_mv);                     // Return the actual voltage that was set
 }
 
 /*

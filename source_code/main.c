@@ -164,10 +164,26 @@ int main(void)
                 case CMD_GET_OE_CALIB:
                 {
                     printf("calib data\r\n");
-                    
+                    // Get calibration data
                     usb_packet.length = get_openended_calibration_data(usb_packet.payload);
                     usb_send_data((uint8_t*)&usb_packet);    
                     break;                
+                }
+                case CMD_SET_VBIAS:
+                {
+                    uint16_t* temp_vbias = (uint16_t*)usb_packet.payload;
+                    uint16_t set_vbias = enable_bias_voltage(*temp_vbias);
+                    usb_packet.length = 2;
+                    memcpy((void*)usb_packet.payload, (void*)&set_vbias, sizeof(set_vbias));
+                    usb_send_data((uint8_t*)&usb_packet);
+                    break;
+                }
+                case CMD_DISABLE_VBIAS:
+                {
+                    usb_packet.length = 0;
+                    disable_bias_voltage();
+                    usb_send_data((uint8_t*)&usb_packet);
+                    break;
                 }
                 default: break;
             }

@@ -10,7 +10,7 @@ buffer[2 - 2 + buffer[0]] = packet data
 
 Current commands
 ================
-Every sent packet will get one or more packets as an answer.
+Every sent packet will get one or more packets as an answer. Byte order is little endian.
 Texts sent to and from the Capmeter have a payload length that includes the terminating 0.
 The following commands are currently implemented:
 
@@ -47,3 +47,15 @@ From Capmeter: The calibration data (see oe_calib_data_t)
 From Plugin/app: Capmeter open ended calibration data request
 
 From Capmeter: The calibration data (see oe_calib_data_t)
+
+0x06: Enable bias voltage
+-------------------------
+From Plugin/app: Enable bias voltage, first 2 bytes are the voltage to be set
+
+From Capmeter: The voltage actually set in mV
+
+0x07: Disable bias voltage
+--------------------------
+From Plugin/app: Disable bias voltage
+
+From Capmeter: Empty packet

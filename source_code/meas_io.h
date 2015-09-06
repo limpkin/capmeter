@@ -43,6 +43,7 @@ void enable_ldo(void);
 void disable_ldo(void);
 void disable_res_mux(void);
 void print_res_mux_val(void);
+uint8_t is_ldo_enabled(void);
 void disable_measurement_mode_io(void);
 void set_measurement_mode_io(uint8_t res);
 void enable_res_mux(uint8_t val, uint8_t debug);
