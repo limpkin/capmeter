@@ -91,10 +91,8 @@ $(function(){
  */
 function init_gui_state()
 {
-	msg = new ArrayBuffer(packetSize);
-	data = new Uint8Array(msg);
-	data.set([0, CMD_GET_OE_CALIB], 0);
-	sendMsg(msg);
+	// Request open ended calibration state
+	sendRequest(CMD_OE_CALIB_STATE, null);
 }
 
 /**
@@ -167,6 +165,15 @@ function onDataReceived(reportId, data)
             break;
         }
 		
+		case CMD_OE_CALIB_STATE:
+		{
+			if(len == 1)
+			{
+				console.log("Platform not calibrated!")
+				break;
+			}
+			// If calibrated platform, print values...
+		}
 		case CMD_GET_OE_CALIB:
 		case CMD_OE_CALIB_START: 
 		{
@@ -235,10 +242,7 @@ function onDeviceFound(devices)
             }
             else
             {
-                msg = new ArrayBuffer(packetSize);
-				data = new Uint8Array(msg);
-				data.set([0, CMD_VERSION], 0);
-				sendMsg(msg);
+				sendRequest(CMD_VERSION, null);
             }
         }
         else
@@ -311,10 +315,7 @@ function sendRequest(type, content)
 
 function sendPing()
 {
-    msg = new ArrayBuffer(packetSize);
-    data = new Uint8Array(msg);
-    data.set([0, CMD_PING], 0);
-    sendMsg(msg);
+	sendRequest(CMD_PING, null);
 }
 
 function connect(msg)

@@ -121,33 +121,42 @@ int main(void)
                 case CMD_PING: 
                 {
                     printf("ping\r\n");
-                    
+                    // Ping packet, resend the same one
                     usb_send_data((uint8_t*)&usb_packet);
                     break;
                 }
                 case CMD_VERSION:
                 {
                     printf("version\r\n");
-                    
+                    // Version request packet
                     strcpy((char*)usb_packet.payload, CAPMETER_VER);
-                    usb_packet.length = sizeof(CAPMETER_VER) + 1;
+                    usb_packet.length = sizeof(CAPMETER_VER);
                     usb_send_data((uint8_t*)&usb_packet);
                     break;
                 }
                 case CMD_OE_CALIB_STATE:
                 {
                     printf("calib state\r\n");
-                    
-                    usb_packet.length = 1;
-                    usb_packet.payload[0] = is_platform_calibrated();
+                    // Get open ended calibration state.
+                    if (is_platform_calibrated() == TRUE)
+                    {
+                        // Calibrated, return calibration data
+                        usb_packet.length = get_openended_calibration_data(usb_packet.payload);
+                    } 
+                    else
+                    {
+                        // Not calibrated, return 0
+                        usb_packet.length = 1;
+                        usb_packet.payload[0] = 0;
+                    }
                     usb_send_data((uint8_t*)&usb_packet);    
                     break;                
                 }
                 case CMD_OE_CALIB_START:
                 {
                     printf("calib start\r\n");
-                    
-                    start_openended_calibration();
+                    // Calibration start
+                    start_openended_calibration(usb_packet.payload[0], usb_packet.payload[1], usb_packet.payload[2]);
                     usb_packet.length = get_openended_calibration_data(usb_packet.payload);
                     usb_send_data((uint8_t*)&usb_packet);    
                     break;                

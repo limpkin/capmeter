@@ -39,6 +39,7 @@ typedef struct oe_calib_data_struct
 } oe_calib_data_t;
 
 // Prototypes
+void start_openended_calibration(uint8_t day, uint8_t month, uint8_t year);
 uint16_t get_offset_for_current_measurement(uint8_t ampl);
 uint16_t get_single_ended_offset(uint8_t current_channel);
 uint8_t get_openended_calibration_data(uint8_t* buffer);
@@ -48,7 +49,6 @@ uint16_t get_calib_second_thres_up(void);
 uint16_t get_calib_first_thres_up(void);
 void delete_cur_measurement_offsets(void);
 void calibrate_single_ended_offset(void);
-void start_openended_calibration(void);
 void delete_single_ended_offset(void);
 uint8_t is_platform_calibrated(void);
 uint16_t get_max_vbias_voltage(void);

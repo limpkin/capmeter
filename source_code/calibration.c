@@ -371,7 +371,7 @@ void calibrate_osc_low_v(void)
 /*
  * Start open terminal calibration
  */  
-void start_openended_calibration(void)
+void start_openended_calibration(uint8_t day, uint8_t month, uint8_t year)
 {
     calibdprintf_P(PSTR("-----------------------\r\n"));
     calibdprintf_P(PSTR("Calibration Start\r\n\r\n"));
@@ -404,6 +404,9 @@ void start_openended_calibration(void)
     // Store calib flag
     eeprom_write_block((void*)&oe_calib_data, (void*)EEP_OE_CALIB_DATA, sizeof(oe_calib_data));
     eeprom_write_byte((uint8_t*)EEP_OE_CALIB_DONE_BOOL, EEPROM_BOOL_OK_VAL);
+    eeprom_write_byte((uint8_t*)EEP_OE_CALIB_MONTH, month);
+    eeprom_write_byte((uint8_t*)EEP_OE_CALIB_YEAR, year);
+    eeprom_write_byte((uint8_t*)EEP_OE_CALIB_DAY, day);
     calib_ok = TRUE; 
 }
 

@@ -20,7 +20,7 @@ From Capmeter: packet data containing the debug message.
 
 0x01: ping
 ----------
-From Plugin/app: ping packet with 4 bytes payload
+From Plugin/app: ping packet
 
 From Capmeter: same packet that the plugin/app sent
 
@@ -31,14 +31,14 @@ From Plugin/app: Capmeter version request
 From Capmeter: String identifying the version
 
 0x03: open ended calibration state
-----------------------------------
+---------------------------------- 
 From Plugin/app: Capmeter open ended calibration state request
 
-From Capmeter: Boolean
+From Capmeter: 1 byte 0 value if not calibrated, calibration data otherwise.
 
 0x04: start open ended calibration
 ----------------------------------
-From Plugin/app: Capmeter open ended calibration start request
+From Plugin/app: Capmeter open ended calibration start request. First three bytes in the payload are DD MM YY
 
 From Capmeter: The calibration data (see oe_calib_data_t)
 

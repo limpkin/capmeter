@@ -10,7 +10,7 @@
 #define EEPROM_ADDRESSES_H_
 
 // Bool define
-#define EEPROM_BOOL_OK_VAL      0xBA
+#define EEPROM_BOOL_OK_VAL      0xAA
 
 // Address defines
 #define EEP_OE_CALIB_DONE_BOOL      0
