@@ -10,7 +10,7 @@ capmeter.measurement.measureCurrent = function($button)
 {
 	static_current_measurement_start(capmeter.measurement._currentmes_setV);
 	//console.log("capmeter.measurement.measureCurrent");
-  //$button.css("background", "orange");
+	$button.css("background", "orange");
 }
 
 capmeter.measurement.measureCapacitance = function($button) 

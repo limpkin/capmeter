@@ -40,7 +40,7 @@ From Capmeter: 1 byte 0 value if not calibrated, calibration data otherwise.
 ----------------------------------
 From Plugin/app: Capmeter open ended calibration start request. First three bytes in the payload are DD MM YY
 
-From Capmeter: The calibration data (see oe_calib_data_t)
+From Capmeter: The calibration data (see oe_calib_data_t) on success, 0 otherwise
 
 0x05: Get open ended calibration data
 -------------------------------------
@@ -59,3 +59,15 @@ From Capmeter: The voltage actually set in mV
 From Plugin/app: Disable bias voltage
 
 From Capmeter: Empty packet
+
+0x08: Enable current measurement mode
+-------------------------------------
+From Plugin/app: Enable current measurement mode, first byte is amplification bit shift (0 is 1x, 1 is 2x, 2 is 4x....), second byte is the averaging in bit shift
+
+From Capmeter: 0 on error, the averaged ADC value otherwise
+
+0x09: Disable current measurement mode
+-------------------------------------
+From Plugin/app: Disable current measurement mode
+
+From Capmeter: 0 on error, 1 on success

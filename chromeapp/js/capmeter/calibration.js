@@ -18,8 +18,5 @@ capmeter.calibration.calibrateCapacitance = function($button) {
 
 capmeter.calibration.calibratePlatform = function($button) 
 {
-	console.log("Starting Open Ended Calibration...");
-	//$button.css("background", "orange");  
-	var d = new Date();
-	sendRequest(CMD_OE_CALIB_START, [d.getDate(), d.getMonth() + 1, d.getFullYear()%100]);
+	start_open_ended_calibration();
 }

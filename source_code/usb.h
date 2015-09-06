@@ -50,14 +50,19 @@ typedef union USB_EP_pair
 #define RAWHID_EP0_SIZE     64                  // Endpoint 0 size
 
 // Command IDs defines
-#define CMD_DEBUG           0x00
-#define CMD_PING            0x01
-#define CMD_VERSION         0x02
-#define CMD_OE_CALIB_STATE  0x03
-#define CMD_OE_CALIB_START  0x04
-#define CMD_GET_OE_CALIB    0x05
-#define CMD_SET_VBIAS       0x06
-#define CMD_DISABLE_VBIAS   0x07
+#define CMD_DEBUG               0x00
+#define CMD_PING                0x01
+#define CMD_VERSION             0x02
+#define CMD_OE_CALIB_STATE      0x03
+#define CMD_OE_CALIB_START      0x04
+#define CMD_GET_OE_CALIB        0x05
+#define CMD_SET_VBIAS           0x06
+#define CMD_DISABLE_VBIAS       0x07
+#define CMD_CUR_MES_MODE        0x08
+#define CMD_CUR_MES_MODE_EXIT   0x09
+
+#define USB_RETURN_ERROR    0
+#define USB_RETURN_OK       1
 
 /* USB Calibration Offsets */
 #define USBCAL0_offset      (0x1A)

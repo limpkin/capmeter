@@ -111,6 +111,7 @@ int main(void)
 //     }
 //     while(1);
 
+    uint8_t current_fw_mode = MODE_IDLE;
     while(1)
     {
         if (usb_receive_data((uint8_t*)&usb_packet) == TRUE)
@@ -155,9 +156,18 @@ int main(void)
                 case CMD_OE_CALIB_START:
                 {
                     printf("calib start\r\n");
-                    // Calibration start
-                    start_openended_calibration(usb_packet.payload[0], usb_packet.payload[1], usb_packet.payload[2]);
-                    usb_packet.length = get_openended_calibration_data(usb_packet.payload);
+                    // Check if we are in idle mode
+                    if (current_fw_mode == MODE_IDLE)
+                    {
+                        // Calibration start
+                        start_openended_calibration(usb_packet.payload[0], usb_packet.payload[1], usb_packet.payload[2]);
+                        usb_packet.length = get_openended_calibration_data(usb_packet.payload);
+                    }
+                    else
+                    {
+                        usb_packet.length = 1;
+                        usb_packet.payload[0] = USB_RETURN_ERROR;
+                    }
                     usb_send_data((uint8_t*)&usb_packet);    
                     break;                
                 }
@@ -171,6 +181,7 @@ int main(void)
                 }
                 case CMD_SET_VBIAS:
                 {
+                    // Enable and set vbias... can also be called to update it
                     uint16_t* temp_vbias = (uint16_t*)usb_packet.payload;
                     uint16_t set_vbias = enable_bias_voltage(*temp_vbias);
                     usb_packet.length = 2;
@@ -180,10 +191,58 @@ int main(void)
                 }
                 case CMD_DISABLE_VBIAS:
                 {
+                    // Disable vbias
                     usb_packet.length = 0;
                     disable_bias_voltage();
                     usb_send_data((uint8_t*)&usb_packet);
                     break;
+                }
+                case CMD_CUR_MES_MODE:
+                {
+                    // Enable current measurement or start another measurement
+                    if (current_fw_mode == MODE_IDLE)
+                    {
+                        set_current_measurement_mode(usb_packet.payload[0]);
+                        current_fw_mode = MODE_CURRENT_MES;
+                    } 
+                    // Check if we are in the right mode to start a measurement
+                    if (current_fw_mode == MODE_CURRENT_MES)
+                    {
+                        // We either just set current measurement mode or another measurement was requested
+                        if (get_configured_adc_ampl() != usb_packet.payload[0])
+                        {
+                            // If the amplification isn't the same one as requested
+                            set_current_measurement_mode(usb_packet.payload[0]);
+                        }
+                        // Start measurement
+                        usb_packet.length = 2;
+                        uint16_t return_value = cur_measurement_loop(usb_packet.payload[1]);
+                        memcpy((void*)usb_packet.payload, (void*)&return_value, sizeof(return_value));
+                        usb_send_data((uint8_t*)&usb_packet);
+                    }
+                    else
+                    {
+                        usb_packet.length = 1;
+                        usb_packet.payload[0] = USB_RETURN_ERROR;
+                        usb_send_data((uint8_t*)&usb_packet);
+                    }
+                    break;
+                }
+                case CMD_CUR_MES_MODE_EXIT:
+                {
+                    if (current_fw_mode == MODE_CURRENT_MES)
+                    {
+                        usb_packet.payload[0] = USB_RETURN_OK;
+                        disable_current_measurement_mode();
+                        current_fw_mode = MODE_IDLE;
+                    }
+                    else
+                    {
+                        usb_packet.payload[0] = USB_RETURN_ERROR;
+                    }
+                    usb_packet.length = 1;
+                    usb_send_data((uint8_t*)&usb_packet);
+                    break;                    
                 }
                 default: break;
             }

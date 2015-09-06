@@ -8,12 +8,23 @@ var CMD_OE_CALIB_START  	= 0x04;
 var CMD_GET_OE_CALIB  		= 0x05;
 var CMD_SET_VBIAS			= 0x06;
 var CMD_DISABLE_VBIAS		= 0x07;
+var CMD_CUR_MES_MODE		= 0x08;
+var CMD_CUR_MES_MODE_EXIT	= 0x09;
+
+// Current mode
+var MODE_IDLE			= 0
+var MODE_CUR_MES_REQ	= 1
+var MODE_CUR_MES		= 2
+var MODE_OE_CALIB		= 3
 
 var device_info = { "vendorId": 0x1209, "productId": 0xdddd };      // capmeter
 var version       = 'unknown'; 										// connected capmeter version
+var current_mode = MODE_IDLE;										// current mode
 var connected     = false;  	 									// current connection state
 var connection    = null;   										// connection to the capmeter
 var connectMsg = null;  											// saved message to send after connecting
+var current_ampl = 0;												// current measurement amplification
+var current_avg = 14;												// current measurement averaging
 var packetSize = 64;    											// number of bytes in an HID packet
 var waitingForAnswer = false;										// boolean indicating if we are waiting for a packet
 var debug = false;
@@ -97,6 +108,18 @@ function init_gui_state()
 	sendRequest(CMD_OE_CALIB_STATE, null);
 }
 
+function start_open_ended_calibration()
+{	
+	if(current_mode == MODE_IDLE)
+	{
+		console.log("Starting Open Ended Calibration...");
+		//$button.css("background", "orange");  
+		var d = new Date();
+		sendRequest(CMD_OE_CALIB_START, [d.getDate(), d.getMonth() + 1, d.getFullYear()%100]);
+		current_mode = MODE_OE_CALIB;
+	}
+}
+
 /**
  * Start current measurement
  */
@@ -104,17 +127,27 @@ function static_current_measurement_start(voltage)
 {
 	voltage = voltage * 1000;
 	
-	// Set desired voltage
-	if(voltage == 0)
+	// Check current mode
+	if(current_mode == MODE_CUR_MES)
 	{
-		console.log("Disabling Vbias");
-		sendRequest(CMD_DISABLE_VBIAS, null);
+		// Already measuring, stop the mode
+		sendRequest(CMD_CUR_MES_MODE_EXIT, null);
 	}
 	else
 	{
-		console.log("Requesting voltage set to " + voltage + "mV");
-		sendRequest(CMD_SET_VBIAS, [voltage%256, Math.floor(voltage/256)]);
-	}
+		// Set desired voltage
+		if(voltage == 0)
+		{
+			console.log("Disabling Vbias");
+			sendRequest(CMD_DISABLE_VBIAS, null);
+		}
+		else
+		{
+			console.log("Requesting voltage set to " + voltage + "mV");
+			sendRequest(CMD_SET_VBIAS, [voltage%256, Math.floor(voltage/256)]);
+		}
+		current_mode = MODE_CUR_MES_REQ;
+	}	
 }
 
 /**
@@ -207,6 +240,16 @@ function onDataReceived(reportId, data)
             break;
         }
 		
+		case CMD_OE_CALIB_START: 
+		{
+			if(len == 1)
+			{
+				console.log("Couldn't start open ended calibration!");
+				break;
+			}
+			// Get back to idle mode
+			current_mode = MODE_IDLE;
+		}
 		case CMD_OE_CALIB_STATE:
 		{
 			if(len == 1)
@@ -217,7 +260,6 @@ function onDataReceived(reportId, data)
 			// If calibrated platform, print values...
 		}
 		case CMD_GET_OE_CALIB:
-		case CMD_OE_CALIB_START: 
 		{
 			console.log("Calibration Data Dated From " + bytes[34] + "/" + bytes[33] + "/" + bytes[32])
 			console.log("Max Voltage: " + (bytes[30] + bytes[31]*256) + "mV")
@@ -241,12 +283,63 @@ function onDataReceived(reportId, data)
 		case CMD_SET_VBIAS:
 		{
 			console.log("Voltage set to " + (bytes[2] + bytes[3]*256) + "mV")
+			// Here are the following actions depending on the mode we want
+			if(current_mode == MODE_CUR_MES_REQ)
+			{
+				// We start current measurement mode
+				sendRequest(CMD_CUR_MES_MODE, [current_ampl, current_avg]);
+			}
 			break;
 		}
 		
 		case CMD_DISABLE_VBIAS:
 		{
 			console.log("Vbias disabled")
+			// Here are the following actions depending on the mode we want
+			if(current_mode == MODE_CUR_MES_REQ)
+			{
+				// We start current measurement mode
+				sendRequest(CMD_CUR_MES_MODE, [current_ampl, current_avg]);
+			}
+			break;
+		}
+		
+		case CMD_CUR_MES_MODE:
+		{
+			// Check return success
+			if(len == 1)
+			{
+				// Fail when requesting measure!!!
+				if(current_mode == MODE_CUR_MES_REQ)
+				{
+					// Go back to idle mode
+					current_mode = MODE_IDLE;
+				}
+			}
+			else
+			{
+				// Measurement received
+				if(current_mode == MODE_CUR_MES_REQ)
+				{
+					current_mode = MODE_CUR_MES;		
+				}
+				if(current_mode == MODE_CUR_MES)
+				{
+					console.log("Received ADC current measurement: " + (((bytes[2] + bytes[3]*256)*1.24)/(0.2047*(1 << current_ampl))).toFixed(2) + "nA");
+					// Start another measurement
+					sendRequest(CMD_CUR_MES_MODE, [current_ampl, current_avg]);					
+				}
+			}
+			break;
+		}
+		
+		case CMD_CUR_MES_MODE_EXIT:
+		{
+			if(bytes[2] != 0 && current_mode == MODE_CUR_MES)
+			{
+				current_mode = MODE_IDLE;
+				console.log("Current measurement mode excited!");
+			}
 			break;
 		}
 
