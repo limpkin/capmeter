@@ -12,7 +12,7 @@
 // Val defines
 #define FALSE           0
 #define TRUE            (!FALSE)
-#define VERSION         0x00
+#define CAPMETER_VER    "v1"
 
 // Typedefs
 typedef void (*bootloader_f_ptr_type)(void);

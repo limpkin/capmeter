@@ -3,13 +3,17 @@
 var CMD_DEBUG               = 0x00;
 var CMD_PING                = 0x01;
 var CMD_VERSION				= 0x02;
+var CMD_OE_CALIB_STATE  	= 0x03;
+var CMD_OE_CALIB_START  	= 0x04;
+var CMD_GET_OE_CALIB  		= 0x05;
 
-var device_info = { "vendorId": 0x1209, "productId": 0xdddd };      // Mooltipass
-var version       = 'unknown'; 										// connected mooltipass version
+var device_info = { "vendorId": 0x1209, "productId": 0xdddd };      // capmeter
+var version       = 'unknown'; 										// connected capmeter version
 var connected     = false;  	 									// current connection state
-var connection    = null;   										// connection to the mooltipass
+var connection    = null;   										// connection to the capmeter
 var connectMsg = null;  											// saved message to send after connecting
 var packetSize = 64;    											// number of bytes in an HID packet
+var waitingForAnswer = false;										// boolean indicating if we are waiting for a packet
 var debug = false;
 var _console_log = console.log;
 
@@ -83,11 +87,22 @@ $(function(){
 });
 
 /**
+ * Capmeter connected, get its state to initialize GUI
+ */
+function init_gui_state()
+{
+	msg = new ArrayBuffer(packetSize);
+	data = new Uint8Array(msg);
+	data.set([0, CMD_GET_OE_CALIB], 0);
+	sendMsg(msg);
+}
+
+/**
  * reset all state data
  */
 function reset()
 {
-    connection = null;  // connection to the mooltipass
+    connection = null;  // connection to the capmeter
     connected = false;
 }
 
@@ -114,6 +129,7 @@ function onDataReceived(reportId, data)
 
     var bytes = new Uint8Array(data);
     var msg = new Uint8Array(data,2);
+	waitingForAnswer = false;
     var len = bytes[0]
     var cmd = bytes[1]
 
@@ -136,19 +152,41 @@ function onDataReceived(reportId, data)
         }
 		
         case CMD_PING:
-            console.log('.');
+            //console.log('.');
             break;
 			
         case CMD_VERSION:
         {
-            version = arrayToStr(new Uint8Array(data,3));
+            version = arrayToStr(new Uint8Array(data, 2));
             if (!connected) 
 			{
-                console.log('Connected to Mooltipass ' + version);
+                console.log('Connected to Capmeter ' + version);
+				init_gui_state();
                 connected = true;
             }
             break;
         }
+		
+		case CMD_GET_OE_CALIB:
+		case CMD_OE_CALIB_START: 
+		{
+			console.log("Max Voltage: " + (bytes[30] + bytes[31]*256) + "mV")
+			console.log("Single Ended Offset: " + (bytes[26] + bytes[27]*256) + " (" + ((bytes[26] + bytes[27]*256)*1.24/4.095).toFixed(2) + "mV)")
+			console.log("Single Ended Offset For Vbias: " + (bytes[24] + bytes[25]*256) + " (" + ((bytes[24] + bytes[25]*256)*1.24/4.095).toFixed(2) + "mV)")
+			console.log("Oscillator Low Voltage: " + (bytes[28] + bytes[29]*256) + " (" + ((bytes[28] + bytes[29]*256)*1.24/4.095).toFixed(2) + "mV)")
+			console.log("First Threshold Up: " + (bytes[22] + bytes[23]*256) + " (" + ((bytes[22] + bytes[23]*256)*1.24/4.095).toFixed(2) + "mV)")
+			console.log("First Threshold Down: " + (bytes[18] + bytes[19]*256) + " (" + ((bytes[18] + bytes[19]*256)*1.24/4.095).toFixed(2) + "mV)")
+			console.log("Second Threshold Up: " + (bytes[20] + bytes[21]*256) + " (" + ((bytes[20] + bytes[21]*256)*1.24/4.095).toFixed(2) + "mV)")
+			console.log("Second Threshold Down: " + (bytes[16] + bytes[17]*256) + " (" + ((bytes[16] + bytes[17]*256)*1.24/4.095).toFixed(2) + "mV)")
+			console.log("Current offset for 1x: " + (bytes[2] + bytes[3]*256))
+			console.log("Current offset for 2x: " + (bytes[4] + bytes[5]*256))
+			console.log("Current offset for 4x: " + (bytes[6] + bytes[7]*256))
+			console.log("Current offset for 8x: " + (bytes[8] + bytes[9]*256))
+			console.log("Current offset for 16x: " + (bytes[10] + bytes[11]*256))
+			console.log("Current offset for 32x: " + (bytes[12] + bytes[13]*256))
+			console.log("Current offset for 64x: " + (bytes[14] + bytes[15]*256))
+			break;
+		}
 
         default:
             console.log('unknown command '+ cmd);
@@ -162,11 +200,11 @@ function onDataReceived(reportId, data)
 }
 
 /**
- * Handler invoked when new USB mooltipass devices are found.
+ * Handler invoked when new USB capmeter devices are found.
  * Connects to the device and sends a version request.
  * @param devices array of device objects
- * @note only the last device is used, assumes that one mooltipass is present.
- * Stale entries appear to be left in chrome if the mooltipass is removed
+ * @note only the last device is used, assumes that one capmeter is present.
+ * Stale entries appear to be left in chrome if the capmeter is removed
  * and plugged in again, or the firmware is updated.
  */
 function onDeviceFound(devices)
@@ -213,6 +251,7 @@ function onDeviceFound(devices)
 
 function sendMsg(msg)
 {
+	waitingForAnswer = true;
     if (debug) 
 	{
         msgUint8 = new Uint8Array(msg);
@@ -233,7 +272,7 @@ function sendMsg(msg)
             if (connected)
             {
                 console.log('Failed to send to device: ' + chrome.runtime.lastError.message);
-                console.log('Disconnected from mooltipass');
+                console.log('Disconnected from capmeter');
                 reset();
             }
         }
@@ -241,7 +280,7 @@ function sendMsg(msg)
 }
 
 /**
- * Send a binary message to the mooltipass
+ * Send a binary message to the capmeter
  * @param type the request type to send (e.g. CMD_VERSION)
  * @param content Uint8 array message content (optional)
  */
@@ -296,7 +335,10 @@ function checkConnection()
     } 
 	else 
 	{
-        sendPing();
+		if (!waitingForAnswer)
+		{
+			sendPing();
+		}
     }
 }
 

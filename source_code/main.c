@@ -6,6 +6,7 @@
  */
 #include <avr/interrupt.h>
 #include <util/delay.h>
+#include <string.h>
 #include <avr/io.h>
 #include <stdio.h>
 #include "automated_testing.h"
@@ -61,7 +62,7 @@ int main(void)
     init_dac();                                     // Init DAC
     init_adc();                                     // Init ADC
     init_ios();                                     // Init IOs
-    //init_calibration();                             // Init calibration
+    init_calibration();                             // Init calibration
     enable_interrupts();                            // Enable interrupts
     init_usb(); 
     //enable_bias_voltage(850);while(1);
@@ -119,22 +120,51 @@ int main(void)
             {
                 case CMD_PING: 
                 {
-                    usb_send_data((uint8_t*)&usb_packet);
                     printf("ping\r\n");
+                    
+                    usb_send_data((uint8_t*)&usb_packet);
                     break;
                 }
                 case CMD_VERSION:
                 {
-                    usb_packet.payload[0] = VERSION;
-                    usb_send_data((uint8_t*)&usb_packet);
                     printf("version\r\n");
+                    
+                    strcpy((char*)usb_packet.payload, CAPMETER_VER);
+                    usb_packet.length = sizeof(CAPMETER_VER) + 1;
+                    usb_send_data((uint8_t*)&usb_packet);
                     break;
+                }
+                case CMD_OE_CALIB_STATE:
+                {
+                    printf("calib state\r\n");
+                    
+                    usb_packet.length = 1;
+                    usb_packet.payload[0] = is_platform_calibrated();
+                    usb_send_data((uint8_t*)&usb_packet);    
+                    break;                
+                }
+                case CMD_OE_CALIB_START:
+                {
+                    printf("calib start\r\n");
+                    
+                    start_openended_calibration();
+                    usb_packet.length = get_openended_calibration_data(usb_packet.payload);
+                    usb_send_data((uint8_t*)&usb_packet);    
+                    break;                
+                }
+                case CMD_GET_OE_CALIB:
+                {
+                    printf("calib data\r\n");
+                    
+                    usb_packet.length = get_openended_calibration_data(usb_packet.payload);
+                    usb_send_data((uint8_t*)&usb_packet);    
+                    break;                
                 }
                 default: break;
             }
         }
-        _delay_ms(100);
-        printf("-");
+        //_delay_ms(100);
+        //printf("-");
     }
 
     enable_bias_voltage(4500);
