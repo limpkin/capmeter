@@ -4,6 +4,9 @@ capmeter.calibration = capmeter.calibration || {};
 capmeter.calibration.calibrateCurrentX = function($button) {
   console.log("capmeter.calibration.calibrateCurrentX");
   $button.css("background", "orange");
+
+  $("#calibrateCurrentX").attr("disabled", 1);
+  // $("#calibrateCurrentX").removeAttr("disabled");
 }
 
 capmeter.calibration.calibrateCurrentY = function($button) {
