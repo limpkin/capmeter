@@ -6,6 +6,7 @@
  */
 #include <avr/interrupt.h>
 #include <util/delay.h>
+#include <avr/wdt.h>
 #include <string.h>
 #include <avr/io.h>
 #include <stdio.h>
@@ -24,9 +25,13 @@
 #include "usb.h"
 // Define the bootloader function
 bootloader_f_ptr_type start_bootloader = (bootloader_f_ptr_type)(BOOT_SECTION_START/2);
+// Bootloader start key variable
+uint16_t bootloader_start_var __attribute__ ((section (".noinit")));
 // RC Calibration values
 #define RCOSC32M_offset  0x03
 #define RCOSC32MA_offset 0x04
+// Capacitance report
+capacitance_report_t cap_report;
 // USB message
 usb_message_t usb_packet;
 
@@ -55,7 +60,13 @@ void switch_to_32MHz_clock(void)
  */
 int main(void)
 {
-    //start_bootloader();
+    // Check if we need to go to the bootloader
+    if (bootloader_start_var == 0xBEEF)
+    {
+        bootloader_start_var = 0x0000;
+        wdt_disable();
+        start_bootloader();
+    }
     switch_to_32MHz_clock();                        // Switch to 32MHz
     _delay_ms(1000);                                // Wait for power to settle
     init_serial_port();                             // Initialize serial port    
@@ -114,14 +125,34 @@ int main(void)
     uint8_t current_fw_mode = MODE_IDLE;
     while(1)
     {
+        if (current_fw_mode == MODE_CAP_MES)
+        {
+            // If we are in cap measurement mode
+            if(cap_measurement_loop(&cap_report) == TRUE)
+            {
+                printf("Cap report send\r\n");
+                usb_packet.length = sizeof(cap_report);
+                usb_packet.command_id = CMD_CAP_MES_REPORT;
+                memcpy((void*)usb_packet.payload, (void*)&cap_report, sizeof(cap_report));
+                usb_send_data((uint8_t*)&usb_packet);
+            }
+        }
+        
+        // USB command parser
         if (usb_receive_data((uint8_t*)&usb_packet) == TRUE)
         {
-            printf("RECEIVED\r\n");
+            //printf("RECEIVED\r\n");
             switch(usb_packet.command_id)
             {
+                case CMD_BOOTLOADER_START:
+                {
+                    bootloader_start_var = 0xBEEF;
+                    wdt_enable(WDTO_1S);
+                    while(1);
+                }
                 case CMD_PING: 
                 {
-                    printf("ping\r\n");
+                    printf(".");
                     // Ping packet, resend the same one
                     usb_send_data((uint8_t*)&usb_packet);
                     break;
@@ -244,14 +275,59 @@ int main(void)
                     usb_send_data((uint8_t*)&usb_packet);
                     break;                    
                 }
+                case CMD_CAP_REPORT_FREQ:
+                {
+                    if (current_fw_mode == MODE_IDLE)
+                    {
+                        set_capacitance_report_frequency(usb_packet.payload[0]);
+                        usb_packet.payload[0] = USB_RETURN_OK;
+                    }
+                    else
+                    {
+                        usb_packet.payload[0] = USB_RETURN_ERROR;
+                    }
+                    usb_packet.length = 1;
+                    usb_send_data((uint8_t*)&usb_packet);
+                    break;
+                }
+                case CMD_CAP_MES_START:
+                {
+                    if (current_fw_mode == MODE_IDLE)
+                    {
+                        current_fw_mode = MODE_CAP_MES;
+                        set_capacitance_measurement_mode();
+                        usb_packet.payload[0] = USB_RETURN_OK;
+                    }
+                    else
+                    {
+                        usb_packet.payload[0] = USB_RETURN_ERROR;
+                    }
+                    usb_packet.length = 1;
+                    usb_send_data((uint8_t*)&usb_packet);
+                    break;
+                }
+                case CMD_CAP_MES_EXIT:
+                {
+                    if (current_fw_mode == MODE_CAP_MES)
+                    {
+                        current_fw_mode = MODE_IDLE;
+                        disable_capacitance_measurement_mode();
+                        usb_packet.payload[0] = USB_RETURN_OK;
+                    }
+                    else
+                    {
+                        usb_packet.payload[0] = USB_RETURN_ERROR;
+                    }
+                    usb_packet.length = 1;
+                    usb_send_data((uint8_t*)&usb_packet);
+                    break;
+                }
                 default: break;
             }
         }
-        //_delay_ms(100);
-        //printf("-");
     }
 
-    enable_bias_voltage(4500);
+    /*enable_bias_voltage(4500);
     set_capacitance_measurement_mode();
     while(1)
     {
@@ -285,5 +361,5 @@ int main(void)
                 temp_bool = TRUE;
             }              
         } 
-    }
+    }*/
 }

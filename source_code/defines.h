@@ -15,7 +15,7 @@
 #define CAPMETER_VER    "v1"
 
 // enums
-enum fw_mode_t     {MODE_IDLE, MODE_CURRENT_MES};
+enum fw_mode_t     {MODE_IDLE, MODE_CURRENT_MES, MODE_CAP_MES};
 
 // Typedefs
 typedef void (*bootloader_f_ptr_type)(void);

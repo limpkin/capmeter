@@ -71,3 +71,29 @@ From Capmeter: 0 on error, the averaged ADC value otherwise
 From Plugin/app: Disable current measurement mode
 
 From Capmeter: 0 on error, 1 on success
+
+0x0A: Set capacitance measurement frequency
+-------------------------------------------
+From Plugin/app: Set the frequency at which counter values will be returned, in a bit shift format (0 is 1Hz, 1 is 2Hz, 2 is 4Hz...).
+
+From Capmeter: 0 on error, 1 on success
+
+0x0B: Start Capacitance Measurement Mode
+----------------------------------------
+From Plugin/app: Start capacitance measurement mode
+
+From Capmeter: 0 on error, 1 on success
+
+0x0C: Capacitance Measurement Report
+------------------------------------
+From Plugin/app: -
+
+From Capmeter: see capacitance_report_t
+
+0x0D: Stop Capacitance Measurement Mode
+---------------------------------------
+From Plugin/app: Stop capacitance measurement mode
+
+From Capmeter: 0 on error, 1 on success
+
+

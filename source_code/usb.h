@@ -60,6 +60,12 @@ typedef union USB_EP_pair
 #define CMD_DISABLE_VBIAS       0x07
 #define CMD_CUR_MES_MODE        0x08
 #define CMD_CUR_MES_MODE_EXIT   0x09
+#define CMD_CAP_REPORT_FREQ     0x0A
+#define CMD_CAP_MES_START       0x0B
+#define CMD_CAP_MES_REPORT      0x0C
+#define CMD_CAP_MES_EXIT        0x0D
+
+#define CMD_BOOTLOADER_START    0xFF
 
 #define USB_RETURN_ERROR    0
 #define USB_RETURN_OK       1

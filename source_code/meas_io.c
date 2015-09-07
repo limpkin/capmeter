@@ -246,6 +246,7 @@ void set_measurement_mode_io(uint8_t res)
 void disable_measurement_mode_io(void)
 {
     disable_res_mux();
+    set_opampin_low();
     disable_feedback_mos();
 }
 

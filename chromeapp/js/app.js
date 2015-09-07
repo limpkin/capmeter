@@ -10,12 +10,20 @@ var CMD_SET_VBIAS			= 0x06;
 var CMD_DISABLE_VBIAS		= 0x07;
 var CMD_CUR_MES_MODE		= 0x08;
 var CMD_CUR_MES_MODE_EXIT	= 0x09;
+var CMD_CAP_REPORT_FREQ		= 0x0A;
+var CMD_CAP_MES_START  		= 0x0B;
+var CMD_CAP_MES_REPORT 		= 0x0C;
+var CMD_CAP_MES_EXIT   		= 0x0D;
 
 // Current mode
 var MODE_IDLE			= 0
 var MODE_CUR_MES_REQ	= 1
 var MODE_CUR_MES		= 2
 var MODE_OE_CALIB		= 3
+var MODE_CAP_MES_REQ	= 4
+var MODE_CAP_MES		= 5
+var MODE_CAP_CALIB_REQ	= 6
+var MODE_CAP_CALIB		= 7
 
 var device_info = { "vendorId": 0x1209, "productId": 0xdddd };      // capmeter
 var version       = 'unknown'; 										// connected capmeter version
@@ -25,10 +33,42 @@ var connection    = null;   										// connection to the capmeter
 var connectMsg = null;  											// saved message to send after connecting
 var current_ampl = 0;												// current measurement amplification
 var current_avg = 14;												// current measurement averaging
+var ping_enabled = true;											// know if we send ping requests
+var cap_calib_array_ind = 0;										// Index inside the calibration array to store the value
+var cap_calib_array = [0, 10, 0, 10, 0,0, 10, 0, 10, 0];			// Capacitance calibration array
+var capacitance_offset = 0;											// Capacitance offset
+var cap_calibration_done = false;									// Capacitance calibration done bool
 var packetSize = 64;    											// number of bytes in an HID packet
 var waitingForAnswer = false;										// boolean indicating if we are waiting for a packet
 var debug = false;
 var _console_log = console.log;
+
+
+function standardDeviation(values)
+{
+  var avg = average(values);
+  
+  var squareDiffs = values.map(function(value){
+    var diff = value - avg;
+    var sqrDiff = diff * diff;
+    return sqrDiff;
+  });
+  
+  var avgSquareDiff = average(squareDiffs);
+
+  var stdDev = Math.sqrt(avgSquareDiff);
+  return stdDev;
+}
+
+function average(data)
+{
+  var sum = data.reduce(function(sum, value){
+    return sum + value;
+  }, 0);
+
+  var avg = sum / data.length;
+  return avg;
+}
 
 /**
  * convert a string to a uint8 array
@@ -66,6 +106,39 @@ function arrayToStr(buf)
         }
     }
     return res;
+}
+
+/**
+ * convert a components value to a normal representable form
+ * @param value	The value
+ * @returns the string representation 
+ */
+function valueToElectronicString(value)
+{
+	if(value < 1e-12)
+	{
+		return (value * 1e15).toFixed(1) + "fF";
+	}
+	else if(value < 1e-9)
+	{
+		return (value * 1e12).toFixed(1) + "pF";
+	}
+	else if(value < 1e-6)
+	{
+		return (value * 1e9).toFixed(1) + "nF";
+	}
+	else if(value < 1e-3)
+	{
+		return (value * 1e6).toFixed(1) + "uF";
+	}
+	else if(value < 1)
+	{
+		return (value * 1e3).toFixed(1) + "mF";
+	}
+	else
+	{
+		return value.toFixed(1);
+	}
 }
 
 console.log = function() {
@@ -113,10 +186,23 @@ function start_open_ended_calibration()
 	if(current_mode == MODE_IDLE)
 	{
 		console.log("Starting Open Ended Calibration...");
-		//$button.css("background", "orange");  
 		var d = new Date();
 		sendRequest(CMD_OE_CALIB_START, [d.getDate(), d.getMonth() + 1, d.getFullYear()%100]);
 		current_mode = MODE_OE_CALIB;
+	}
+}
+
+function start_capacitance_calibration()
+{	
+	if(current_mode == MODE_IDLE)
+	{
+		capacitance_offset = 0;
+		cap_calib_array_ind = 0;
+		cap_calibration_done = false;
+		current_mode = MODE_CAP_CALIB_REQ;
+		sendRequest(CMD_DISABLE_VBIAS, null);
+		console.log("Starting Capacitance Calibration...");
+		console.log("Please hold 2pF capacitor between leads...");
 	}
 }
 
@@ -157,16 +243,26 @@ function static_capacitance_measurement_start(voltage)
 {
 	voltage = voltage * 1000;
 	
-	// Set desired voltage
-	if(voltage == 0)
+	// Check current mode
+	if(current_mode == MODE_CAP_MES)
 	{
-		console.log("Disabling Vbias");
-		sendRequest(CMD_DISABLE_VBIAS, null);
+		// Already measuring, stop the mode
+		sendRequest(CMD_CAP_MES_EXIT, null);
 	}
 	else
 	{
-		console.log("Requesting voltage set to " + voltage + "mV");
-		sendRequest(CMD_SET_VBIAS, [voltage%256, Math.floor(voltage/256)]);
+		// Set desired voltage
+		if(voltage == 0)
+		{
+			console.log("Disabling Vbias");
+			sendRequest(CMD_DISABLE_VBIAS, null);
+		}
+		else
+		{
+			console.log("Requesting voltage set to " + voltage + "mV");
+			sendRequest(CMD_SET_VBIAS, [voltage%256, Math.floor(voltage/256)]);
+		}
+		current_mode = MODE_CAP_MES_REQ;
 	}
 }
 
@@ -289,6 +385,11 @@ function onDataReceived(reportId, data)
 				// We start current measurement mode
 				sendRequest(CMD_CUR_MES_MODE, [current_ampl, current_avg]);
 			}
+			else if(current_mode == MODE_CAP_MES_REQ)
+			{
+				// We start capacitance measurement mode
+				sendRequest(CMD_CAP_MES_START, null);
+			}
 			break;
 		}
 		
@@ -301,6 +402,116 @@ function onDataReceived(reportId, data)
 				// We start current measurement mode
 				sendRequest(CMD_CUR_MES_MODE, [current_ampl, current_avg]);
 			}
+			else if(current_mode == MODE_CAP_MES_REQ)
+			{
+				// We start capacitance measurement mode
+				sendRequest(CMD_CAP_MES_START, null);
+			}
+			else if(current_mode == MODE_CAP_CALIB_REQ)
+			{
+				// We start capacitance measurement mode
+				sendRequest(CMD_CAP_MES_START, null);
+			}
+			break;
+		}
+		
+		case CMD_CAP_MES_START:
+		{
+			if(msg[0] == 0)
+			{				
+				if(current_mode == MODE_CAP_MES_REQ || current_mode == MODE_CAP_CALIB_REQ)
+				{
+					console.log("Couldn't start capacitance measurement mode");
+					current_mode = MODE_IDLE;
+				}
+			}
+			else
+			{	
+				if(current_mode == MODE_CAP_MES_REQ)
+				{
+					console.log("Capacitance measurement mode started");
+					current_mode = MODE_CAP_MES;
+					ping_enabled = false;
+				}
+				else if(current_mode == MODE_CAP_CALIB_REQ)
+				{
+					console.log("Capacitance measurement mode for calibration started");
+					current_mode = MODE_CAP_CALIB;
+					ping_enabled = false;
+				}
+			}
+			break;
+		}
+		
+		case CMD_CAP_MES_EXIT:
+		{
+			if(msg[0] == 0)
+			{				
+				if(current_mode == MODE_CAP_MES || current_mode == MODE_CAP_CALIB)
+				{
+					console.log("Couldn't stop capacitance measurement mode");
+				}
+			}
+			else
+			{	
+				if(current_mode == MODE_CAP_MES || current_mode == MODE_CAP_CALIB)
+				{
+					console.log("Capacitance measurement mode stopped");
+					current_mode = MODE_IDLE;					
+					ping_enabled = true;
+				}
+			}
+			break;
+		}
+		
+		case CMD_CAP_MES_REPORT:
+		{
+			var counter_divider = (msg[1]<<8) + msg[0];
+			var aggregate_fall = (msg[5]<<8) + (msg[4]<<16) + (msg[3]<<8) + msg[2];
+			var counter_val = (msg[9]<<8) + (msg[8]<<16) + (msg[7]<<8) + msg[6];
+			var report_freq = msg[10];
+			var resistor_val = 2 * ((msg[12]<<8) + msg[11]);
+			var second_threshold = (msg[14]<<8) + msg[13];
+			var first_threshold = (msg[16]<<8) + msg[15];
+			//console.log("Capacitance report - counter_divider: " + counter_divider + " aggregate_fall: " + aggregate_fall + " counter_val: " + counter_val + " report freq: " + report_freq + "Hz resistor: " + resistor_val + "Ohms second threshold: " + second_threshold + " first threshold: " + first_threshold);
+			// C =  - counter divider * aggregate / 32M * counter * 2 * half_r * ln(Vt2/Vt1)
+			var capacitance = 0;
+			if(cap_calibration_done)
+			{
+				capacitance = -1*((counter_divider * aggregate_fall) / (32000000 * counter_val * resistor_val * Math.log(second_threshold/first_threshold))) - capacitance_offset;				
+			}
+			else
+			{
+				capacitance = -1*((counter_divider * aggregate_fall) / (32000000 * counter_val * resistor_val * Math.log(second_threshold/first_threshold)));				
+			}
+			if(capacitance < 0)
+			{
+				capacitance = 0;
+			}
+			console.log("Measured capacitance: " + valueToElectronicString(capacitance));
+			
+			if(current_mode == MODE_CAP_CALIB)
+			{
+				// Store value in array
+				cap_calib_array[(cap_calib_array_ind++)%cap_calib_array.length] = capacitance;
+				// Check if we have enough values to compute offset
+				if(cap_calib_array_ind >= cap_calib_array.length)
+				{
+					var cap_standard_deviation = standardDeviation(cap_calib_array);
+					var cap_average = average(cap_calib_array);
+					console.log("Standard deviation: " + valueToElectronicString(cap_standard_deviation) + " average: " + valueToElectronicString(cap_average));
+					// Only accept if we are within 1%
+					if(cap_average * 0.01 > cap_standard_deviation)
+					{
+						// Store offset and exit
+						cap_calibration_done = true;
+						capacitance_offset = cap_average - 2e-12;
+						sendRequest(CMD_CAP_MES_EXIT, null);
+						console.log("Capacitance offset taken: " + valueToElectronicString(capacitance_offset));
+					}
+				}
+			}
+			
 			break;
 		}
 		
@@ -484,7 +695,7 @@ function checkConnection()
     } 
 	else 
 	{
-		if (!waitingForAnswer)
+		if (!waitingForAnswer && ping_enabled)
 		{
 			sendPing();
 		}

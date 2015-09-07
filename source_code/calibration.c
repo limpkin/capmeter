@@ -159,8 +159,9 @@ void calibrate_single_ended_offset_for_vbias(void)
     calibdprintf_P(PSTR("Single Ended Offset Calibration For Vbias...\r\n\r\n"));
     
     // Configure correct ADC channel, enable vbias quenching
-    configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
+    disable_bias_voltage();
     enable_vbias_quenching();
+    configure_adc_channel(ADC_CHANNEL_VBIAS, 0, TRUE);
     
     // If we're not near the dedicated 0v adc value, add a delay
     if (get_averaged_adc_value(4) > 8)
@@ -227,6 +228,13 @@ void calibrate_thresholds(void)
     calibdprintf_P(PSTR("-----------------------\r\n"));
     calibdprintf_P(PSTR("Threshold Calibration\r\n\r\n"));
     
+    // Init IOs
+    PORTE.DIRCLR = PIN0_bm | PIN1_bm;       // May have been modified by other functions
+    EVSYS.CH3MUX = 0x00;                    // May have been modified by other functions
+    EVSYS.CH4MUX = 0x00;                    // May have been modified by other functions
+    PORTE.PIN0CTRL = PORT_ISC_BOTHEDGES_gc; // May have been modified by other functions
+    PORTE.PIN1CTRL = PORT_ISC_BOTHEDGES_gc; // May have been modified by other functions
+    
     // Set bias voltage above vcc so Q1 comes into play if there's a cap between the terminals
     disable_feedback_mos();
     opampin_as_input();
@@ -260,22 +268,29 @@ void calibrate_thresholds(void)
             // First threshold crossed
             if ((oe_calib_data.calib_first_thres_down == 0) && ((PORTE_IN & PIN0_bm) == 0))
             {
-                temp_bool = FALSE;
+                if (oe_calib_data.calib_second_thres_down != 0)
+                {
+                    temp_bool = FALSE;
+                }                
                 oe_calib_data.calib_first_thres_down = dac_val;
                 calib_first_thres_down_agg += oe_calib_data.calib_first_thres_down;
             }
             // Second threshold crossed
             if ((oe_calib_data.calib_second_thres_down == 0) && ((PORTE_IN & PIN1_bm) != 0))
             {
+                if (oe_calib_data.calib_first_thres_down != 0)
+                {
+                    temp_bool = FALSE;
+                }
                 oe_calib_data.calib_second_thres_down = dac_val;
                 calib_second_thres_down_agg += oe_calib_data.calib_second_thres_down;
             }
         }
         
         // Get a little margin before ramping down
-        if (dac_val < DAC_MAX_VAL - 100)
+        if (dac_val < DAC_MAX_VAL - 200)
         {
-            dac_val += 100;
+            dac_val += 200;
         } 
         else
         {
@@ -293,22 +308,29 @@ void calibrate_thresholds(void)
             // First threshold crossed
             if ((oe_calib_data.calib_first_thres_up == 0) && ((PORTE_IN & PIN0_bm) != 0))
             {
+                if (oe_calib_data.calib_second_thres_up != 0)
+                {
+                    temp_bool = FALSE;
+                }
                 oe_calib_data.calib_first_thres_up = dac_val;
                 calib_first_thres_up_agg += oe_calib_data.calib_first_thres_up;
             }
             // Second threshold crossed
             if ((oe_calib_data.calib_second_thres_up == 0) && ((PORTE_IN & PIN1_bm) == 0))
             {
-                temp_bool = FALSE;
+                if (oe_calib_data.calib_first_thres_up != 0)
+                {
+                    temp_bool = FALSE;
+                }
                 oe_calib_data.calib_second_thres_up = dac_val;
                 calib_second_thres_up_agg += oe_calib_data.calib_second_thres_up;
             }
         }
         
         // Get a little margin before ramping up
-        if (dac_val > 100)
+        if (dac_val > 200)
         {
-            dac_val -= 100;
+            dac_val -= 200;
         } 
         else
         {
