@@ -14,12 +14,16 @@ $(function(){
   // Init buttons
   $("*[data-onclick]").on("click", function() {
     function_name = $(this).attr("data-onclick");
+
+    if ($(this).attr('disabled')) return;
     capmeter.helper.executeFunctionByName(function_name, $(this));
   });
 
   // Init inputs
   $("*[data-input]").on("keyup change", function() {
     function_name = $(this).attr("data-input");
+
+    if ($(this).attr('disabled')) return;
     capmeter.helper.executeFunctionByName(function_name, $(this));
   });
 
