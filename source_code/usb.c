@@ -1,374 +1,363 @@
 /*
- *  usb.c
- *  Author: Miguel
- */
+*  usb.c
+*  Author: Miguel
+*/
 /* Features:
- * 31 configurable endpoints and 1 control endpoint
- */
-
-#include <util/delay.h>
-#include <avr/pgmspace.h>
+* 31 configurable endpoints and 1 control endpoint
+*/
 #include <avr/interrupt.h>
+#include <avr/pgmspace.h>
+#include <util/delay.h>
+#include <string.h>
 #include <avr/io.h>
 #include <stdio.h>
-
-#include "usb_types.h"
 #include "usb_descriptors.h"
-#include "usb.h"
+#include "usb_types.h"
 #include "utils.h"
-
-/* SRAM Memmory Mapping - XMEGA AU User Manual */
-struct
-{
-    #if USB_FIFO_ENABLE
-        uint8_t  fifo[(USB_MAXEP+1)*4];
-    #endif
-        USB_EP_t epCfgTable[2*(USB_MAXEP+1)];
-    #if USB_FRAMENUM_ENABLE
-        uint16_t frameNumber;
-    #endif
-} USB_SRAM __attribute__ ((aligned (2)));
-
+#include "usb.h"
+/* Data structure required by the USB controller */
+volatile USB_EP_pair_t endpoints[2+1] __attribute__((section (".data,\"aw\",@progbits\n.p2align 1;")));
 /* Buffers where to store EP specific data */
-volatile uint8_t ep0_out[EP0SIZE];
-volatile uint8_t ep0_in[EP0SIZE];
-volatile uint8_t ep1_out[EP1SIZE_OUT];
-volatile uint8_t ep2_in[EP2SIZE_IN];
+volatile uint8_t ep0_out[RAWHID_EP0_SIZE];
+volatile uint8_t ep0_in[RAWHID_EP0_SIZE];
+volatile uint8_t ep1_out[RAWHID_RX_SIZE];
+volatile uint8_t ep2_in[RAWHID_TX_SIZE];
+/* Zero when we are not configured, non-zero when enumerated */
+volatile uint8_t usb_configuration = 0;
+/* Flag to set when we received data */
+volatile uint8_t received_data_flag = FALSE;
 
-// Zero when we are not configured, non-zero when enumerated
-static volatile uint8_t usb_configuration = 0;
 
-/* Prototype functions */
-void USB_sendDescriptor(uint16_t wValue, uint16_t wLength);
-void USB_setAddress(uint8_t address);
-void USB_getConfiguration(void);
-void USB_setConfiguration(void);
-void USB_doNothing(void);
-void USB_HidGetReport(uint16_t wLength);
+void init_usb_clock(void)
+{	
+	/* When arriving here, we are already running at 32MHz */
+	OSC.PLLCTRL = OSC_PLLSRC_RC32M_gc | 0x06;               // 32MHz/4*6 = 48MHz for USB
+	CCP = CCP_IOREG_gc;                                     // Inform process we change a protected register
+	OSC.CTRL |= OSC_PLLEN_bm;                               // Enable PLL
+	while((OSC.STATUS & OSC_PLLRDY_bm) == 0);               // Wait until PLL is locked
+	CLK.USBCTRL = CLK_USBSEN_bm;                            // Enable the USB clock, source is PLL    
+}
 
-void USB_Init(void)
+void init_usb_configuration(void)
 {
-    /* START PLL to 48Mhz for USB full speed
-     * Internal 2 MHz RC Oscillator
-     * Multiplied by 24
-     * */
-    OSC_CTRL |= OSC_RC2MEN_bm;
-    /* Wait until 2Mhz oscillator is stable */
-    while( (OSC_STATUS & OSC_RC2MRDY_bm) == 0 );
-
-    OSC_PLLCTRL = OSC_PLLSRC_RC2M_gc | (24u);
-    OSC_CTRL |= OSC_PLLEN_bm;
-    /* wait until pll is locked */
-    while( (OSC_STATUS & OSC_PLLRDY_bm) == 0 );
-
-    /* Select the 32kHz external clock as calibration ref for our 2M */
-    OSC_DFLLCTRL |= OSC_RC2MCREF_XOSC32K_gc;
-    DFLLRC2M_CTRL = DFLL_ENABLE_bm;
-
-    /* CLOCK USB Control register
-     * USB uses PLL
-     * No preescaler
-     * Enable USB clock
-     */
-    CLK_USBCTRL = CLK_USBSEN_bm;
-
-    /* USB CTRLA:
-     * Bit 7 – ENABLE: USB Enable
-     * Bit 6 – SPEED: Speed Select
-     * Bit 5 – FIFOEN: USB FIFO Enable
-     * Bit 4 – STFRNUM: Store Frame Number Enable
-     * Bit 3:0 – MAXEP[3:0]: Maximum Endpoint Address
-     */
-    USB_CTRLA = ( /*USB_ENABLE_bm  |*/
-                  USB_SPEED_bm   |
-#if USB_FIFO_ENABLE
-                  USB_FIFOEN_bm  |
-#endif
-#if USB_FRAMENUM_ENABLE
-                  USB_STFRNUM_bm |
-#endif
-                  USB_MAXEP   );
-
-    /* USB_ADDR
-     * Bit 7 – Reserved
-     * Bit 6:0 – ADDR[6:0]: Device Address
-     */
-     /* Any device which is not yet assigned an address
-      * must respond to packets sent to address zero
-      */
-    USB_ADDR = 0u;
-
-    /* Configure ENDPOINT configuration table */
-    USB_EPPTR = &USB_SRAM.epCfgTable[0];
-
-    /* Endpoint 0 configuration */
-    /* EP0 Out */
-    USB_SRAM.epCfgTable[0].STATUS = 0u;
-    USB_SRAM.epCfgTable[0].CTRL = EP0CTRL;
-    USB_SRAM.epCfgTable[0].DATAPTR = &ep0_out;
-
-    /* EP0 In */
-    USB_SRAM.epCfgTable[1].STATUS = 0u;
-    USB_SRAM.epCfgTable[1].CTRL = EP0CTRL;
-    USB_SRAM.epCfgTable[1].DATAPTR = &ep0_in;
-
-    /* USB CTRLB:
-     * Bit 7:5 – Reserved
-     * Bit 4 – PULLRST: Pull during Reset
-     * Bit 3 – Reserved
-     * Bit 2 – RWAKEUP: Remote Wake-up
-     * Bit 1 – GNACK: Global NACK
-     * Bit 0 – ATTACH: Attach
-     */
-    USB_CTRLB = USB_ATTACH_bm;
-
-    /* USB interrupt enable */
-    // Enable USB interrupts
-    USB_INTCTRLA = USB_BUSEVIE_bm | USB_INTLVL_MED_gc;
-    USB_INTCTRLB = USB_TRNIE_bm | USB_SETUPIE_bm;
-
-
-
-    /* USB pins factory calibration apply */
+    /* USB pins factory calibration */
     USB.CAL0 = ReadCalibrationByte(PROD_SIGNATURES_START+USBCAL0_offset);
     USB.CAL1 = ReadCalibrationByte(PROD_SIGNATURES_START+USBCAL1_offset);
 
+    /* Configure endpoint configuration table */
+    USB_EPPTR = (unsigned)endpoints;
 
-    USB_CTRLA |= USB_ENABLE_bm;
+	/* Endpoint 0 configuration */
+	/* EP0 Out */
+	endpoints[0].out.STATUS = 0;
+	endpoints[0].out.CTRL = USB_EP_TYPE_CONTROL_gc | USB_EP_BUFSIZE_64_gc;
+	endpoints[0].out.DATAPTR = (unsigned)&ep0_out;
+	/* EP0 In */
+	endpoints[0].in.STATUS = USB_EP_BUSNACK0_bm;
+	endpoints[0].in.CTRL = USB_EP_TYPE_CONTROL_gc | USB_EP_BUFSIZE_64_gc;
+	endpoints[0].in.DATAPTR = (unsigned)&ep0_in;
+    
+	/* USB Address, 0 by default until addressed */
+	USB_ADDR = 0x0000;
+	
+    /* Enable USB controller, full speed, specify number of endpoints */
+	USB_CTRLA = (USB_ENABLE_bm | USB_SPEED_bm | 2);
+
+	/* Attach to USB bus */
+	USB_CTRLB = USB_ATTACH_bm;  
+}
+
+void init_usb_interrupts(void)
+{
+	/* USB interrupt enable */
+	USB_INTCTRLA = USB_BUSEVIE_bm | USB_INTLVL_MED_gc;
+	USB_INTCTRLB = USB_TRNIE_bm | USB_SETUPIE_bm;    
+}
+
+void init_usb(void)
+{
+	/* Initialize clock settings */
+	init_usb_clock();
+	
+	/* Initialize endpoint0 conf */
+	init_usb_configuration();
+	
+	/* Initialize USB interrupts */
+	init_usb_interrupts();
+}
+
+ISR(USB_BUSEVENT_vect)
+{
+    usbdprintf("<%02x>", USB_INTFLAGSACLR);
+	if (USB_INTFLAGSACLR & USB_SOFIF_bm)
+	{
+		// Start of frame
+		USB_INTFLAGSACLR = USB_SOFIF_bm;
+		usbdprintf_P(PSTR(".|"));
+	}
+	else if (USB_INTFLAGSACLR & (USB_CRCIF_bm | USB_UNFIF_bm | USB_OVFIF_bm))
+	{
+		// CRC error, Underflow, Overflow
+		USB_INTFLAGSACLR = (USB_CRCIF_bm | USB_UNFIF_bm | USB_OVFIF_bm);
+		usbdprintf_P(PSTR("E|"));
+	}
+	else if (USB_INTFLAGSACLR & USB_STALLIF_bm)
+	{
+		// Stall
+		USB_INTFLAGSACLR = USB_STALLIF_bm;
+		usbdprintf_P(PSTR("S|"));
+	}
+	else
+	{
+		// Suspend, resume, reset
+		if (USB_INTFLAGSACLR != 0)
+		{
+			usbdprintf("B%02x|", USB_INTFLAGSACLR);
+		}
+		USB_INTFLAGSACLR = USB_SUSPENDIF_bm | USB_RESUMEIF_bm | USB_RSTIF_bm;
+		if (USB.STATUS & USB_BUSRST_bm)
+		{
+			USB.STATUS &= ~USB_BUSRST_bm;
+			usbdprintf_P(PSTR("R|"));
+			init_usb_configuration();
+		}
+	}
+}
+
+// Enable the OUT stage on the default control pipe
+inline void enable_ep0_out(void)
+{
+    endpoints[0].out.STATUS &= ~(USB_EP_SETUP_bm | USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
+}
+
+void send_usb_packet(uint8_t endpoint_number, volatile uint8_t* addr, uint16_t size)
+{
+    //TODO: the OVF, STALL, and TRNCOMPL flags are in b->STATUS. Clear them if anyone cares.
+    //usbdprintf("%04x|", endpoints[endpoint_number].in.STATUS);   
+    endpoints[endpoint_number].in.DATAPTR = (unsigned)addr;                                     // Load pointer to the data to send
+    endpoints[endpoint_number].in.AUXDATA = 0;                                                  // Trigger message sending
+    endpoints[endpoint_number].in.CNT = size;                                                   // Set correct data size
+    endpoints[endpoint_number].in.STATUS &= ~(USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm);        // Clear correct flags
+    //usbdprintf("%04x|", endpoints[endpoint_number].in.STATUS);
+}
+
+void flush_ep0_endpoint_contents(uint8_t size)
+{
+    send_usb_packet(0, ep0_in, size);
+}
+
+void wait_for_endpoint_packet_send(uint8_t endpoint_number)
+{
+    while(((endpoints[endpoint_number].in.STATUS) & USB_EP_TRNCOMPL0_bm) == 0);
 }
 
 ISR(USB_TRNCOMPL_vect)
 {
-    USB_INTFLAGSBCLR = USB_SETUPIF_bm | USB_TRNIF_bm;
-    USB_INTFLAGSACLR = USB_INTFLAGSACLR;
-    USB_Task();
-}
-
-/* SOF, suspend, resume, reset bus event interrupts, crc, underflow, overflow and stall error interrupts */
-ISR(USB_BUSEVENT_vect)
-{
-    if (USB_INTFLAGSACLR & USB_SOFIF_bm){
-        USB_INTFLAGSACLR = USB_SOFIF_bm;
-    }else if (USB_INTFLAGSACLR & (USB_CRCIF_bm | USB_UNFIF_bm | USB_OVFIF_bm)){
-        USB_INTFLAGSACLR = (USB_CRCIF_bm | USB_UNFIF_bm | USB_OVFIF_bm);
-    }else if (USB_INTFLAGSACLR & USB_STALLIF_bm){
-        USB_INTFLAGSACLR = USB_STALLIF_bm;
-    }else{
-        USB_INTFLAGSACLR = USB_SUSPENDIF_bm | USB_RESUMEIF_bm | USB_RSTIF_bm;
-    }
-}
-
-void USB_Task(void)
-{
-
-    // Read once to prevent race condition where SETUP packet is interpreted as OUT
-    uint8_t status = USB_SRAM.epCfgTable[0].STATUS;
-    USB_Request_Header_t* usbMsg = USB_SRAM.epCfgTable[0].DATAPTR;
-
-
-    USB_SRAM.epCfgTable[0].STATUS &= ~(USB_EP_SETUP_bm | USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL1_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
-    USB_SRAM.epCfgTable[0].AUXDATA = 0;
-    USB_SRAM.epCfgTable[0].CNT = 0;
-
-    if( (usbMsg->bmRequestType & CONTROL_REQTYPE_TYPE) == REQTYPE_STANDARD)
+    usbdprintf("!%02x!", USB_INTFLAGSBCLR);
+	// Clear Interrupt flags
+    USB.FIFOWP = 0;
+	USB_INTFLAGSBCLR = USB_SETUPIF_bm | USB_TRNIF_bm;
+	
+	// Read once to prevent race condition where SETUP packet is interpreted as OUT
+	USB_Request_Header_t* usbMsg = (USB_Request_Header_t*)endpoints[0].out.DATAPTR;
+	uint8_t ep0status = endpoints[0].out.STATUS;
+    uint8_t ep1status = endpoints[1].out.STATUS;
+    uint8_t ep2status = endpoints[2].in.STATUS;
+	enable_ep0_out();
+	
+    usbdprintf("%02x %02x %02x %02x ", endpoints[1].out.STATUS, endpoints[1].in.STATUS, endpoints[2].out.STATUS,endpoints[2].in.STATUS);
+    // Endpoint 2 handling
+    if (ep2status & USB_EP_TRNCOMPL0_bm)
     {
-        /* HOST to DEVICE */
-        if( (usbMsg->bmRequestType & CONTROL_REQTYPE_DIRECTION) == REQDIR_HOSTTODEVICE)
-        {
-            switch(usbMsg->bRequest)
+        usbdprintf("EP2|");
+    }
+    // Endpoint 1 handling
+    if (ep1status & USB_EP_TRNCOMPL0_bm)
+    {
+        endpoints[1].out.STATUS &= ~(USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
+        received_data_flag = TRUE;
+        usbdprintf("EP1|");
+    }
+	// Endpoint0 handling
+	if (ep0status & USB_EP_SETUP_bm)
+	{
+		if((usbMsg->bmRequestType & CONTROL_REQTYPE_TYPE) == REQTYPE_STANDARD)
+		{
+			switch(usbMsg->bRequest)
+			{
+			    case GET_STATUS:
+				{
+    				usbdprintf_P(PSTR("s|"));
+                    ep0_in[0] = 0;
+                    ep0_in[1] = 0;
+                    flush_ep0_endpoint_contents(2);
+					break;                    
+				}
+			    case CLEAR_FEATURE:
+                {
+                    usbdprintf_P(PSTR("f|"));
+                    flush_ep0_endpoint_contents(0);
+                    break;
+                }          
+			    case SET_FEATURE:
+			    {
+    			    usbdprintf_P(PSTR("f|"));
+    			    flush_ep0_endpoint_contents(0);
+    			    break;
+			    }
+			    case SET_ADDRESS:
+			    {
+    			    usbdprintf("a%02X|", usbMsg->wValue & 0x7F);
+                    enable_ep0_out();
+                    flush_ep0_endpoint_contents(0);
+                    wait_for_endpoint_packet_send(0);
+    			    USB.ADDR = usbMsg->wValue & 0x7F;
+    			    break;
+			    }      
+			    case GET_DESCRIPTOR:
+			    {
+    			    usbdprintf_P(PSTR("d"));
+    			    usbdprintf("/%04x", usbMsg->wValue);
+    			    usbdprintf("/%04x", usbMsg->wIndex);
+    			    usbdprintf("/%d", usbMsg->wLength);
+    			    const uint8_t* dataSrc = NULL;
+    			    uint8_t dataLen = 0;
+
+    			    for(uint8_t i=0; i<USB_DESCRIPTOR_LIST_LENGTH; i++)
+    			    {
+        			    if(descriptor_list[i].wValue == usbMsg->wValue && descriptor_list[i].wIndex == usbMsg->wIndex)
+        			    {
+            			    dataSrc = descriptor_list[i].addr;
+            			    dataLen = descriptor_list[i].length;
+        			    }
+    			    }
+
+                    // If we found the descriptor, otherwise stall
+    			    if(dataSrc != NULL)
+    			    {
+        			    memcpy_P((void*)ep0_in, dataSrc, dataLen);
+
+        			    /* Return the same bytes requested or less */
+        			    if(dataLen > usbMsg->wLength)
+        			    {
+            			    dataLen = usbMsg->wLength;
+        			    }
+        			    
+        			    usbdprintf("/%d", dataLen);
+        			    usbdprintf("/%d", ep0_in[0]);
+        			    usbdprintf("/%d|", ep0_in[1]);
+
+        			    /* Send USB Msg */
+        			    flush_ep0_endpoint_contents(dataLen);
+    			    }
+                    else
+                    {
+                        usbdprintf_P(PSTR("PB Desc|"));
+                        endpoints[0].in.CTRL |= USB_EP_STALL_bm;
+                        endpoints[0].out.CTRL |= USB_EP_STALL_bm;                        
+                    }    
+                    //_delay_ms(2000);              
+    			    break;
+			    }
+			    case GET_CONFIGURATION:
+			    {
+    			    usbdprintf_P(PSTR("c|"));
+                    ep0_in[0] = usb_configuration;
+    			    flush_ep0_endpoint_contents(1);
+    			    break;
+			    }
+			    case SET_CONFIGURATION:
+			    {
+    			    usbdprintf_P(PSTR("C|"));
+    			    usb_configuration = usbMsg->wValue;
+                    endpoints[1].out.STATUS = 0;
+                    endpoints[1].out.CTRL = USB_EP_TYPE_BULK_gc | USB_EP_BUFSIZE_64_gc;
+                    endpoints[1].out.DATAPTR = (unsigned)ep1_out;
+                    endpoints[1].in.STATUS = USB_EP_BUSNACK0_bm;
+                    endpoints[1].in.CTRL = 0;
+                    endpoints[1].in.DATAPTR = 0;
+                    endpoints[2].out.STATUS = USB_EP_BUSNACK0_bm;
+                    endpoints[2].out.CTRL = 0;
+                    endpoints[2].out.DATAPTR = 0;
+                    endpoints[2].in.STATUS = USB_EP_BUSNACK0_bm;
+                    endpoints[2].in.CNT = 0;
+                    endpoints[2].in.CTRL = USB_EP_TYPE_BULK_gc | USB_EP_BUFSIZE_64_gc;
+                    endpoints[2].in.DATAPTR = (unsigned)ep2_in;
+    			    flush_ep0_endpoint_contents(0);
+    			    break;
+			    }
+			    case SET_DESCRIPTOR:
+			    {
+    			    usbdprintf_P(PSTR("D|"));
+    			    flush_ep0_endpoint_contents(0);
+    			    break;
+			    }
+			    default:
+			    {
+                    // Stall
+                    usbdprintf("x%02x|", usbMsg->bRequest);
+    			    endpoints[0].in.CTRL |= USB_EP_STALL_bm;
+    			    endpoints[0].out.CTRL |= USB_EP_STALL_bm;
+    			    break;
+			    }
+			}
+		}
+		else if((usbMsg->bmRequestType & CONTROL_REQTYPE_TYPE) == REQTYPE_CLASS)
+		{
+            switch (usbMsg->bRequest)
             {
-                case CLEAR_FEATURE    :
-                    USB_doNothing();
+                case HID_GET_REPORT:
+                {
+                    usbdprintf_P(PSTR("r|"));
+                    memset((void*)ep0_in, 0, RAWHID_EP0_SIZE);
+                    flush_ep0_endpoint_contents(RAWHID_EP0_SIZE);
                     break;
-                case SET_FEATURE      :
-                    USB_doNothing();
+                }
+                case HID_SET_REPORT:
+                {
+                    usbdprintf_P(PSTR("R|"));
+                    flush_ep0_endpoint_contents(0);
                     break;
-                case SET_ADDRESS      :
-                    printf("Set address -> %02X", usbMsg->wValue);
-                    USB_setAddress(usbMsg->wValue);
+                }    
+                case HID_SET_IDLE:
+                {
+                    usbdprintf_P(PSTR("I|"));
+                    flush_ep0_endpoint_contents(0);
                     break;
-                case SET_DESCRIPTOR   :
-                    USB_doNothing();
-                    break;
-                case SET_CONFIGURATION:
-                    /* We only have one configuration */
-                    USB_setConfiguration();
-                    break;
+                }                   
+			    default:
+			    {
+                    // Stall
+                    usbdprintf("X%02x|", usbMsg->bRequest);
+    			    endpoints[0].in.CTRL |= USB_EP_STALL_bm;
+    			    endpoints[0].out.CTRL |= USB_EP_STALL_bm;
+    			    break;
+			    }
             }
-        }
-        else /* DEVICE to HOST */
-        {
-            switch(usbMsg->bRequest)
-            {
-                case GET_STATUS:
-                    USB_doNothing();
-                    break;
-                case GET_DESCRIPTOR:
-                    USB_sendDescriptor(usbMsg->wValue, usbMsg->wLength);
-                    break;
-                case GET_CONFIGURATION:
-                    printf("Get Configuration\n");
-                    USB_getConfiguration();
-                    break;
-                default:
-                    USB_doNothing();
-                    break;
-            }
-        }
-    }
-    else if( (usbMsg->bmRequestType & CONTROL_REQTYPE_TYPE) == REQTYPE_CLASS)
+		}
+	}
+ 	else if(ep0status & USB_EP_TRNCOMPL0_bm)
+ 	{
+ 	}
+}
+
+void usb_send_data(uint8_t* data)
+{
+    endpoints[2].in.CNT = RAWHID_TX_SIZE;
+    memcpy((void*)ep2_in, data, RAWHID_TX_SIZE);
+    endpoints[2].in.STATUS &= ~(USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
+}
+
+uint8_t usb_receive_data(uint8_t* data)
+{
+    uint8_t return_data = received_data_flag;
+    
+    if (return_data == TRUE)
     {
-        /* HOST to DEVICE */
-        if( (usbMsg->bmRequestType & CONTROL_REQTYPE_DIRECTION) == REQDIR_HOSTTODEVICE)
-        {
-            USB_doNothing();
-        }
-        else /* DEVICE to HOST */
-        {
-            switch(usbMsg->bRequest)
-            {
-                case (HID_GET_REPORT):
-//                    USB_HidGetReport(usbMsg->wLength);
-                      USB_doNothing();
-                    break;
-                default:
-                    USB_doNothing();
-                    break;
-            }
-        }
+        memcpy((void*)data, (void*)ep1_out, RAWHID_RX_SIZE);
+        // No need to stop interrupts, one cycle instruction
+        received_data_flag = FALSE;
     }
-}
-
-/* Send Data throught the control endpoint */
-void USB_sendDescriptor(uint16_t wValue, uint16_t wLength)
-{
-    uint8_t i;
-    USB_EP_t *inEP0 = &USB_SRAM.epCfgTable[1];
-    uint8_t *dataDst = inEP0->DATAPTR;
-    const uint8_t *dataSrc = NULL;
-    uint8_t dataLen = 0;
-
-    for(i=0; i<(USB_DESCRIPTOR_LIST_LENGTH); i++ )
-    {
-        if(descriptor_list[i].wValue == wValue)
-        {
-            dataSrc = descriptor_list[i].addr;
-            dataLen = descriptor_list[i].length;
-        }
-    }
-
-    if( dataSrc != NULL)
-    {
-        memcpy_P(dataDst, dataSrc, dataLen);
-    }
-
-    /* Return the same bytes requested or less */
-    if(dataLen > wLength)
-    {
-        dataLen = wLength;
-    }
-
-    /* Send USB Msg */
-    inEP0->AUXDATA = 0;
-    inEP0->CNT = dataLen;
-    inEP0->STATUS &= ~(USB_EP_SETUP_bm | USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
-
-    while( (inEP0->STATUS & USB_EP_BUSNACK0_bm) == 0);
-}
-
-void USB_setAddress(uint8_t address)
-{
-    /* USB_ADDR
-     * Bit 7 – Reserved
-     * Bit 6:0 – ADDR[6:0]: Device Address
-     */
-     /* Any device which is not yet assigned an address
-      * must respond to packets sent to address zero
-      */
-    USB_EP_t *inEP0 = &USB_SRAM.epCfgTable[1];
-
-    /* Send USB Msg */
-    inEP0->AUXDATA = 0;
-    inEP0->CNT = 0;
-    inEP0->STATUS &= ~(USB_EP_SETUP_bm | USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
-
-    while( (inEP0->STATUS & USB_EP_BUSNACK0_bm) == 0);
-
-    USB_ADDR = address;
-}
-
-void USB_getConfiguration(void)
-{
-
-    USB_EP_t *inEP0 = &USB_SRAM.epCfgTable[1];
-    uint8_t *dataPtr = inEP0->DATAPTR;
-
-    *dataPtr = usb_configuration;
-
-    /* Send USB Msg */
-    inEP0->AUXDATA = 0;
-    inEP0->CNT = 1;
-    inEP0->STATUS &= ~(USB_EP_SETUP_bm | USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
-}
-
-void USB_setConfiguration(void)
-{
-    USB_EP_t *inEP0 = &USB_SRAM.epCfgTable[1];
-
-    usb_configuration = 0;
-
-    /* Set EndPoint Configuration Also... */
-    /* EP1 Out */
-    USB_SRAM.epCfgTable[2].STATUS = USB_EP_BUSNACK1_bm;
-    USB_SRAM.epCfgTable[2].CTRL = EP1CTRL_OUT;
-    USB_SRAM.epCfgTable[2].DATAPTR = &ep1_out;
-
-    /* EP1 In */
-    USB_SRAM.epCfgTable[3].STATUS = USB_EP_BUSNACK0_bm;
-    USB_SRAM.epCfgTable[3].CTRL = 0u;
-    USB_SRAM.epCfgTable[3].DATAPTR = 0u;
-
-    /* EP2 Out */
-    USB_SRAM.epCfgTable[4].STATUS = USB_EP_BUSNACK0_bm;
-    USB_SRAM.epCfgTable[4].CTRL = 0u;
-    USB_SRAM.epCfgTable[4].DATAPTR = 0u;
-
-    /* EP2 In */
-    USB_SRAM.epCfgTable[5].STATUS = USB_EP_BUSNACK1_bm;
-    USB_SRAM.epCfgTable[5].CTRL = EP2CTRL_IN;
-    USB_SRAM.epCfgTable[5].DATAPTR = &ep2_in;
-
-    /* Send USB Msg */
-    inEP0->AUXDATA = 0;
-    inEP0->CNT = 0;
-    inEP0->STATUS &= ~(USB_EP_SETUP_bm | USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
-
-    while( (inEP0->STATUS & USB_EP_BUSNACK0_bm) == 0);
-}
-
-void USB_doNothing(void)
-{
-    USB_EP_t *inEP0 = &USB_SRAM.epCfgTable[1];
-
-    /* Send USB Msg */
-    inEP0->AUXDATA = 0;
-    inEP0->CNT = 0;
-    inEP0->STATUS &= ~(USB_EP_SETUP_bm | USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
-
-    while( (inEP0->STATUS & USB_EP_BUSNACK0_bm) == 0);
-}
-
-void USB_HidGetReport(uint16_t wLength){
-
-    USB_EP_t *inEP0 = &USB_SRAM.epCfgTable[1];
-
-    /* answer with all 0 */
-    memset(inEP0->DATAPTR, 0, wLength);
-
-    /* Send USB Msg */
-    inEP0->AUXDATA = 0;
-    inEP0->CNT = wLength;
-    inEP0->STATUS &= ~(USB_EP_SETUP_bm | USB_EP_BUSNACK0_bm | USB_EP_TRNCOMPL0_bm | USB_EP_OVF_bm);
-
-    while( (inEP0->STATUS & USB_EP_BUSNACK0_bm) == 0);
+    
+    return return_data;
 }

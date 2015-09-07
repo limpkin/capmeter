@@ -64,14 +64,14 @@ void usart_send_char(char c)
 void init_serial_port(void)
 {
 #ifdef PRINTF_ENABLED
-    stdout = stdin = &usart_str;                            // setup printf
+    stdout = stdin = &usart_str;                                            // setup printf
 #endif
-    PORTC_DIRSET = PIN3_bm;                                 // PC3 is TX
-    PORTC_DIRCLR = PIN2_bm;                                 // PC2 is RX
-    USARTC0.BAUDCTRLA = 131;                                // 115k2 baudrate
-    USARTC0.BAUDCTRLB = 0xD0;                               // 115k2 baudrate
-    USARTC0.CTRLC = USART_CHSIZE_8BIT_gc;                   // Asynchronous 8N1 mode
-    USARTC0.CTRLB = USART_RXEN_bm | USART_TXEN_bm;          // Enable USARTC0 TX & RX
-    serialdprintf_P(PSTR("-----------------------\r\n"));   // Debug string
-    serialdprintf_P(PSTR("Serial port initialized\r\n"));   // Debug string
+    PORTC_DIRSET = PIN3_bm;                                                 // PC3 is TX
+    PORTC_DIRCLR = PIN2_bm;                                                 // PC2 is RX
+    USARTC0.BAUDCTRLA = 43;                                                 // 3M baudrate
+    USARTC0.BAUDCTRLB = 0x90;                                               // 3M baudrate
+    USARTC0.CTRLC = USART_CHSIZE_8BIT_gc;                                   // Asynchronous 8N1 mode
+    USARTC0.CTRLB = USART_RXEN_bm | USART_TXEN_bm | USART_CLK2X_bm;         // Enable USARTC0 TX & RX, double transmission speed
+    serialdprintf_P(PSTR("-----------------------\r\n"));                   // Debug string
+    serialdprintf_P(PSTR("Serial port initialized\r\n"));                   // Debug string
 }

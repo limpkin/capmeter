@@ -42,14 +42,14 @@ volatile uint8_t nb_freq_overflows;
 volatile uint8_t cur_resistor_index;
 // Counter to discard next measure
 volatile uint8_t discard_next_mes_cnt;
+// Current measurement frequency
+uint16_t cur_freq_meas = FREQ_2HZ;
 // New measurement value
 volatile uint8_t new_val_flag;
 // Number of consecutive freq errors
 uint8_t nb_conseq_freq_pb = 0;
 // Current counter divider
 uint8_t cur_counter_divider;
-// Current measurement frequency
-uint16_t cur_freq_meas;
 
 
 /*
@@ -194,12 +194,20 @@ void disable_current_measurement_mode(void)
 }
 
 /*
+ * Set the frequency at which counter values will be returned
+ * @param   bit_shift   1Hz division bit shift (0 is 1Hz, 1 is 2Hz, 2 is 4Hz...)
+ */
+void set_capacitance_report_frequency(uint8_t bit_shift)
+{
+    cur_freq_meas = (32768 >> bit_shift) - 1;
+}
+
+/*
  * Set capacitance measurement mode
  */
 void set_capacitance_measurement_mode(void)
 {    
     discard_next_mes_cnt = 1;
-    cur_freq_meas = FREQ_1HZ;
     cur_counter_divider = TC_CLKSEL_DIV1_gc;
     cur_resistor_index = sizeof(res_mux_modes)-1;
     // RTC: set period depending on measurement freq
@@ -268,19 +276,52 @@ void set_capacitance_measurement_mode(void)
 }
 
 /*
- * Our main capacitance measurement loop
+ * Disable capacitance measurement mode
  */
-uint8_t cap_measurement_loop(uint8_t temp)
+void disable_capacitance_measurement_mode(void)
 {
+    TCC0.INTCTRLA = 0x00;                           // Disable timer counter interrupts
+    TCC0.INTCTRLB = 0x00;                           // Disable timer counter interrupts
+    TCC1.INTCTRLA = 0x00;                           // Disable timer counter interrupts
+    TCC1.INTCTRLB = 0x00;                           // Disable timer counter interrupts
+    TCC0.CTRLD = 0x00;                              // Disable counters
+    TCC1.CTRLD = 0x00;                              // Disable counters
+    TCC0.CNT = 0x0000;                              // Disable counters
+    TCC1.CNT = 0x0000;                              // Disable counters
+    current_counter_fall = 0;                       // Reset counter
+    current_counter_rise = 0;                       // Reset counter
+    current_agg_fall = 0;                           // Reset agg
+    current_agg_rise = 0;                           // Reset agg
+    nb_freq_overflows = 0;                          // Reset overflow
+    last_counter_val = 0;                           // Reset last counter val
+    disable_measurement_mode_io();                  // Disable measurement mode IOs
+}
+
+/*
+ * Our main capacitance measurement loop
+ * @param   cap_report  Pointer to where to store the capacitance measurement report
+ */
+uint8_t cap_measurement_loop(capacitance_report_t* cap_report)
+{
+    // Check if we have a new value to report
     if (new_val_flag == TRUE)
-    {
+    {        
+        // Store the report
+        cap_report->counter_divider = get_val_for_counter_divider(cur_counter_divider);
+        cap_report->half_res = get_half_val_for_res_mux_define(get_cur_res_mux());
+        cap_report->report_freq = get_val_for_freq_define(cur_freq_meas);
+        cap_report->second_thres = get_calib_second_thres_up();
+        cap_report->first_thres = get_calib_first_thres_up();
+        cap_report->counter_value = cur_freq_counter_val;
+        cap_report->aggregate_fall = last_agg_fall;
+        
+        // Necessary to change the resistor...
         cap_measurement_logic();
+        
+        // Remove the new val flag
         new_val_flag = FALSE;
-        print_res_mux_val();
-        measdprintf("agg fall: %lu, counter fall: %lu\r\n", last_agg_fall, last_counter_fall);
-        measdprintf("agg rise: %lu, counter rise: %lu\r\n", last_agg_rise, last_counter_rise);
-        measdprintf("freq counter: %lu\r\n", cur_freq_counter_val);
-        if (temp == FALSE)
+        
+        if (FALSE)
         {
             //print_compute_c_formula(last_agg_fall, cur_freq_counter_val, cur_counter_divider, get_cur_res_mux());
             measdprintf("SYNC\r\n");
@@ -291,10 +332,12 @@ uint8_t cap_measurement_loop(uint8_t temp)
             measdprintf("%u\r\n", get_calib_second_thres_up());
             measdprintf("%u\r\n", get_calib_first_thres_up());
             measdprintf("%u\r\n\r\n", get_val_for_freq_define(cur_freq_meas));
-        }              
+        }     
+        
+        // Return TRUE         
         return TRUE;
-        //print_compute_c_formula(last_agg_fall);
     }
+    // For debug purposes only
     if ((tc_error_flag == TRUE) && (discard_next_mes_cnt == 0))
     {
         measdprintf_P(PSTR("ERR\r\n"));
