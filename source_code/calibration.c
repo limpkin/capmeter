@@ -178,7 +178,6 @@ void calibrate_single_ended_offset_for_vbias(void)
     oe_calib_data.calib_0v_value_vbias = get_averaged_adc_value(15);
     
     // Restore current single ended offset
-    disable_vbias_quenching();
     oe_calib_data.calib_0v_value_se = calib_0v_value_se_copy;
     calibdprintf("0V ADC value for vbias: %u, approx %umV\r\n", oe_calib_data.calib_0v_value_vbias, compute_voltage_from_se_adc_val(oe_calib_data.calib_0v_value_vbias));    
 }

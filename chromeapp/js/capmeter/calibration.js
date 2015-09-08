@@ -19,11 +19,11 @@ capmeter.calibration.calibrateCurrentY = function($button) {
 
 capmeter.calibration.calibrateCapacitance = function($button) {
   //console.log("capmeter.calibration.calibrateCapacitance");
-  $button.css("background", "orange");
   start_capacitance_calibration();
 }
 
 capmeter.calibration.calibratePlatform = function($button) 
 {
+	$button.css("background", "orange");
 	start_open_ended_calibration();
 }
