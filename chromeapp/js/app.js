@@ -39,6 +39,8 @@ var current_avg = 14;												// current measurement averaging
 var ping_enabled = true;											// know if we send ping requests
 var cap_calib_array_ind = 0;										// Index inside the calibration array to store the value
 var cap_calib_array = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];	// Capacitance calibration array
+var cap_last_values = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];	// Last capacitance values
+var cap_last_value_ind = 0;
 var capacitance_report_freq = 3;									// Capacitance report frequency in bit shift
 var capacitance_offset = 0;											// Capacitance offset
 var cap_calibration_done = false;									// Capacitance calibration done bool
@@ -608,6 +610,7 @@ function onDataReceived(reportId, data)
 				{
 					console.log("Capacitance measurement mode stopped");
 					$('#measureCapacitance').css('background', '#3ED1D6');
+					capmeter.measurement._capacitance = "fF";
 					sendRequest(CMD_DISABLE_VBIAS, null);
 					current_mode = MODE_IDLE;		
 					enable_gui_buttons();			
@@ -642,7 +645,20 @@ function onDataReceived(reportId, data)
 				capacitance = 0;
 			}
 			//console.log("Measured capacitance: " + valueToElectronicString(capacitance, "F") + ", osc. freq.: " + counter_val*report_freq  + "Hz (" + resistor_val + "R)");
-			capmeter.measurement._capacitance = valueToElectronicString(capacitance, "F") + "(" + valueToElectronicString(counter_val*report_freq, "Hz") + ")";
+			
+			// What to display
+			cap_last_values[(cap_last_value_ind++)%cap_last_values.length] = capacitance;
+			var cap_standard_deviation = standardDeviation(cap_last_values);
+			var cap_average = average(cap_last_values);
+			// If we switched measured value (new values a lot different than the average)
+			if(capacitance > cap_average*1.1 || capacitance < cap_average*0.9)
+			{
+				// set all values to last measured value
+				//console.log("New value measured, resetting last values");
+				for (var i = 0; i < cap_last_values.length; i++) cap_last_values[i] = capacitance;
+				cap_average = capacitance;
+			}
+			capmeter.measurement._capacitance = valueToElectronicString(cap_average, "F") + "(" + valueToElectronicString(counter_val*report_freq, "Hz") + ")";
 			
 			if(current_mode == MODE_CAP_CALIB)
 			{
@@ -651,8 +667,8 @@ function onDataReceived(reportId, data)
 				// Check if we have enough values to compute offset
 				if(cap_calib_array_ind >= cap_calib_array.length)
 				{
-					var cap_standard_deviation = standardDeviation(cap_calib_array);
-					var cap_average = average(cap_calib_array);
+					cap_standard_deviation = standardDeviation(cap_calib_array);
+					cap_average = average(cap_calib_array);
 					console.log("Standard deviation: " + valueToElectronicString(cap_standard_deviation, "F") + " average: " + valueToElectronicString(cap_average, "F"));
 					// Only accept if we are within 1%
 					if(cap_average * 0.01 > cap_standard_deviation)

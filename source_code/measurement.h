@@ -22,7 +22,8 @@
 #endif
 
 // defines state
-#define NB_CONSEQ_FREQ_PB_CHG_RES   1           // Number of consecutive freq problem before changing resistors
+#define NB_CONSEQ_FREQ_PB_CHG_RES       1       // Number of consecutive freq problem before changing resistors
+#define NB_CONSEQ_TC_ERR_FLAG_CHG_RES   3       // Number of consecutive tc error flags on smaller R before setting a higher R
 
 // typedefs
 typedef struct capacitance_report_struct
