@@ -9477,3 +9477,15 @@ div.value {
   background: #000;
   border: none;
 }
+
+/* line 28, ../scss/_custom.scss */
+.height-37.button {
+  height: 37px;
+  margin-bottom: 0;
+  padding-top: 0.75rem;
+}
+/* line 34, ../scss/_custom.scss */
+.height-37.value {
+  height: 37px;
+  padding: 0.35rem 0.75rem;
+}

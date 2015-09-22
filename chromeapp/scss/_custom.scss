@@ -23,3 +23,16 @@ div.value {
   background: #000; 
   border: none;   
 }
+
+.height-37 {
+  &.button {
+    height: 37px;
+    margin-bottom: 0;
+    padding-top: 0.75rem;  
+  }
+
+  &.value {
+    height: 37px;
+    padding: 0.35rem 0.75rem;  
+  }
+}

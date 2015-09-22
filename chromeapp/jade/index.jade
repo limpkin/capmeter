@@ -15,7 +15,7 @@ html
       .column.small-8
         .row
           .column.small-12 &nbsp;
-        .row
+        .row(data-equalizer)
           .column.small-5
             .row.collapse
               .column.small-8
@@ -23,9 +23,9 @@ html
               .column.small-4
                 input#voltageCurrent(data-input="capmeter.measurement.voltageCurrent", type="text")
           .column.small-4
-            a#measureCurrent.button.tiny.expand(data-onclick="capmeter.measurement.measureCurrent") Measure Current
+            a#measureCurrent.button.tiny.expand.height-37(data-onclick="capmeter.measurement.measureCurrent") Measure Current
           .column.small-3
-            #displayCurrent.value(data-display="capmeter.measurement.get_current")
+            #displayCurrent.value.height-37(data-display="capmeter.measurement.get_current")
         .row
           .column.small-5
             .row.collapse
@@ -34,9 +34,9 @@ html
               .column.small-4
                 input#voltageCapacitance(data-input="capmeter.measurement.voltageCapacitance", type="text")
           .column.small-4
-            a#measureCapacitance.button.tiny.expand(data-onclick="capmeter.measurement.measureCapacitance") Measure Capacitance
+            a#measureCapacitance.button.tiny.expand.height-37(data-onclick="capmeter.measurement.measureCapacitance") Measure Capacitance
           .column.small-3
-            #displayCapacitance.value(data-display="capmeter.measurement.get_capacitance")
+            #displayCapacitance.value.height-37(data-display="capmeter.measurement.get_capacitance")
 
         .row
           .column.small-12.graph-container.text-center 
@@ -50,9 +50,9 @@ html
               .column.small-4
                 input#maxVoltage(data-input="capmeter.visualisation.maxVoltage", type="text")
           .column.small-3
-            a#capacitance.button.tiny.expand(data-onclick="capmeter.visualisation.capacitance") Capacitance
+            a#capacitance.button.tiny.expand.height-37(data-onclick="capmeter.visualisation.capacitance") Capacitance
           .column.small-3
-            a#current.button.tiny.expand(data-onclick="capmeter.visualisation.current") Current
+            a#current.button.tiny.expand.height-37(data-onclick="capmeter.visualisation.current") Current
 
     .row.collapse
       .column.small-12
