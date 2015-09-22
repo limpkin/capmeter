@@ -17,7 +17,7 @@ capmeter.graph.changeXLabels = function(newLabels) {
 
 capmeter.graph.changeYValues = function(newValues) {
   $(".graph-container").highcharts().series[0].setData(newValues);
-  capmeter.graph.yValues = newLabels; 
+  capmeter.graph.yValues = newValues; 
 }
 
 capmeter.graph.changeUnit = function(newUnit) {
