@@ -6,36 +6,36 @@ html
     link(rel="stylesheet", href="/stylesheets/app.css")
   body
     .row
-      .column.small-4
-        h4 Capacitance Meter
+      .column.small-3
+        h5 Capacitance Meter
         a#calibrateCurrentX.button.expand(data-onclick="capmeter.calibration.calibrateCurrentX") Calibrate Current (X)
         a#calibrateCurrentY.button.expand(data-onclick="capmeter.calibration.calibrateCurrentY") Calibrate Current (Y)
         a#calibrateCapacitance.button.expand(data-onclick="capmeter.calibration.calibrateCapacitance") Calibrate Capacitance
         a#calibratePlatform.button.expand(data-onclick="capmeter.calibration.calibratePlatform") Calibrate Platform
-      .column.small-8
+      .column.small-9
         .row
           .column.small-12 &nbsp;
         .row(data-equalizer)
-          .column.small-5
+          .column.small-4
             .row.collapse
-              .column.small-8
+              .column.small-6
                 span.prefix Voltage [V]
-              .column.small-4
+              .column.small-5.end
                 input#voltageCurrent(data-input="capmeter.measurement.voltageCurrent", type="text")
           .column.small-4
             a#measureCurrent.button.tiny.expand.height-37(data-onclick="capmeter.measurement.measureCurrent") Measure Current
-          .column.small-3
+          .column.small-4
             #displayCurrent.value.height-37(data-display="capmeter.measurement.get_current")
         .row
-          .column.small-5
+          .column.small-4
             .row.collapse
-              .column.small-8
+              .column.small-6
                 span.prefix Voltage [V]
-              .column.small-4
+              .column.small-5.end
                 input#voltageCapacitance(data-input="capmeter.measurement.voltageCapacitance", type="text")
           .column.small-4
             a#measureCapacitance.button.tiny.expand.height-37(data-onclick="capmeter.measurement.measureCapacitance") Measure Capacitance
-          .column.small-3
+          .column.small-4
             #displayCapacitance.value.height-37(data-display="capmeter.measurement.get_capacitance")
 
         .row
