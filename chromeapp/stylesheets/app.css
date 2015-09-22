@@ -9439,6 +9439,15 @@ th.hide-for-touch {
     display: none !important;
   }
 }
+/* line 2, ../scss/_charts.scss */
+.graph-container .highcharts-background {
+  display: none;
+}
+/* line 6, ../scss/_charts.scss */
+.graph-container svg > text {
+  display: none;
+}
+
 /* line 1, ../scss/_custom.scss */
 body {
   background: #383838;
@@ -9451,10 +9460,10 @@ div.value {
 
 /* line 9, ../scss/_custom.scss */
 .graph-container {
-  border: 1px solid #D4D4D4;
   width: 100%;
   height: 200px;
   margin-bottom: 2rem;
+  padding: 0 !important;
 }
 
 /* line 16, ../scss/_custom.scss */

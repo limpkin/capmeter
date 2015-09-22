@@ -7,10 +7,10 @@ div.value {
 }
 
 .graph-container {
-  border: 1px solid $regular-color;
   width: 100%;
   height: 200px;
   margin-bottom: 2rem;
+  padding: 0 !important;
 }
 
 #log {
