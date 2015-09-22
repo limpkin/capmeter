@@ -130,7 +130,7 @@ int main(void)
             // If we are in cap measurement mode
             if(cap_measurement_loop(&cap_report) == TRUE)
             {
-                printf("Cap report send\r\n");
+                printf("*");
                 usb_packet.length = sizeof(cap_report);
                 usb_packet.command_id = CMD_CAP_MES_REPORT;
                 memcpy((void*)usb_packet.payload, (void*)&cap_report, sizeof(cap_report));

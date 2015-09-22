@@ -18,6 +18,7 @@
 #include "adc.h"
 // Resistor mux modes in order of value
 uint8_t res_mux_modes[] = {RES_270, RES_1K, RES_10K, RES_100K};
+#define MIN_RES_INDEX 0   // to be changed to 0 on production units!
 // Error flag
 volatile uint8_t tc_error_flag = FALSE;
 // Current counter for the fall/rise
@@ -42,6 +43,8 @@ volatile uint8_t nb_freq_overflows;
 volatile uint8_t cur_resistor_index;
 // Counter to discard next measure
 volatile uint8_t discard_next_mes_cnt;
+// Consecutive tc_error_flags seen on smaller R
+volatile uint8_t consec_tc_error_flags;
 // Current measurement frequency
 uint16_t cur_freq_meas = FREQ_2HZ;
 // New measurement value
@@ -105,11 +108,31 @@ ISR(TCC1_CCA_vect)
         // If we got an error flag, the oscillations are too slow and the measurement isn't valid (pulse width at around 1k)
         if (tc_error_flag == TRUE)
         {
-            if (cur_resistor_index > 0)
+            if (cur_resistor_index > MIN_RES_INDEX)
             {
                 // Set smaller resistor, discard next measurement
-                enable_res_mux(res_mux_modes[--cur_resistor_index], FALSE);
+                enable_res_mux(res_mux_modes[--cur_resistor_index], TRUE);
                 discard_next_mes_cnt = 1;
+            }
+            else if (cur_counter_divider < TC_CLKSEL_DIV1024_gc)
+            {
+                // Increase counter divider
+                discard_next_mes_cnt = 1;
+                TCC0.CTRLA = ++cur_counter_divider;
+                measdprintf("Count div: %d\r\n", cur_counter_divider);
+            }            
+            else
+            {
+                if (consec_tc_error_flags++ > NB_CONSEQ_TC_ERR_FLAG_CHG_RES)
+                {
+                    // Set resistor mux to 10k, reset counter divider
+                    cur_counter_divider = TC_CLKSEL_DIV1_gc;
+                    TCC0.CTRLA = cur_counter_divider;
+                    cur_resistor_index += 2;
+                    discard_next_mes_cnt = 1;
+                    measdprintf("Count div: %d\r\n", cur_counter_divider);
+                    enable_res_mux(res_mux_modes[cur_resistor_index], TRUE);
+                }                
             }
             tc_error_flag = FALSE;
         }
@@ -158,19 +181,45 @@ ISR(RTC_OVF_vect)
  */
 void cap_measurement_logic(void)
 {   
-    if ((last_agg_fall < (last_counter_fall<<10)) && (cur_resistor_index < sizeof(res_mux_modes)-1))
+    // If a change wasn't made before coming here
+    if (discard_next_mes_cnt == 0)
     {
-        // Check that we're not oscillating too fast (average counter value less than 1024)
-        if (nb_conseq_freq_pb++ > NB_CONSEQ_FREQ_PB_CHG_RES)
+        if (last_agg_fall < (last_counter_fall<<7))
         {
-            enable_res_mux(res_mux_modes[++cur_resistor_index], TRUE);
+            // Check that we're not oscillating too fast (average counter value less than 128 to keep a 1% precision >> 32M/128(counter)/5(ratio pulse width/period) = 50kHz)
+            if (nb_conseq_freq_pb++ > NB_CONSEQ_FREQ_PB_CHG_RES)
+            {
+                // Check counter divider
+                if (cur_counter_divider != TC_CLKSEL_DIV1_gc)
+                {
+                    // Decrease counter divider
+                    TCC0.CTRLA = --cur_counter_divider;
+                    measdprintf("Count div: %d\r\n", cur_counter_divider);
+                    discard_next_mes_cnt = 1;
+                } 
+                else if(cur_resistor_index < sizeof(res_mux_modes)-1)
+                {
+                    // Decrease resistor value
+                    enable_res_mux(res_mux_modes[++cur_resistor_index], TRUE);
+                    discard_next_mes_cnt = 1;
+                }      
+                nb_conseq_freq_pb = 0;
+            }
+        }
+        else if ((last_agg_fall > (last_counter_fall<<11)) && (cur_resistor_index > MIN_RES_INDEX))
+        {
+            // Check that we're not oscillating too slow (average counter value more than 128*16=2048)
+            if (nb_conseq_freq_pb++ > NB_CONSEQ_FREQ_PB_CHG_RES)
+            {
+                enable_res_mux(res_mux_modes[--cur_resistor_index], TRUE);
+                nb_conseq_freq_pb = 0;
+            }
+        }
+        else
+        {
             nb_conseq_freq_pb = 0;
-        }         
-    }
-    else
-    {
-        nb_conseq_freq_pb = 0;
-    }
+        }
+    }    
 }
 
 /*
@@ -340,7 +389,8 @@ uint8_t cap_measurement_loop(capacitance_report_t* cap_report)
     // For debug purposes only
     if ((tc_error_flag == TRUE) && (discard_next_mes_cnt == 0))
     {
-        measdprintf_P(PSTR("ERR\r\n"));
+        measdprintf_P(PSTR("ERR "));
+        _delay_ms(10);
     }
     
     return FALSE;

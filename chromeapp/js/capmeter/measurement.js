@@ -1,8 +1,8 @@
 if (typeof capmeter == 'undefined') capmeter = {};
 capmeter.measurement = capmeter.measurement || {};
 
-capmeter.measurement._current = 500;
-capmeter.measurement._capacitance = 900;
+capmeter.measurement._current = "nA";
+capmeter.measurement._capacitance = "fF";
 capmeter.measurement._capmes_setV = 0;
 capmeter.measurement._currentmes_setV = 0;
 
@@ -10,7 +10,7 @@ capmeter.measurement.measureCurrent = function($button)
 {
 	static_current_measurement_start(capmeter.measurement._currentmes_setV);
 	//console.log("capmeter.measurement.measureCurrent");
-	$button.css("background", "orange");
+	//$button.css("background", "orange");
 }
 
 capmeter.measurement.measureCapacitance = function($button) 

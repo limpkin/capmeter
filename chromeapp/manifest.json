@@ -9,6 +9,7 @@
     }
   },
   "permissions": [
+      "storage",
       "hid",
       {
           "usbDevices": [

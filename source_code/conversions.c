@@ -133,6 +133,10 @@ uint16_t get_val_for_freq_define(uint16_t define)
     switch(define)
     {
         case FREQ_1HZ:      return 1;
+        case FREQ_2HZ:      return 2;
+        case FREQ_4HZ:      return 4;
+        case FREQ_8HZ:      return 8;
+        case FREQ_16HZ:     return 16;
         case FREQ_32HZ:     return 32;
         case FREQ_64HZ:     return 64;
         case FREQ_128HZ:    return 128;

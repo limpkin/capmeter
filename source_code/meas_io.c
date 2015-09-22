@@ -257,8 +257,8 @@ void init_ios(void)
 {
     iodprintf_P(PSTR("-----------------------\r\n"));
     iodprintf_P(PSTR("IO init\r\n\r\n"));
+    enable_vbias_quenching();                               // Enable vbias quenching
     disable_cur_meas_mos();                                 // Disable cur measurement mosfet
-    disable_vbias_quenching();                              // Disable vbias quenching
     disable_feedback_mos();                                 // Disable opamp feedback
     disable_res_mux();                                      // Disable resistor mux
     set_opampin_low();                                      // Prevent oscillations

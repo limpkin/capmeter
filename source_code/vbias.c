@@ -49,7 +49,6 @@ void wait_for_0v4_bias(void)
         measured_vbias = get_averaged_adc_value(8);
     }
     
-    disable_vbias_quenching();
     vbiasdprintf_P(PSTR("Bias voltage at 0.4V\r\n"));
     vbiasdprintf_P(PSTR("-----------------------\r\n"));
 }
@@ -72,7 +71,6 @@ void wait_for_0v_bias(void)
         measured_vbias = get_averaged_adc_value(6);
     }
     
-    disable_vbias_quenching();
     vbiasdprintf_P(PSTR("Bias voltage at 0V\r\n"));
     vbiasdprintf_P(PSTR("-----------------------\r\n"));
 }
@@ -86,6 +84,7 @@ uint16_t enable_bias_voltage(uint16_t val_mv)
 {
     if (is_ldo_enabled() == FALSE)
     {
+        disable_vbias_quenching();                          // Disable quenching
         last_measured_vbias = VBIAS_MIN_V-1;                // Set min vbias voltage by default
         cur_set_vbias_voltage = VBIAS_MIN_V-1;              // Set min vbias voltage by default
         cur_vbias_dac_val = VBIAS_MIN_DAC_VAL;              // Set min vbias voltage by default
@@ -103,11 +102,11 @@ uint16_t enable_bias_voltage(uint16_t val_mv)
  */
 void disable_bias_voltage(void)
 {
-    vbiasdprintf_P(PSTR("Disabling bias voltage\r\n"));  // Debug
+    vbiasdprintf_P(PSTR("Disabling bias voltage\r\n")); // Debug
     disable_ldo();                                      // Disable LDO
     disable_stepup();                                   // Disable stepup
     disable_vbias_dac();                                // Disable DAC controlling the ldo
-    wait_for_0v4_bias();                                 // Wait bias voltage to be at 0v
+    wait_for_0v4_bias();                                // Wait bias voltage to be at 0v
 }
 
 /*
