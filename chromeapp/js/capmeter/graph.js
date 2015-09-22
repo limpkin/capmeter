@@ -1,12 +1,14 @@
 if (typeof capmeter == 'undefined') capmeter = {};
 capmeter.graph = capmeter.graph || {};
 
-capmeter.graph.unit = "";
-capmeter.graph.yLabel = "";
+capmeter.graph.unit = " ";
+capmeter.graph.yLabel = " ";
 capmeter.graph.value = 0.0;
 
 capmeter.graph.xLabels = ["", "", "", "", "", ""];
 capmeter.graph.yValues = [0, 0, 0, 0, 0];
+
+/* public functions */
 
 capmeter.graph.changeXLabels = function(newLabels) {
   $(".graph-container").highcharts().xAxis[0].setCategories(newLabels);
@@ -15,14 +17,25 @@ capmeter.graph.changeXLabels = function(newLabels) {
 
 capmeter.graph.changeYValues = function(newValues) {
   $(".graph-container").highcharts().series[0].setData(newValues);
+  capmeter.graph.yValues = newLabels; 
 }
 
-capmeter.graph.changeUnit = function(newValues) {
-  capmeter.graph.unit = newValues;
+capmeter.graph.changeUnit = function(newUnit) {
+  capmeter.graph.unit = newUnit;
+  capmeter.graph.refreshYLabel();
 }
 
-capmeter.graph.changeYLabel = function(newValues) {
-  capmeter.graph.yLabel = newValues;
+capmeter.graph.changeYLabel = function(newYLabel) {
+  capmeter.graph.yLabel = newYLabel;
+  capmeter.graph.refreshYLabel();  
+}
+
+/* private functions */
+
+capmeter.graph.refreshYLabel = function() {
+  label = capmeter.graph.yLabel;
+  unit = capmeter.graph.unit;
+  $(".graph-container").highcharts().yAxis[0].axisTitle.attr({text:label + " " + unit});
 }
 
 capmeter.graph.init = function() {
