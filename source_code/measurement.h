@@ -45,9 +45,12 @@ enum mes_mode_t     {MES_OFF = 0, MES_CONT = 1};
 // prototypes
 uint8_t cap_measurement_loop(capacitance_report_t* cap_report);
 void set_capacitance_report_frequency(uint8_t bit_shift);
+void discard_next_cap_measurements(uint8_t nb_samples);
 uint16_t cur_measurement_loop(uint8_t avg_bitshift);
 void set_current_measurement_mode(uint8_t ampl);
 void disable_capacitance_measurement_mode(void);
+void resume_capacitance_measurement_mode(void);
+void pause_capacitance_measurement_mode(void);
 void disable_current_measurement_mode(void);
 void set_capacitance_measurement_mode(void);
 

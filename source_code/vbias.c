@@ -82,6 +82,7 @@ void wait_for_0v_bias(void)
  */
 uint16_t enable_bias_voltage(uint16_t val_mv)
 {
+    // Check if the bias voltage isn't already enabled
     if (is_ldo_enabled() == FALSE)
     {
         disable_vbias_quenching();                          // Disable quenching
@@ -182,9 +183,14 @@ uint16_t update_bias_voltage(uint16_t val_mv)
         do
         {                        
             // Update DAC, wait and get measured vbias
-            update_vbias_dac(++cur_vbias_dac_val);
+            cur_vbias_dac_val += 20;
+            if (cur_vbias_dac_val > DAC_MAX_VAL)
+            {
+                cur_vbias_dac_val = DAC_MAX_VAL;
+            }            
+            update_vbias_dac(cur_vbias_dac_val);
             _delay_us(20);
-            measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(BIT_AVG_APPROACH + 1, 3, FALSE));
+            measured_vbias = compute_vbias_for_adc_value(get_averaged_stabilized_adc_value(BIT_AVG_APPROACH + 1, 4, FALSE));
         }
         while ((measured_vbias > voltage_to_reach) && (cur_vbias_dac_val != DAC_MAX_VAL));
         disable_vbias_quenching();

@@ -5,7 +5,7 @@ console.log = function() {
   $("#log").val($("#log").val() + text + "\n");
   $("#log").animate({
         scrollTop:$("#log")[0].scrollHeight - $("#log").height()
-  }, 200);
+  }, 100);
   return _console_log.apply(console, arguments);
 }
 
@@ -38,11 +38,11 @@ $(function(){
   capmeter.graph.init();
 
   // Some random chart data
-  setInterval(function(){
-    random_data = [];
-    for (i in capmeter.graph.yValues) {
-      random_data.push(Math.random()*100);
-    }
-    capmeter.graph.changeYValues(random_data);    
-  }, 2000);  
+  // setInterval(function(){
+  //   random_data = [];
+  //   for (i in capmeter.graph.yValues) {
+  //     random_data.push(Math.random()*100);
+  //   }
+  //   capmeter.graph.changeYValues(random_data);    
+  // }, 2000);  
 });

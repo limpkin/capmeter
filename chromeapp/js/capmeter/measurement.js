@@ -23,6 +23,7 @@ capmeter.measurement.measureCapacitance = function($button)
 capmeter.measurement.voltageCurrent = function($input) 
 {  
 	capmeter.measurement._currentmes_setV = $input.val();
+	notify_vcurrent_change($input.val());
   //console.log("capmeter.measurement.voltageCurrent - " + $input.val());
   //$input.css("background", "orange");
 }
@@ -30,6 +31,7 @@ capmeter.measurement.voltageCurrent = function($input)
 capmeter.measurement.voltageCapacitance = function($input) 
 {  
 	capmeter.measurement._capmes_setV = $input.val();
+	notify_vcap_change($input.val());
   //console.log("capmeter.measurement.voltageCapacitance - " + $input.val());
   //$input.css("background", "orange");
 }

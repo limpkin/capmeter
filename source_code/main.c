@@ -212,12 +212,25 @@ int main(void)
                 }
                 case CMD_SET_VBIAS:
                 {
+                    // Check that we are not measuring anything and if so, skip samples and stop oscillation
+                    if (current_fw_mode == MODE_CAP_MES)
+                    {
+                        pause_capacitance_measurement_mode();
+                    }
+                    
                     // Enable and set vbias... can also be called to update it
                     uint16_t* temp_vbias = (uint16_t*)usb_packet.payload;
                     uint16_t set_vbias = enable_bias_voltage(*temp_vbias);
                     usb_packet.length = 2;
                     memcpy((void*)usb_packet.payload, (void*)&set_vbias, sizeof(set_vbias));
                     usb_send_data((uint8_t*)&usb_packet);
+                    
+                    // If we are measuring anything, resume measurements
+                    if (current_fw_mode == MODE_CAP_MES)
+                    {
+                        resume_capacitance_measurement_mode();
+                    }
+                    
                     break;
                 }
                 case CMD_DISABLE_VBIAS:

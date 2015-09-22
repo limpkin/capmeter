@@ -177,6 +177,16 @@ ISR(RTC_OVF_vect)
 }
 
 /*
+ * Discard a given number of capacitance measurements
+ * @param   nb_samples  Number of samples to discard
+ */
+void discard_next_cap_measurements(uint8_t nb_samples)
+{
+    // copy done in one clock cycle, safe
+    discard_next_mes_cnt = nb_samples;
+}
+
+/*
  * Capacitance measurement logic - change resistor, freq measurement...
  */
 void cap_measurement_logic(void)
@@ -321,6 +331,24 @@ void set_capacitance_measurement_mode(void)
     }
     
     // Start oscillations
+    set_measurement_mode_io(res_mux_modes[cur_resistor_index]);
+}
+
+/*
+ * Pause capacitance measurement mode
+ */
+void pause_capacitance_measurement_mode(void)
+{
+    discard_next_mes_cnt = 0xFF;
+    disable_measurement_mode_io();
+}
+
+/*
+ * Resume capacitance measurement mode
+ */
+void resume_capacitance_measurement_mode(void)
+{
+    discard_next_mes_cnt = 1;
     set_measurement_mode_io(res_mux_modes[cur_resistor_index]);
 }
 

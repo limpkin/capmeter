@@ -1,12 +1,12 @@
 if (typeof capmeter == 'undefined') capmeter = {};
 capmeter.graph = capmeter.graph || {};
 
-capmeter.graph.unit = "°F";
-capmeter.graph.yLabel = "Temperature";
+capmeter.graph.unit = "";
+capmeter.graph.yLabel = "";
 capmeter.graph.value = 0.0;
 
-capmeter.graph.xLabels = ["0V", "1V", "2V", "3V", "4V", "5V"];
-capmeter.graph.yValues = [1, 5, 2, 9, 5, 6];
+capmeter.graph.xLabels = ["", "", "", "", "", ""];
+capmeter.graph.yValues = [0, 0, 0, 0, 0];
 
 capmeter.graph.changeXLabels = function(newLabels) {
   $(".graph-container").highcharts().xAxis[0].setCategories(newLabels);
@@ -15,6 +15,14 @@ capmeter.graph.changeXLabels = function(newLabels) {
 
 capmeter.graph.changeYValues = function(newValues) {
   $(".graph-container").highcharts().series[0].setData(newValues);
+}
+
+capmeter.graph.changeUnit = function(newValues) {
+  capmeter.graph.unit = newValues;
+}
+
+capmeter.graph.changeYLabel = function(newValues) {
+  capmeter.graph.yLabel = newValues;
 }
 
 capmeter.graph.init = function() {

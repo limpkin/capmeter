@@ -1,17 +1,17 @@
 if (typeof capmeter == 'undefined') capmeter = {};
 capmeter.visualisation = capmeter.visualisation || {};
 
+capmeter.visualisation._maxVoltage = 0;
+
 capmeter.visualisation.current = function($button) {
   console.log("capmeter.visualisation.current");
   $button.css("background", "orange");
 }
 
 capmeter.visualisation.capacitance = function($button) {
-  console.log("capmeter.visualisation.capacitance");
-  $button.css("background", "orange");
+  capacitance_caracterization_start(capmeter.visualisation._maxVoltage);
 }
 
 capmeter.visualisation.maxVoltage = function($input) {  
-  console.log("capmeter.visualisation.maxVoltage - " + $input.val());
-  $input.css("background", "orange");
+  capmeter.visualisation._maxVoltage = $input.val();
 }

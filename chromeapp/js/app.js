@@ -24,9 +24,13 @@ var MODE_CAP_MES_REQ	= 4
 var MODE_CAP_MES		= 5
 var MODE_CAP_CALIB_REQ	= 6
 var MODE_CAP_CALIB		= 7
+var MODE_CAP_CARAC		= 8
+var MODE_CAP_CARAC_REQ	= 9
 
-// Platforms mins
+// Platforms mins/maxs
 var VBIAS_MIN			= 1300
+var VBIAS_MAX			= 15000
+var NB_GRAPH_POINTS		= 20
 
 var device_info = { "vendorId": 0x1209, "productId": 0xdddd };      // capmeter
 var version       = 'unknown'; 										// connected capmeter version
@@ -40,14 +44,21 @@ var ping_enabled = true;											// know if we send ping requests
 var cap_calib_array_ind = 0;										// Index inside the calibration array to store the value
 var cap_calib_array = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];	// Capacitance calibration array
 var cap_last_values = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];	// Last capacitance values
-var cap_last_value_ind = 0;
+var cap_last_value_ind = 0;											// Index to where to store the latest values
+var cap_graph_xlabels = [0];										// Graph X labels
+var cap_graph_xvalues = [0];										// Graph X values
+var cap_graph_yvalues = [0];										// Graph Y values
+var cap_graph_store_index = 0;										// Where to store the next graph value
+var cap_graph_current_interval = 0;									// Voltage interval for the graph
 var capacitance_report_freq = 3;									// Capacitance report frequency in bit shift
 var capacitance_offset = 0;											// Capacitance offset
 var cap_calibration_done = false;									// Capacitance calibration done bool
 var packetSize = 64;    											// number of bytes in an HID packet
 var waitingForAnswer = false;										// boolean indicating if we are waiting for a packet
+var vbias_mes_capacitance_changed = false;							// boolean indicating that vbias was changed while in mes capacitance mode
+var vbias_mes_current_changed = false;								// boolean indicating that vbias was changed while in mes current mode
+var cur_mes_new_vbias_req = 0;										// contains the new bias voltage requested
 var debug = false;
-
 
 
 function standardDeviation(values)
@@ -290,28 +301,76 @@ function start_capacitance_calibration()
 }
 
 /**
+ * Capacitance caracterization
+ */
+function capacitance_caracterization_start(max_voltage)
+{
+	max_voltage = max_voltage * 1000;
+	if(max_voltage < VBIAS_MIN)
+	{
+		max_voltage = VBIAS_MIN;
+		$('#maxVoltage').val(VBIAS_MIN/1000);
+	}
+	if(current_mode == MODE_CAP_CARAC)
+	{
+		// Already measuring, stop the mode
+		disable_gui_buttons();
+		sendRequest(CMD_CAP_MES_EXIT, null);
+	}
+	else if(current_mode == MODE_IDLE)
+	{
+		// Compute intervals and init graphs
+		cap_graph_current_interval = (max_voltage - VBIAS_MIN) / (NB_GRAPH_POINTS - 1);
+		cap_graph_xlabels = new Array(NB_GRAPH_POINTS);
+		cap_graph_xvalues = new Array(NB_GRAPH_POINTS);
+		cap_graph_yvalues = new Array(NB_GRAPH_POINTS);
+		cap_graph_store_index = 0;
+		cap_last_value_ind = 0;
+		for (var i = 0; i < NB_GRAPH_POINTS; i++)
+		{
+				cap_graph_xlabels[i] = ((VBIAS_MIN + cap_graph_current_interval * i)/1000).toFixed(2) + "V";
+				cap_graph_xvalues[i] = (VBIAS_MIN + cap_graph_current_interval * i);
+				cap_graph_yvalues[i] = 0;
+		}
+		capmeter.graph.changeUnit("F");
+		capmeter.graph.changeYLabel("capacitance");
+		capmeter.graph.changeXLabels(cap_graph_xlabels);
+		capmeter.graph.changeYValues(cap_graph_yvalues);
+		// Set desired voltage		
+		//console.log("Requesting voltage set to " + VBIAS_MIN + "mV");
+		sendRequest(CMD_SET_VBIAS, [VBIAS_MIN%256, Math.floor(VBIAS_MIN/256)]);		
+		current_mode = MODE_CAP_CARAC_REQ;
+		disable_gui_buttons();
+	}
+}
+
+/**
  * Start current measurement
  */
 function static_current_measurement_start(voltage)
 {
 	voltage = voltage * 1000;
+	if(voltage < VBIAS_MIN)
+	{
+		voltage = VBIAS_MIN;
+		$('#voltageCurrent').val(VBIAS_MIN/1000);
+	}
 	
-	// Check current mode
-	if(current_mode == MODE_CUR_MES)
+	if(vbias_mes_current_changed)
+	{
+		// If vbias was changed, clicking the button updates vbias
+		$("#measureCurrent").attr("disabled", 1);
+		vbias_mes_current_changed = false;	
+		cur_mes_new_vbias_req = voltage;
+	}
+	else if(current_mode == MODE_CUR_MES)
 	{
 		// Already measuring, stop the mode
 		disable_gui_buttons();
 		sendRequest(CMD_CUR_MES_MODE_EXIT, null);
 	}
 	else if(current_mode == MODE_IDLE)
-	{
-		// Set desired voltage
-		if(voltage < VBIAS_MIN)
-		{
-			voltage = VBIAS_MIN;
-			$('#voltageCurrent').val(VBIAS_MIN/1000);
-		}
-		
+	{		
 		console.log("Requesting voltage set to " + voltage + "mV");
 		sendRequest(CMD_SET_VBIAS, [voltage%256, Math.floor(voltage/256)]);		
 		current_mode = MODE_CUR_MES_REQ;
@@ -325,9 +384,21 @@ function static_current_measurement_start(voltage)
 function static_capacitance_measurement_start(voltage)
 {
 	voltage = voltage * 1000;
+	if(voltage < VBIAS_MIN)
+	{
+		voltage = VBIAS_MIN;
+		$('#voltageCapacitance').val(VBIAS_MIN/1000);
+	}
 	
-	// Check current mode
-	if(current_mode == MODE_CAP_MES)
+	if(vbias_mes_capacitance_changed)
+	{
+		// If vbias was changed, clicking the button updates vbias
+		sendRequest(CMD_SET_VBIAS, [voltage%256, Math.floor(voltage/256)]);	
+		console.log("Requesting voltage set to " + voltage + "mV");
+		$("#measureCapacitance").attr("disabled", 1);
+		vbias_mes_capacitance_changed = false;
+	}
+	else if(current_mode == MODE_CAP_MES)
 	{
 		// Already measuring, stop the mode
 		disable_gui_buttons();
@@ -335,17 +406,39 @@ function static_capacitance_measurement_start(voltage)
 	}
 	else if(current_mode == MODE_IDLE)
 	{
-		// Set desired voltage
-		if(voltage < VBIAS_MIN)
-		{
-			voltage = VBIAS_MIN;
-			$('#voltageCapacitance').val(VBIAS_MIN/1000);
-		}
-		
+		// Set desired voltage		
 		console.log("Requesting voltage set to " + voltage + "mV");
 		sendRequest(CMD_SET_VBIAS, [voltage%256, Math.floor(voltage/256)]);		
 		current_mode = MODE_CAP_MES_REQ;
 		disable_gui_buttons();
+	}
+}
+
+/**
+ * Notification that the voltage set has been changed
+ */
+function notify_vcurrent_change(voltage)
+{	
+	// Check if we are in the right mode
+	if(current_mode == MODE_CUR_MES || current_mode == MODE_CUR_MES_REQ)
+	{
+		// change button color to allow the user to change the voltage
+		$('#measureCurrent').css('background', 'green');
+		vbias_mes_current_changed = true;
+	}
+}
+
+/**
+ * Notification that the voltage set has been changed
+ */
+function notify_vcap_change(voltage)
+{
+	// Check if we are in the right mode
+	if(current_mode == MODE_CAP_MES || current_mode == MODE_CAP_MES_REQ)
+	{
+		// change button color to allow the user to change the voltage
+		$('#measureCapacitance').css('background', 'green');
+		vbias_mes_capacitance_changed = true;
 	}
 }
 
@@ -467,7 +560,7 @@ function onDataReceived(reportId, data)
 		
 		case CMD_CAP_REPORT_FREQ:
 		{
-			if(current_mode == MODE_CAP_MES_REQ)
+			if((current_mode == MODE_CAP_MES_REQ) || (current_mode == MODE_CAP_CARAC_REQ))
 			{
 				if(msg[0] == 0)
 				{
@@ -499,10 +592,28 @@ function onDataReceived(reportId, data)
 				// Next step: set report frequency
 				sendRequest(CMD_CAP_REPORT_FREQ, [capacitance_report_freq]);
 			}
+			else if(current_mode == MODE_CAP_CARAC_REQ)
+			{
+				// Next step: set report frequency
+				sendRequest(CMD_CAP_REPORT_FREQ, [capacitance_report_freq]);
+			}
 			else if(current_mode == MODE_CAP_CALIB_REQ)
 			{
 				// We start capacitance measurement mode
 				sendRequest(CMD_CAP_MES_START, null);
+			}
+			else if(current_mode == MODE_CAP_MES)
+			{
+				// Vbias update
+				$('#measureCapacitance').css('background', 'orange');
+				$("#measureCapacitance").removeAttr("disabled");
+			}
+			else if(current_mode == MODE_CUR_MES)
+			{
+				// Vbias update
+				sendRequest(CMD_CUR_MES_MODE, [current_ampl, current_avg]);
+				$('#measureCurrent').css('background', 'orange');
+				$("#measureCurrent").removeAttr("disabled");
 			}
 			break;
 		}
@@ -521,6 +632,11 @@ function onDataReceived(reportId, data)
 				// Next step: set report frequency
 				sendRequest(CMD_CAP_REPORT_FREQ, [capacitance_report_freq]);
 			}
+			else if(current_mode == MODE_CAP_CARAC_REQ)
+			{
+				// Next step: set report frequency
+				sendRequest(CMD_CAP_REPORT_FREQ, [capacitance_report_freq]);
+			}
 			else if(current_mode == MODE_CAP_CALIB_REQ)
 			{
 				// We start capacitance measurement mode
@@ -533,7 +649,7 @@ function onDataReceived(reportId, data)
 		{
 			if(msg[0] == 0)
 			{				
-				if(current_mode == MODE_CAP_MES_REQ || current_mode == MODE_CAP_CALIB_REQ)
+				if(current_mode == MODE_CAP_MES_REQ || current_mode == MODE_CAP_CALIB_REQ || current_mode == MODE_CAP_CARAC_REQ)
 				{
 					console.log("Couldn't start capacitance measurement mode");
 					current_mode = MODE_IDLE;
@@ -550,6 +666,14 @@ function onDataReceived(reportId, data)
 					current_mode = MODE_CAP_MES;
 					ping_enabled = false;
 				}
+				if(current_mode == MODE_CAP_CARAC_REQ)
+				{
+					console.log("Capacitance characterization mode started");
+					$('#capacitance').css('background', 'orange');
+					$("#capacitance").removeAttr("disabled");
+					current_mode = MODE_CAP_CARAC;
+					ping_enabled = false;
+				}
 				else if(current_mode == MODE_CAP_CALIB_REQ)
 				{
 					console.log("Capacitance measurement mode for calibration started");
@@ -564,7 +688,7 @@ function onDataReceived(reportId, data)
 		{
 			if(msg[0] == 0)
 			{				
-				if(current_mode == MODE_CAP_MES || current_mode == MODE_CAP_CALIB)
+				if(current_mode == MODE_CAP_MES || current_mode == MODE_CAP_CALIB || current_mode == MODE_CAP_CARAC)
 				{
 					console.log("Couldn't stop capacitance measurement mode");
 				}
@@ -580,6 +704,16 @@ function onDataReceived(reportId, data)
 					current_mode = MODE_IDLE;		
 					enable_gui_buttons();			
 					ping_enabled = true;
+				}
+				else if(current_mode == MODE_CAP_CARAC)
+				{
+					console.log("Capacitance characterization mode stopped");
+					$('#capacitance').css('background', '#3ED1D6');
+					capmeter.measurement._capacitance = "fF";
+					sendRequest(CMD_DISABLE_VBIAS, null);
+					current_mode = MODE_IDLE;		
+					enable_gui_buttons();			
+					ping_enabled = true;					
 				}
 			}
 			break;
@@ -622,10 +756,73 @@ function onDataReceived(reportId, data)
 				//console.log("New value measured, resetting last values");
 				for (var i = 0; i < cap_last_values.length; i++) cap_last_values[i] = capacitance;
 				cap_average = capacitance;
+				cap_last_value_ind = 0;
 			}
 			capmeter.measurement._capacitance = valueToElectronicString(cap_average, "F") + "(" + valueToElectronicString(counter_val*report_freq, "Hz") + ")";
 			
-			if(current_mode == MODE_CAP_CALIB)
+			if(current_mode == MODE_CAP_CARAC)
+			{
+				// Store value in array
+				cap_graph_yvalues[cap_graph_store_index++] = capacitance;
+				if(cap_graph_store_index == cap_graph_xvalues.length)
+				{
+					// We finished running through the vbias points
+					sendRequest(CMD_CAP_MES_EXIT, null);
+					
+					// Update our graph
+					// Find lowest value
+					var lowest_cap = Math.min.apply(null, cap_graph_yvalues);
+					// Update our min graph unit and our vector
+					if(lowest_cap < 1e-12)
+					{
+						capmeter.graph.changeUnit("fF");
+						for(var i = 0; i < cap_graph_yvalues.length; i++)
+						{
+							cap_graph_yvalues[i] = cap_graph_yvalues[i] * 1e15;
+						}
+					}
+					else if(lowest_cap < 1e-9)
+					{
+						capmeter.graph.changeUnit("pF");
+						for(var i = 0; i < cap_graph_yvalues.length; i++)
+						{
+							cap_graph_yvalues[i] = cap_graph_yvalues[i] * 1e12;
+						}
+					}
+					else if(lowest_cap < 1e-6)
+					{
+						capmeter.graph.changeUnit("nF");
+						for(var i = 0; i < cap_graph_yvalues.length; i++)
+						{
+							cap_graph_yvalues[i] = cap_graph_yvalues[i] * 1e9;
+						}
+					}
+					else if(lowest_cap < 1e-3)
+					{
+						capmeter.graph.changeUnit("uF");
+						for(var i = 0; i < cap_graph_yvalues.length; i++)
+						{
+							cap_graph_yvalues[i] = cap_graph_yvalues[i] * 1e6;
+						}
+					}
+					else if(lowest_cap < 1)
+					{
+						capmeter.graph.changeUnit("mF");
+						for(var i = 0; i < cap_graph_yvalues.length; i++)
+						{
+							cap_graph_yvalues[i] = cap_graph_yvalues[i] * 1e3;
+						}
+					}					
+					
+					capmeter.graph.changeYValues(cap_graph_yvalues);
+				}
+				else
+				{
+					//console.log("Requesting voltage set to " + cap_graph_xvalues[cap_graph_store_index] + "mV");
+					sendRequest(CMD_SET_VBIAS, [cap_graph_xvalues[cap_graph_store_index]%256, Math.floor(cap_graph_xvalues[cap_graph_store_index]/256)]);		
+				}
+			}
+			else if(current_mode == MODE_CAP_CALIB)
 			{
 				// Store value in array
 				cap_calib_array[(cap_calib_array_ind++)%cap_calib_array.length] = capacitance;
@@ -681,8 +878,19 @@ function onDataReceived(reportId, data)
 					// Start another measurement					
 					var current = valueToElectronicString((((bytes[2] + bytes[3]*256)*1.24)/(0.2047*(1 << current_ampl)))*1e-9, "A");
 					console.log("Received ADC current measurement: " + current);
-					sendRequest(CMD_CUR_MES_MODE, [current_ampl, current_avg]);		
-					capmeter.measurement._current = current;
+					capmeter.measurement._current = current;					
+					
+					// Was vbias updated?
+					if(cur_mes_new_vbias_req != 0)
+					{						
+						sendRequest(CMD_SET_VBIAS, [cur_mes_new_vbias_req%256, Math.floor(cur_mes_new_vbias_req/256)]);	
+						console.log("Requesting voltage set to " + cur_mes_new_vbias_req + "mV");
+						cur_mes_new_vbias_req = 0;
+					}
+					else
+					{
+						sendRequest(CMD_CUR_MES_MODE, [current_ampl, current_avg]);			
+					}
 				}
 			}
 			break;
@@ -694,6 +902,7 @@ function onDataReceived(reportId, data)
 			{
 				enable_gui_buttons();
 				current_mode = MODE_IDLE;
+				capmeter.measurement._current = "nA";
 				sendRequest(CMD_DISABLE_VBIAS, null);
 				$('#measureCurrent').css('background', '#3ED1D6');
 				console.log("Current measurement mode excited!");
@@ -852,9 +1061,9 @@ function checkConnection()
 document.body.onload = function() 
 {
 	setInterval(checkConnection, 2000);
+	$('#maxVoltage').attr("value", VBIAS_MIN/1000);
 	$('#voltageCurrent').attr("value", VBIAS_MIN/1000);
 	$('#voltageCapacitance').attr("value", VBIAS_MIN/1000);
-	$('#maxVoltage').attr("value", 10);
 	getSettingsFromStorage();
 	disable_gui_buttons();
 }
