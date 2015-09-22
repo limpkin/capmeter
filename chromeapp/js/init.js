@@ -35,5 +35,14 @@ $(function(){
   }, 500);
 
   // Init graph
-  capmeter.graph.init()
+  capmeter.graph.init();
+
+  // Some random chart data
+  setInterval(function(){
+    random_data = [];
+    for (i in capmeter.graph.yValues) {
+      random_data.push(Math.random()*100);
+    }
+    capmeter.graph.changeYValues(random_data);    
+  }, 2000);  
 });

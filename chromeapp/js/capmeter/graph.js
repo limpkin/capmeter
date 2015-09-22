@@ -1,10 +1,21 @@
 if (typeof capmeter == 'undefined') capmeter = {};
 capmeter.graph = capmeter.graph || {};
 
-capmeter.graph.unit = "V";
-capmeter.graph.yLabel = "Current";
+capmeter.graph.unit = "°F";
+capmeter.graph.yLabel = "Temperature";
 capmeter.graph.value = 0.0;
-capmeter.graph.updateFrequency = 1000;
+
+capmeter.graph.xLabels = ["0V", "1V", "2V", "3V", "4V", "5V"];
+capmeter.graph.yValues = [1, 5, 2, 9, 5, 6];
+
+capmeter.graph.changeXLabels = function(newLabels) {
+  $(".graph-container").highcharts().xAxis[0].setCategories(newLabels);
+  capmeter.graph.xLabels = newLabels;
+}
+
+capmeter.graph.changeYValues = function(newValues) {
+  $(".graph-container").highcharts().series[0].setData(newValues);
+}
 
 capmeter.graph.init = function() {
   var $graph = $(".graph-container");
@@ -16,34 +27,29 @@ capmeter.graph.init = function() {
   }); 
 
   $graph.highcharts({
+            xAxis: {
+                minPadding: 0.05,
+                maxPadding: 0.05,
+                categories: capmeter.graph.xLabels
+            },
+
+            series: [{
+                data: capmeter.graph.yValues,
+                color: "#3ED1D6"
+            }],    
             chart: {
                 type: 'spline',
-                animation: Highcharts.svg,
                 marginRight: 20,
-                marignLeft: 0,
-                events: {
-                    load: function () {
-                        var series = this.series[0];
-                        setInterval(function () {
-                            var x = (new Date()).getTime(), // current time
-                                y = capmeter.graph.value;
-                            series.addPoint([x, y], true, true);
-                        }, capmeter.graph.updateFrequency);
-                    }
-                }
-            },
-            xAxis: {
-                type: 'datetime',
-                tickPixelInterval: 150,
+                marignLeft: 0
             },
             yAxis: {
                 title: {
-                    text: capmeter.graph.yLabel
+                    text: capmeter.graph.yLabel + " " + capmeter.graph.unit
                 },
                 plotLines: [{
                     value: 0,
                     width: 1,
-                    color: '#ffffff'
+                    color: '#888888'
                 }]
             },
             tooltip: {
@@ -56,23 +62,6 @@ capmeter.graph.init = function() {
             },
             exporting: {
                 enabled: false
-            },
-            series: [{
-                name: 'Current',
-                color: '#3ED1D6',
-                data: (function () {
-                    var data = [],
-                        time = (new Date()).getTime(),
-                        i;
-
-                    for (i = -19; i <= 0; i += 1) {
-                        data.push({
-                            x: time + i * 1000,
-                            y: 0
-                        });
-                    }
-                    return data;
-                }())
-            }]
+            }
         });
 }

@@ -14,7 +14,4 @@ capmeter.visualisation.capacitance = function($button) {
 capmeter.visualisation.maxVoltage = function($input) {  
   console.log("capmeter.visualisation.maxVoltage - " + $input.val());
   $input.css("background", "orange");
-
-  // Change graph value
-  capmeter.graph.value = parseFloat($input.val());
 }
