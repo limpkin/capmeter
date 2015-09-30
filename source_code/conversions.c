@@ -194,7 +194,7 @@ uint16_t get_half_val_for_res_mux_define(uint16_t define)
 {
     switch(define)
     {
-        case RES_270:       return 135;
+        case RES_470:       return 235;
         case RES_100K:      return 50000;
         case RES_1K:        return 500;
         case RES_10K:       return 5000;

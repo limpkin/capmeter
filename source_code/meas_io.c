@@ -173,9 +173,9 @@ void print_res_mux_val(void)
     // Debug print
     switch(cur_res_mux)
     {
-        case RES_270:
+        case RES_470:
         {
-            iodprintf_P(PSTR("Resistor Mux: 270R\r\n"));
+            iodprintf_P(PSTR("Resistor Mux: 470R\r\n"));
             break;
         }
         case RES_1K:

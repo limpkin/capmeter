@@ -17,8 +17,9 @@
 #include "dac.h"
 #include "adc.h"
 // Resistor mux modes in order of value
-uint8_t res_mux_modes[] = {RES_270, RES_1K, RES_10K, RES_100K};
-#define MIN_RES_INDEX 0   // to be changed to 0 on production units!
+uint8_t res_mux_modes[] = {RES_470, RES_1K, RES_10K, RES_100K};
+uint8_t digital_filter_for_res[] = {8, 8, 6, 4};
+#define DEFAULT_RES_INDEX   3
 // Error flag
 volatile uint8_t tc_error_flag = FALSE;
 // Current counter for the fall/rise
@@ -102,19 +103,20 @@ ISR(TCC1_CCA_vect)
     current_agg_rise = 0;                           // Reset agg
     nb_freq_overflows = 0;                          // Reset overflow
     
-    // Only do the following operation if we weren't ask to discard next measure
+    // Only do the following operation if we weren't asked to discard next measure
     if (discard_next_mes_cnt == 0)
     {
         // If we got an error flag, the oscillations are too slow and the measurement isn't valid (pulse width at around 1k)
         if (tc_error_flag == TRUE)
         {
-            if (cur_resistor_index > MIN_RES_INDEX)
+            if (cur_resistor_index > 0)
             {
                 // Set smaller resistor, discard next measurement
-                enable_res_mux(res_mux_modes[--cur_resistor_index], TRUE);
+                adjust_digital_filter(digital_filter_for_res[--cur_resistor_index]);
+                enable_res_mux(res_mux_modes[cur_resistor_index], TRUE);
                 discard_next_mes_cnt = 1;
             }
-            else if (cur_counter_divider < TC_CLKSEL_DIV1024_gc)
+            else if (cur_counter_divider < TC_CLKSEL_DIV256_gc)
             {
                 // Increase counter divider
                 discard_next_mes_cnt = 1;
@@ -132,6 +134,7 @@ ISR(TCC1_CCA_vect)
                     discard_next_mes_cnt = 1;
                     measdprintf("Count div: %d\r\n", cur_counter_divider);
                     enable_res_mux(res_mux_modes[cur_resistor_index], TRUE);
+                    adjust_digital_filter(digital_filter_for_res[cur_resistor_index]);
                 }                
             }
             tc_error_flag = FALSE;
@@ -187,6 +190,15 @@ void discard_next_cap_measurements(uint8_t nb_samples)
 }
 
 /*
+ * Adjust the digital filter on the input signal
+ * @param   nb_samples  Number of consecutive samples
+ */
+void adjust_digital_filter(uint8_t nb_samples)
+{
+    EVSYS.CH0CTRL = nb_samples - 1;
+}
+
+/*
  * Capacitance measurement logic - change resistor, freq measurement...
  */
 void cap_measurement_logic(void)
@@ -210,18 +222,20 @@ void cap_measurement_logic(void)
                 else if(cur_resistor_index < sizeof(res_mux_modes)-1)
                 {
                     // Decrease resistor value
-                    enable_res_mux(res_mux_modes[++cur_resistor_index], TRUE);
+                    adjust_digital_filter(digital_filter_for_res[++cur_resistor_index]);
+                    enable_res_mux(res_mux_modes[cur_resistor_index], TRUE);
                     discard_next_mes_cnt = 1;
                 }      
                 nb_conseq_freq_pb = 0;
             }
         }
-        else if ((last_agg_fall > (last_counter_fall<<11)) && (cur_resistor_index > MIN_RES_INDEX))
+        else if ((last_agg_fall > (last_counter_fall<<11)) && (cur_resistor_index > 0))
         {
             // Check that we're not oscillating too slow (average counter value more than 128*16=2048)
             if (nb_conseq_freq_pb++ > NB_CONSEQ_FREQ_PB_CHG_RES)
             {
-                enable_res_mux(res_mux_modes[--cur_resistor_index], TRUE);
+                adjust_digital_filter(digital_filter_for_res[--cur_resistor_index]);
+                enable_res_mux(res_mux_modes[cur_resistor_index], TRUE);
                 nb_conseq_freq_pb = 0;
             }
         }
@@ -266,9 +280,9 @@ void set_capacitance_report_frequency(uint8_t bit_shift)
  */
 void set_capacitance_measurement_mode(void)
 {    
-    discard_next_mes_cnt = 1;
-    cur_counter_divider = TC_CLKSEL_DIV1_gc;
-    cur_resistor_index = sizeof(res_mux_modes)-1;
+    discard_next_mes_cnt = 2;                                       // Discard next measures by default
+    cur_resistor_index = DEFAULT_RES_INDEX;                         // Last resistor by default
+    cur_counter_divider = TC_CLKSEL_DIV1_gc;                        // Counter divider 1
     // RTC: set period depending on measurement freq
     RTC.PER = cur_freq_meas;                                        // Set correct RTC timer freq
     RTC.CTRL = RTC_PRESCALER_DIV1_gc;                               // Keep the 32kHz base clock for the RTC
@@ -331,6 +345,7 @@ void set_capacitance_measurement_mode(void)
     }
     
     // Start oscillations
+    adjust_digital_filter(digital_filter_for_res[DEFAULT_RES_INDEX]);
     set_measurement_mode_io(res_mux_modes[cur_resistor_index]);
 }
 

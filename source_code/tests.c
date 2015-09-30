@@ -393,7 +393,7 @@ void functional_test(void)
     uint16_t cur_measure_rest = cur_measurement_loop(13);
     enable_res_mux(RES_1K, TRUE); _delay_us(20);
     cur_measure_rest += cur_measurement_loop(13);
-    enable_res_mux(RES_270, TRUE); _delay_us(20);
+    enable_res_mux(RES_470, TRUE); _delay_us(20);
     cur_measure_rest += cur_measurement_loop(13);
     if ((check_value_range(cur_measure_100k, 540, 600) == FALSE) || (cur_measure_rest < 6100))
     {

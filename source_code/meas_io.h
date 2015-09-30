@@ -23,7 +23,7 @@
 #endif
 
 // enums
-enum res_mux_t     {RES_270 = 0, RES_100K = 1, RES_1K = 2, RES_10K = 3};
+enum res_mux_t     {RES_470 = 0, RES_100K = 1, RES_1K = 2, RES_10K = 3};
     
 // prototypes
 void init_ios(void);

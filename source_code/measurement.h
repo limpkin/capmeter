@@ -49,6 +49,7 @@ void discard_next_cap_measurements(uint8_t nb_samples);
 uint16_t cur_measurement_loop(uint8_t avg_bitshift);
 void set_current_measurement_mode(uint8_t ampl);
 void disable_capacitance_measurement_mode(void);
+void adjust_digital_filter(uint8_t nb_samples);
 void resume_capacitance_measurement_mode(void);
 void pause_capacitance_measurement_mode(void);
 void disable_current_measurement_mode(void);

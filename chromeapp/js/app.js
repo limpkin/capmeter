@@ -250,7 +250,7 @@ function valueToElectronicString(value, unit)
 	}
 	else
 	{
-		return value.toFixed(1);
+		return value.toFixed(1) + unit;
 	}
 }
 
