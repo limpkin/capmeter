@@ -47,6 +47,7 @@ volatile uint8_t discard_next_mes_cnt;
 // Consecutive tc_error_flags seen on smaller R
 volatile uint8_t consec_tc_error_flags;
 // Current measurement frequency
+uint8_t cur_freq_meas_bit_shift = 1;
 uint16_t cur_freq_meas = FREQ_2HZ;
 // New measurement value
 volatile uint8_t new_val_flag;
@@ -108,21 +109,24 @@ ISR(TCC1_CCA_vect)
     {
         // If we got an error flag, the oscillations are too slow and the measurement isn't valid (pulse width at around 1k)
         if (tc_error_flag == TRUE)
-        {
-            if (cur_resistor_index > 0)
-            {
-                // Set smaller resistor, discard next measurement
-                adjust_digital_filter(digital_filter_for_res[--cur_resistor_index]);
-                enable_res_mux(res_mux_modes[cur_resistor_index], TRUE);
-                discard_next_mes_cnt = 1;
-            }
-            else if (cur_counter_divider < TC_CLKSEL_DIV256_gc)
+        {            
+            if (cur_counter_divider < TC_CLKSEL_DIV64_gc)
             {
                 // Increase counter divider
                 discard_next_mes_cnt = 1;
                 TCC0.CTRLA = ++cur_counter_divider;
-                measdprintf("Count div: %d\r\n", cur_counter_divider);
-            }            
+                measdprintf("Count div: %d\r\n", get_val_for_counter_divider(cur_counter_divider));
+            }   
+            else if(cur_resistor_index > 0)
+            {
+                // Decrease resistor value, reset counter divider
+                adjust_digital_filter(digital_filter_for_res[--cur_resistor_index]);
+                enable_res_mux(res_mux_modes[cur_resistor_index], TRUE);
+                cur_counter_divider = TC_CLKSEL_DIV1_gc;
+                TCC0.CTRLA = cur_counter_divider;
+                discard_next_mes_cnt = 1;
+                measdprintf("Count div: %d\r\n", get_val_for_counter_divider(cur_counter_divider));
+            }         
             else
             {
                 if (consec_tc_error_flags++ > NB_CONSEQ_TC_ERR_FLAG_CHG_RES)
@@ -132,7 +136,7 @@ ISR(TCC1_CCA_vect)
                     TCC0.CTRLA = cur_counter_divider;
                     cur_resistor_index += 2;
                     discard_next_mes_cnt = 1;
-                    measdprintf("Count div: %d\r\n", cur_counter_divider);
+                    measdprintf("Count div: %d\r\n", get_val_for_counter_divider(cur_counter_divider));
                     enable_res_mux(res_mux_modes[cur_resistor_index], TRUE);
                     adjust_digital_filter(digital_filter_for_res[cur_resistor_index]);
                 }                
@@ -202,40 +206,61 @@ void adjust_digital_filter(uint8_t nb_samples)
  * Capacitance measurement logic - change resistor, freq measurement...
  */
 void cap_measurement_logic(void)
-{   
+{       
     // If a change wasn't made before coming here
     if (discard_next_mes_cnt == 0)
     {
-        if (last_agg_fall < (last_counter_fall<<7))
+        // Freq divider if we were to increase our resistor value
+        uint8_t hypothetical_new_freq_div;
+        if (res_mux_modes[cur_resistor_index] == RES_470)
         {
-            // Check that we're not oscillating too fast (average counter value less than 128 to keep a 1% precision >> 32M/128(counter)/5(ratio pulse width/period) = 50kHz)
+            hypothetical_new_freq_div = 2;     // Close enough
+        } 
+        else
+        {
+            hypothetical_new_freq_div = 10;
+        }
+        
+        if ((cur_freq_counter_val << cur_freq_meas_bit_shift) > MIN_OSC_FREQUENCY*hypothetical_new_freq_div*2)
+        {
+            // Check if we can increase the resistor while still getting an oscillation frequency high enough, 2 is a margin factor       
             if (nb_conseq_freq_pb++ > NB_CONSEQ_FREQ_PB_CHG_RES)
             {
-                // Check counter divider
-                if (cur_counter_divider != TC_CLKSEL_DIV1_gc)
-                {
-                    // Decrease counter divider
-                    TCC0.CTRLA = --cur_counter_divider;
-                    measdprintf("Count div: %d\r\n", cur_counter_divider);
-                    discard_next_mes_cnt = 1;
-                } 
-                else if(cur_resistor_index < sizeof(res_mux_modes)-1)
+                if(cur_resistor_index < sizeof(res_mux_modes)-1)
                 {
                     // Decrease resistor value
                     adjust_digital_filter(digital_filter_for_res[++cur_resistor_index]);
                     enable_res_mux(res_mux_modes[cur_resistor_index], TRUE);
+                    cur_counter_divider = TC_CLKSEL_DIV1_gc;
+                    TCC0.CTRLA = cur_counter_divider;
                     discard_next_mes_cnt = 1;
+                    measdprintf("Count div: %d\r\n", get_val_for_counter_divider(cur_counter_divider));
                 }      
                 nb_conseq_freq_pb = 0;
             }
         }
-        else if ((last_agg_fall > (last_counter_fall<<11)) && (cur_resistor_index > 0))
+        else if ((last_agg_fall < (last_counter_fall<<7)) && (cur_counter_divider > TC_CLKSEL_DIV1_gc))
         {
-            // Check that we're not oscillating too slow (average counter value more than 128*16=2048)
+            // If our counter value is too low (less than 128), decrease counter divider
+            TCC0.CTRLA = --cur_counter_divider;
+            discard_next_mes_cnt = 1;
+            measdprintf("Count div: %d\r\n", get_val_for_counter_divider(cur_counter_divider));
+        }        
+        else if ((cur_freq_counter_val << cur_freq_meas_bit_shift) < MIN_OSC_FREQUENCY)
+        {
+            // Check that we're not oscillating too slow
             if (nb_conseq_freq_pb++ > NB_CONSEQ_FREQ_PB_CHG_RES)
             {
-                adjust_digital_filter(digital_filter_for_res[--cur_resistor_index]);
-                enable_res_mux(res_mux_modes[cur_resistor_index], TRUE);
+                if(cur_resistor_index > 0)
+                {
+                    // Decrease resistor value, reset counter divider
+                    adjust_digital_filter(digital_filter_for_res[--cur_resistor_index]);
+                    enable_res_mux(res_mux_modes[cur_resistor_index], TRUE);
+                    cur_counter_divider = TC_CLKSEL_DIV1_gc;
+                    TCC0.CTRLA = cur_counter_divider;
+                    discard_next_mes_cnt = 1;
+                    measdprintf("Count div: %d\r\n", get_val_for_counter_divider(cur_counter_divider));
+                }
                 nb_conseq_freq_pb = 0;
             }
         }
@@ -273,6 +298,7 @@ void disable_current_measurement_mode(void)
 void set_capacitance_report_frequency(uint8_t bit_shift)
 {
     cur_freq_meas = (32768 >> bit_shift) - 1;
+    cur_freq_meas_bit_shift = bit_shift;
 }
 
 /*
