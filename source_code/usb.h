@@ -64,6 +64,7 @@ typedef union USB_EP_pair
 #define CMD_CAP_MES_START       0x0B
 #define CMD_CAP_MES_REPORT      0x0C
 #define CMD_CAP_MES_EXIT        0x0D
+#define CMD_SET_VBIAS_DAC       0x0E
 
 #define CMD_BOOTLOADER_START    0xFF
 

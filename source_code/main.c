@@ -221,16 +221,17 @@ int main(void)
                     // Enable and set vbias... can also be called to update it
                     uint16_t* temp_vbias = (uint16_t*)usb_packet.payload;
                     uint16_t set_vbias = enable_bias_voltage(*temp_vbias);
-                    usb_packet.length = 2;
+                    uint16_t cur_dacv = get_current_vbias_dac_value();
+                    usb_packet.length = 4;
                     memcpy((void*)usb_packet.payload, (void*)&set_vbias, sizeof(set_vbias));
+                    memcpy((void*)&usb_packet.payload[2], (void*)&cur_dacv, sizeof(cur_dacv));
                     usb_send_data((uint8_t*)&usb_packet);
                     
                     // If we are measuring anything, resume measurements
                     if (current_fw_mode == MODE_CAP_MES)
                     {
                         resume_capacitance_measurement_mode();
-                    }
-                    
+                    }                    
                     break;
                 }
                 case CMD_DISABLE_VBIAS:
@@ -333,6 +334,25 @@ int main(void)
                     }
                     usb_packet.length = 1;
                     usb_send_data((uint8_t*)&usb_packet);
+                    break;
+                }
+                case CMD_SET_VBIAS_DAC:
+                {
+                    uint16_t* requested_dac_val = (uint16_t*)usb_packet.payload;
+                    uint16_t* requested_wait = (uint16_t*)&usb_packet.payload[2];
+                    
+                    usb_packet.length = 2;
+                    if (is_ldo_enabled() == TRUE)
+                    {
+                        uint16_t set_vbias = force_vbias_dac_change(*requested_dac_val, *requested_wait);
+                        memcpy((void*)usb_packet.payload, (void*)&set_vbias, sizeof(set_vbias));
+                    } 
+                    else
+                    {
+                        usb_packet.payload[0] = 0;
+                        usb_packet.payload[1] = 0;
+                    }        
+                    usb_send_data((uint8_t*)&usb_packet);            
                     break;
                 }
                 default: break;

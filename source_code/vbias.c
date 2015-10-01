@@ -32,6 +32,15 @@ uint16_t get_last_measured_vbias(void)
 }
 
 /*
+ * Get the current vbias dac value
+ * @return  The dac value
+ */
+uint16_t get_current_vbias_dac_value(void)
+{
+    return cur_vbias_dac_val;
+}
+
+/*
  * Wait for 0v4 bias
  */
 void wait_for_0v4_bias(void)
@@ -234,4 +243,50 @@ uint16_t update_bias_voltage(uint16_t val_mv)
     last_measured_vbias = measured_vbias + VBIAS_OVERSHOOT_MV;                           
     vbiasdprintf("Vbias set, actual value: %umV\r\n", measured_vbias + VBIAS_OVERSHOOT_MV);
     return measured_vbias + VBIAS_OVERSHOOT_MV;
+}
+
+/*
+ * Change Vbias dac value
+ * @param   dac_value   DAC value to set
+ * @param   wait_ms     How many ms to wait before measuring vbias
+ * @return  Actual bias voltage in mV
+ * @note    Due to the vbias capacitance, it is much better to ramp up. Don't forget about the overshoot as well.
+ */
+uint16_t force_vbias_dac_change(uint16_t dac_value, uint16_t wait_ms)
+{
+    vbiasdprintf("Vbias forced dac change for %u\r\n", dac_value);
+    
+    // Check that the ADC channel remained the same
+    if (get_configured_adc_channel() != ADC_CHANNEL_VBIAS)
+    {
+        configure_adc_channel(ADC_CHANNEL_VBIAS, 0, FALSE);
+    }
+    
+    // Check if we need to enable/disable the stepup
+    if (dac_value < STEPUP_ACTIV_DAC_V && is_stepup_enabled() == FALSE)
+    {
+        enable_stepup();                                    // Enable stepup
+        _delay_ms(10);                                      // Step up start takes around 1.5ms (oscilloscope)
+    }
+    else if (dac_value > STEPUP_ACTIV_DAC_V && is_stepup_enabled() == TRUE)
+    {
+        disable_stepup();
+        _delay_ms(1);
+    }
+    
+    // Update vbias dac
+    update_vbias_dac(dac_value);
+    
+    // Wait for the given amount of ms
+    for (uint16_t i = 0; i < wait_ms; i++)
+    {
+        _delay_ms(1);
+    }
+    
+    // Store vbias and dac value, return vbias
+    last_measured_vbias = compute_vbias_for_adc_value(get_averaged_adc_value(BIT_AVG_FINE));
+    cur_set_vbias_voltage = last_measured_vbias;
+    cur_vbias_dac_val = dac_value;
+    
+    return last_measured_vbias;    
 }

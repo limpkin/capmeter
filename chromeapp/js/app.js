@@ -14,6 +14,7 @@ var CMD_CAP_REPORT_FREQ		= 0x0A;
 var CMD_CAP_MES_START  		= 0x0B;
 var CMD_CAP_MES_REPORT 		= 0x0C;
 var CMD_CAP_MES_EXIT   		= 0x0D;
+var CMD_SET_VBIAS_DAC		= 0x0E;
 
 // Current mode
 var MODE_IDLE			= 0
@@ -28,13 +29,17 @@ var MODE_CAP_CARAC		= 8
 var MODE_CAP_CARAC_REQ	= 9
 var MODE_CUR_CARAC		= 10
 var MODE_CUR_CARAC_REQ	= 11
+var MODE_CUR_CALIB_REQ	= 12
+var MODE_CUR_CALIB		= 13
 
 // Platforms mins/maxs
-var V_OSCILLATION		= 850
-var VBIAS_MIN			= 1300
-var VBIAS_MAX			= 15000
-var NB_GRAPH_POINTS_CAP	= 20
-var NB_GRAPH_POINTS_CUR	= 20
+var V_OSCILLATION			= 850
+var VBIAS_MIN				= 1300
+var VBIAS_MAX				= 15000
+var VBIAS_CUR_CALIB_ST		= 2000
+var NB_GRAPH_POINTS_CAP		= 20
+var NB_GRAPH_POINTS_CUR		= 20
+var NB_MS_WAIT_VBIAS_MES	= 100
 
 var device_info = { "vendorId": 0x1209, "productId": 0xdddd };      			// capmeter
 var version       = 'unknown'; 													// connected capmeter version
@@ -44,6 +49,7 @@ var connection    = null;   													// connection to the capmeter
 var connectMsg = null;  														// saved message to send after connecting
 var current_ampl = 0;															// current measurement amplification
 var current_avg = 14;															// current measurement averaging
+var current_calib_avg = 14;														// current measurement averaging during calibration
 var ping_enabled = true;														// know if we send ping requests
 var platform_max_vbias = 10000;													// max vbias the platform can generate
 var cap_calib_array_ind = 0;													// Index inside the calibration array to store the value
@@ -72,6 +78,11 @@ var waitingForAnswer = false;													// boolean indicating if we are waitin
 var vbias_mes_capacitance_changed = false;										// boolean indicating that vbias was changed while in mes capacitance mode
 var vbias_mes_current_changed = false;											// boolean indicating that vbias was changed while in mes current mode
 var cur_mes_new_vbias_req = 0;													// contains the new bias voltage requested
+var cur_calib_dacv = 0;															// DAC value for the current calibration vbias start
+var cur_calib_vbias = 0;														// Set voltage value for current calibration start
+var cur_calib_res = 0;															// Current resistor value for current calibration
+var cur_adc_calib_array;														// Our calibration data
+var cur_calib_csv_export;														// CSV export for calib data
 var debug = false;
 
 
@@ -311,6 +322,33 @@ function start_capacitance_calibration()
 		sendRequest(CMD_SET_VBIAS, [VBIAS_MIN%256, Math.floor(VBIAS_MIN/256)]);
 		console.log("Starting Capacitance Calibration...");
 		console.log("Please hold 1pF capacitor between leads...");
+	}
+}
+
+function file_written_callback()
+{
+	console.log("File written");
+}
+
+/**
+ * Start current calibration
+ */
+function start_current_calibration()
+{	
+	if(current_mode == MODE_IDLE)
+	{
+		disable_gui_buttons();
+		cur_calib_res = 8250000;
+		current_mode = MODE_CUR_CALIB_REQ;
+		cur_adc_calib_array = new Array(2048);
+		console.log("Starting Current Calibration...");
+		sendRequest(CMD_SET_VBIAS, [VBIAS_CUR_CALIB_ST%256, Math.floor(VBIAS_CUR_CALIB_ST/256)]);
+		cur_calib_csv_export = "Vbias DAC" + "," + "Vbias" + "," + "ADC val" + "," + "LSB difference" + "\r\n";
+	}	
+	else if(current_mode == MODE_CUR_CALIB)
+	{		
+		disable_gui_buttons();
+		sendRequest(CMD_CUR_MES_MODE_EXIT, null);
 	}
 }
 
@@ -623,7 +661,7 @@ function onDataReceived(reportId, data)
 		{
 			platform_max_vbias = bytes[30] + bytes[31]*256;
 			$('#maxVoltage').val(((platform_max_vbias)/1000).toFixed(2));
-			capmeter.visualisation._maxVoltage = ((platform_max_vbias - V_OSCILLATION)/1000).toFixed(2);
+			capmeter.visualisation._maxVoltage = ((platform_max_vbias)/1000).toFixed(2);
 			
 			console.log("Calibration Data Dated From " + bytes[34] + "/" + bytes[33] + "/" + bytes[32])
 			console.log("Max Voltage: " + (bytes[30] + bytes[31]*256) + "mV")
@@ -666,7 +704,7 @@ function onDataReceived(reportId, data)
 		
 		case CMD_SET_VBIAS:
 		{
-			console.log("Voltage set to " + (bytes[2] + bytes[3]*256) + "mV")
+			console.log("Voltage set to " + (bytes[2] + bytes[3]*256) + "mV, DAC value is " + (bytes[4] + bytes[5]*256))
 			// Here are the following actions depending on the mode we want
 			if(current_mode == MODE_CUR_MES_REQ)
 			{
@@ -687,6 +725,13 @@ function onDataReceived(reportId, data)
 			{
 				// Next step: start current measurement mode
 				sendRequest(CMD_CUR_MES_MODE, [current_ampl, current_avg]);
+			}
+			else if(current_mode == MODE_CUR_CALIB_REQ)
+			{
+				// Next step: start current measurement mode
+				cur_calib_vbias = (bytes[2] + bytes[3]*256);
+				cur_calib_dacv = (bytes[4] + bytes[5]*256);
+				sendRequest(CMD_CUR_MES_MODE, [current_ampl, current_calib_avg]);
 			}
 			else if(current_mode == MODE_CAP_CALIB_REQ)
 			{
@@ -982,7 +1027,7 @@ function onDataReceived(reportId, data)
 			if(len == 1)
 			{
 				// Fail when requesting measure!!!
-				if((current_mode == MODE_CUR_MES_REQ) || (current_mode == MODE_CUR_CARAC_REQ))
+				if((current_mode == MODE_CUR_MES_REQ) || (current_mode == MODE_CUR_CARAC_REQ) || (current_mode == MODE_CUR_CALIB_REQ))
 				{
 					// Go back to idle mode
 					current_mode = MODE_IDLE;
@@ -1004,6 +1049,11 @@ function onDataReceived(reportId, data)
 					$("#current").removeAttr("disabled");
 					$('#current').css('background', 'orange');					
 				}
+				else if(current_mode == MODE_CUR_CALIB_REQ)
+				{
+					current_mode = MODE_CUR_CALIB;		
+					$("#calibrateCurrentY").removeAttr("disabled");					
+				}
 				
 				if(current_mode == MODE_CUR_MES)
 				{
@@ -1022,6 +1072,30 @@ function onDataReceived(reportId, data)
 					else
 					{
 						sendRequest(CMD_CUR_MES_MODE, [current_ampl, current_avg]);			
+					}
+				}
+				else if(current_mode == MODE_CUR_CALIB)
+				{
+					var adc_value = (bytes[2] + bytes[3]*256);
+					var ideal_current_na = (cur_calib_vbias / cur_calib_res) * 1e6;
+					var ideal_adc_value = Math.round(ideal_current_na * 0.2047 / 1.24);
+					var current = valueToElectronicString((((bytes[2] + bytes[3]*256)*1.24)/(0.2047*(1 << current_ampl)))*1e-9, "A");
+					console.log("DAC: " + cur_calib_dacv + ", Vbias: " + cur_calib_vbias + "mV, ADC: " + adc_value + " (should be " + ideal_adc_value + "), current: " + current + " (should be " + ideal_current_na.toFixed(1) + ")");
+					cur_calib_csv_export += cur_calib_dacv + "," + cur_calib_vbias + "," + adc_value + "," + (ideal_adc_value-adc_value) + "\r\n";
+					//console.log("Received ADC current measurement: " + adc_value);
+					
+					// Check if it was the last measurement to perform
+					if(cur_calib_dacv == 0)
+					{
+						// Leave current measurement mode
+						sendRequest(CMD_CUR_MES_MODE_EXIT, null);		
+						$('#calibrateCurrentY').css('background', 'orange');							
+					}	
+					else
+					{
+						// If not, decrease vbias dac value
+						cur_calib_dacv--;
+						sendRequest(CMD_SET_VBIAS_DAC, [cur_calib_dacv%256, Math.floor(cur_calib_dacv/256), NB_MS_WAIT_VBIAS_MES%256, Math.floor(NB_MS_WAIT_VBIAS_MES/256)]);						
 					}
 				}
 				else if(current_mode == MODE_CUR_CARAC)
@@ -1051,7 +1125,7 @@ function onDataReceived(reportId, data)
 							// Check if we finished running through the vbias points
 							if(cur_graph_store_index == cur_graph_xvalues.length)
 							{
-								// Leave capacitance measurement mode
+								// Leave current measurement mode
 								sendRequest(CMD_CUR_MES_MODE_EXIT, null);
 								
 								// Update our graph, find lowest value
@@ -1127,15 +1201,34 @@ function onDataReceived(reportId, data)
 		
 		case CMD_CUR_MES_MODE_EXIT:
 		{
-			if(bytes[2] != 0 && ((current_mode == MODE_CUR_MES) || (current_mode == MODE_CUR_CARAC)))
-			{
+			if(bytes[2] != 0 && ((current_mode == MODE_CUR_MES) || (current_mode == MODE_CUR_CARAC) || (current_mode == MODE_CUR_CALIB)))
+			{				
+				// If we were calibrating current, export data
+				if(current_mode == MODE_CUR_CALIB)
+				{
+					capmeter.filehandler.selectAndSaveFileContents("export.txt", new Blob([cur_calib_csv_export], {type: 'text/plain'}), file_written_callback);
+				}	
+				
 				enable_gui_buttons();
 				current_mode = MODE_IDLE;
 				capmeter.measurement._current = "nA";
 				sendRequest(CMD_DISABLE_VBIAS, null);
 				$('#current').css('background', '#3ED1D6');
 				$('#measureCurrent').css('background', '#3ED1D6');
-				console.log("Current measurement mode excited!");
+				$('#calibrateCurrentY').css('background', '#3ED1D6');
+				console.log("Current measurement mode excited!");			
+			}
+			break;
+		}
+		
+		case CMD_SET_VBIAS_DAC:
+		{
+			if(current_mode == MODE_CUR_CALIB)
+			{
+				// Store set vbias and measure current
+				cur_calib_vbias = (bytes[2] + bytes[3]*256);
+				//console.log("Vbias set for DAC val of " + cur_calib_dacv + ": " + cur_calib_vbias + "mV");
+				sendRequest(CMD_CUR_MES_MODE, [current_ampl, current_calib_avg]);
 			}
 			break;
 		}

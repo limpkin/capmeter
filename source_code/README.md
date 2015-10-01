@@ -52,7 +52,7 @@ From Capmeter: The calibration data (see oe_calib_data_t)
 -------------------------
 From Plugin/app: Enable bias voltage, first 2 bytes are the voltage to be set
 
-From Capmeter: The voltage actually set in mV
+From Capmeter: The voltage actually set in mV in the first 2 bytes, the vbias dac value in the next 2
 
 0x07: Disable bias voltage
 --------------------------
@@ -95,5 +95,11 @@ From Capmeter: see capacitance_report_t
 From Plugin/app: Stop capacitance measurement mode
 
 From Capmeter: 0 on error, 1 on success
+
+0x0E: Set Vbias DAC Value
+-------------------------
+From Plugin/app: First 2 bytes is the DAC value (will only work if vbias is enabled), next two is the number of ms to wait before measuring vbias
+
+From Capmeter: The current vbias voltage in mV
 
 

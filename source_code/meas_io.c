@@ -11,7 +11,9 @@
 // current res mux
 uint8_t cur_res_mux;
 // ldo enabled bool
-uint8_t ldo_enabled_bool;
+uint8_t ldo_enabled_bool = FALSE;
+// stepup enabled bool
+uint8_t stepup_enabled_bool = FALSE;
 
 
 /*
@@ -112,6 +114,7 @@ void disable_feedback_mos(void)
 void enable_stepup(void)
 {
     PORTC_OUTSET = PIN5_bm;
+    stepup_enabled_bool = TRUE;
     iodprintf_P(PSTR("Stepup On\r\n"));
 }
 
@@ -121,7 +124,17 @@ void enable_stepup(void)
 void disable_stepup(void)
 {
     PORTC_OUTCLR = PIN5_bm;
+    stepup_enabled_bool = FALSE;
     iodprintf_P(PSTR("Stepup Off\r\n"));
+}
+
+/*
+ * Know if stepup is enabled or not
+ * @return  The bool
+ */
+uint8_t is_stepup_enabled(void)
+{
+    return stepup_enabled_bool;
 }
 
 /*
