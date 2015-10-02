@@ -80,9 +80,7 @@ var vbias_mes_current_changed = false;											// boolean indicating that vbia
 var cur_mes_new_vbias_req = 0;													// contains the new bias voltage requested
 var cur_calib_dacv = 0;															// DAC value for the current calibration vbias start
 var cur_calib_vbias = 0;														// Set voltage value for current calibration start
-var cur_calib_res = 0;															// Current resistor value for current calibration
-var cur_adc_calib_array;														// Our calibration data
-var cur_calib_csv_export;														// CSV export for calib data
+var max_cur_adc_val_1x = 2047;													// Max adc val for current measurement mode
 var debug = false;
 
 
@@ -325,11 +323,6 @@ function start_capacitance_calibration()
 	}
 }
 
-function file_written_callback()
-{
-	console.log("File written");
-}
-
 /**
  * Start current calibration
  */
@@ -338,12 +331,10 @@ function start_current_calibration()
 	if(current_mode == MODE_IDLE)
 	{
 		disable_gui_buttons();
-		cur_calib_res = 8250000;
 		current_mode = MODE_CUR_CALIB_REQ;
-		cur_adc_calib_array = new Array(2048);
+		capmeter.currentcalib.startCalib(1204600, 0);
 		console.log("Starting Current Calibration...");
 		sendRequest(CMD_SET_VBIAS, [VBIAS_CUR_CALIB_ST%256, Math.floor(VBIAS_CUR_CALIB_ST/256)]);
-		cur_calib_csv_export = "Vbias DAC" + "," + "Vbias" + "," + "ADC val" + "," + "LSB difference" + "\r\n";
 	}	
 	else if(current_mode == MODE_CUR_CALIB)
 	{		
@@ -659,9 +650,13 @@ function onDataReceived(reportId, data)
 		}
 		case CMD_GET_OE_CALIB:
 		{
+			// Update max voltage
 			platform_max_vbias = bytes[30] + bytes[31]*256;
 			$('#maxVoltage').val(((platform_max_vbias)/1000).toFixed(2));
 			capmeter.visualisation._maxVoltage = ((platform_max_vbias)/1000).toFixed(2);
+			
+			// Update max adc vals
+			max_cur_adc_val_1x = 2047 - (bytes[2] + bytes[3]*256);
 			
 			console.log("Calibration Data Dated From " + bytes[34] + "/" + bytes[33] + "/" + bytes[32])
 			console.log("Max Voltage: " + (bytes[30] + bytes[31]*256) + "mV")
@@ -1076,16 +1071,10 @@ function onDataReceived(reportId, data)
 				}
 				else if(current_mode == MODE_CUR_CALIB)
 				{
-					var adc_value = (bytes[2] + bytes[3]*256);
-					var ideal_current_na = (cur_calib_vbias / cur_calib_res) * 1e6;
-					var ideal_adc_value = Math.round(ideal_current_na * 0.2047 / 1.24);
-					var current = valueToElectronicString((((bytes[2] + bytes[3]*256)*1.24)/(0.2047*(1 << current_ampl)))*1e-9, "A");
-					console.log("DAC: " + cur_calib_dacv + ", Vbias: " + cur_calib_vbias + "mV, ADC: " + adc_value + " (should be " + ideal_adc_value + "), current: " + current + " (should be " + ideal_current_na.toFixed(1) + ")");
-					cur_calib_csv_export += cur_calib_dacv + "," + cur_calib_vbias + "," + adc_value + "," + (ideal_adc_value-adc_value) + "\r\n";
-					//console.log("Received ADC current measurement: " + adc_value);
+					capmeter.currentcalib.addMeasurement(cur_calib_dacv, cur_calib_vbias, (bytes[2] + bytes[3]*256));
 					
-					// Check if it was the last measurement to perform
-					if(cur_calib_dacv == 0)
+					// Check if it was the last measurement to perform or if the adc is saturated
+					if(cur_calib_dacv == 0 || max_cur_adc_val_1x == (bytes[2] + bytes[3]*256))
 					{
 						// Leave current measurement mode
 						sendRequest(CMD_CUR_MES_MODE_EXIT, null);		
@@ -1206,7 +1195,7 @@ function onDataReceived(reportId, data)
 				// If we were calibrating current, export data
 				if(current_mode == MODE_CUR_CALIB)
 				{
-					capmeter.filehandler.selectAndSaveFileContents("export.txt", new Blob([cur_calib_csv_export], {type: 'text/plain'}), file_written_callback);
+					capmeter.currentcalib.stopCalib();					
 				}	
 				
 				enable_gui_buttons();
