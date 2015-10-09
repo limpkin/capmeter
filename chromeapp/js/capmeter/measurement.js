@@ -36,6 +36,10 @@ capmeter.measurement.voltageCapacitance = function($input)
   //$input.css("background", "orange");
 }
 
+capmeter.measurement.resistance = function($input) {
+    console.log($input.val());
+}
+
 capmeter.measurement.get_current = function($display) {
   $display.html(capmeter.measurement._current);
 }

@@ -1,5 +1,6 @@
 body {
   background: $dark-color;
+  min-height: 600px;
 }
 
 div.value {
@@ -19,9 +20,15 @@ div.value {
   font-size: 0.8rem;
   color: #FFF;
   padding: 0.3rem;
-  margin: 0px 0px 16px;
+  margin: 0;
   background: #000; 
-  border: none;   
+  border: none; 
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;    
 }
 
 .height-37 {
@@ -35,4 +42,21 @@ div.value {
     height: 37px;
     padding: 0.35rem 0.75rem;  
   }
+}
+
+.align-bottom {
+  bottom: 0;
+  position: absolute;  
+}
+
+.bottom-margin-columns > .column {
+  margin-bottom: 1.25rem;
+
+  input {
+    margin-bottom: 0 !important;
+  }
+}
+
+.max-width-40rem {
+  max-width: 40rem !important;
 }

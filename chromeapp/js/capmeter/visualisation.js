@@ -14,3 +14,7 @@ capmeter.visualisation.capacitance = function($button) {
 capmeter.visualisation.maxVoltage = function($input) {  
   capmeter.visualisation._maxVoltage = $input.val();
 }
+
+capmeter.visualisation.dataPoints = function($input) {
+    console.log($input.val());
+}

@@ -274,26 +274,13 @@ function init_gui_state()
 
 function disable_gui_buttons()
 {
-	$("#calibrateCurrentX").attr("disabled", 1);
-	$("#calibrateCurrentY").attr("disabled", 1);
-	$("#calibrateCapacitance").attr("disabled", 1);
-	$("#calibratePlatform").attr("disabled", 1);
-	$("#measureCurrent").attr("disabled", 1);
-	$("#measureCapacitance").attr("disabled", 1);
-	$("#capacitance").attr("disabled", 1);
-	$("#current").attr("disabled", 1);
+	if (capmeter.settings.debug) return;
+	$("button, .button").attr("disabled", 1);
 }
 
 function enable_gui_buttons()
 {
-	$("#calibrateCurrentX").removeAttr("disabled");
-	$("#calibrateCurrentY").removeAttr("disabled");
-	$("#calibrateCapacitance").removeAttr("disabled");
-	$("#calibratePlatform").removeAttr("disabled");
-	$("#measureCurrent").removeAttr("disabled");
-	$("#measureCapacitance").removeAttr("disabled");
-	$("#capacitance").removeAttr("disabled");
-	$("#current").removeAttr("disabled");
+	$("button, .button").removeAttr("disabled");
 }
 
 function start_open_ended_calibration()

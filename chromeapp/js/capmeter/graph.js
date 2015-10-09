@@ -75,7 +75,12 @@ capmeter.graph.init = function() {
             },
             tooltip: {
                 formatter: function () {
-                    return Highcharts.numberFormat(this.y, 2) + " " + capmeter.graph.unit;
+                    if (this.x) {
+                      return Highcharts.numberFormat(this.y, 2) + " " + capmeter.graph.unit + " at " + this.x;  
+                    } else {
+                      return Highcharts.numberFormat(this.y, 2) + " " + capmeter.graph.unit
+                    }
+                    
                 }
             },
             legend: {
