@@ -10,12 +10,13 @@ capmeter.interface.heightEqualizer = function() {
 }
 
 capmeter.interface.resize = function(e) {
-  capmeter.interface.heightEqualizer();
   var window_height = $(window).height();
   var content_height = $("#wrapper").height();
   var graph_height = $(".graph-container").height();
   var new_graph_height = graph_height + window_height - content_height;
   $(".graph-container").height(new_graph_height);
+
+  capmeter.interface.heightEqualizer();
 }
 
 capmeter.interface.init = function() {
