@@ -1,4 +1,5 @@
 var capmeter = capmeter || {};
+capmeter.app = capmeter.app || {};
 
 // Frontend Javascript
 // This file is loaded in all frontend files of this app.
@@ -17,6 +18,7 @@ var CMD_CAP_MES_START  		= 0x0B;
 var CMD_CAP_MES_REPORT 		= 0x0C;
 var CMD_CAP_MES_EXIT   		= 0x0D;
 var CMD_SET_VBIAS_DAC		= 0x0E;
+var CMD_RESET_STATE			= 0x0F;
 var CMD_BOOTLOADER_JUMP		= 0xFF;
 
 // Current mode
@@ -40,8 +42,7 @@ var V_OSCILLATION			= 850
 var VBIAS_MIN				= 1300
 var VBIAS_MAX				= 15000
 var VBIAS_CUR_CALIB_ST		= 2000
-var NB_GRAPH_POINTS_CAP		= 20
-var NB_GRAPH_POINTS_CUR		= 20
+var NB_GRAPH_POINTS			= 20
 var NB_MS_WAIT_VBIAS_MES	= 100
 
 var device_info = { "vendorId": 0x1209, "productId": 0xdddd };      			// capmeter
@@ -50,6 +51,7 @@ var current_mode = MODE_IDLE;													// current mode
 var connected     = false;  	 												// current connection state
 var connection    = null;   													// connection to the capmeter
 var connectMsg = null;  														// saved message to send after connecting
+var carac_averaging = 4;														// Number of samples for carac averaging
 var current_ampl = 0;															// current measurement amplification
 var current_avg = 14;															// current measurement averaging
 var current_calib_avg = 14;														// current measurement averaging during calibration
@@ -59,13 +61,7 @@ var cap_calib_array_ind = 0;													// Index inside the calibration array t
 var cap_calib_array = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];				// Capacitance calibration array
 var cap_last_values = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];				// Last capacitance values
 var cap_last_value_ind = 0;														// Index to where to store the latest values
-var cap_graph_xlabels = [0];													// Graph X labels
-var cap_graph_xvalues = [0];													// Graph X values
-var cap_graph_yvalues = [0];													// Graph Y values
-var cap_graph_store_index = 0;													// Where to store the next graph value
-var cap_graph_current_interval = 0;												// Voltage interval for the graph
-var cap_graph_cap_values = [0,0,0,0,0,0,0,0,0,0];								// Last capacitance values for a given vbias
-var cap_graph_cap_buffer_store_ind = 0;											// Where to store the last value in our buffer
+
 var cur_graph_xlabels = [0];													// Graph X labels
 var cur_graph_xvalues = [0];													// Graph X values
 var cur_graph_yvalues = [0];													// Graph Y values
@@ -86,52 +82,33 @@ var cur_calib_vbias = 0;														// Set voltage value for current calibrati
 var max_cur_adc_val_1x = 2047;													// Max adc val for current measurement mode
 var debug = false;
 
+capmeter.app.preferences = {"memmgmtPrefsStored": false, "syncFSAllowed": false};
 
 
-function saveSettingsToStorage() 
-{
-	// Save it using the Chrome extension storage API.
-	chrome.storage.sync.set({"calib_data": capacitance_offset}, function() 
+// Load memory management preferences callback
+capmeter.app.preferencesStorageCallback = function(items)
+{	
+	//console.log(items);
+	if(chrome.runtime.lastError)
 	{
-		if (chrome.runtime.error)
+		// Something went wrong during file selection
+		console.log("preferencesCallback error: "+ chrome.runtime.lastError.message);
+	}
+	else
+	{		
+		if(items.memmgmtPrefsStored == null)
 		{
-			console.log("Runtime error!");
+			// Empty file, save new preferences
+			console.log("Preferences storage: No preferences stored!");
+			capmeter.prefstorage.setStoredPreferences(capmeter.app.preferences);
 		}
 		else
 		{
-			// Notify that we saved.
-			console.log("Settings saved to local storage");			
+			console.log("Preferences storage: Loaded preferences!");
+			capmeter.app.preferences = items;
+			//console.log(capmeter.app.preferences);
 		}
-	});
-}
-
-function getSettingsFromStorage() 
-{
-	// Save it using the Chrome extension storage API.
-	chrome.storage.sync.get("calib_data", function(items) 
-	{
-		if (!chrome.runtime.error) 
-		{
-			calib_data = items["calib_data"];
-			if(calib_data != null)
-			{
-				console.log("Loaded capacitance offset: " + capmeter.util.valueToElectronicString(calib_data, "F"));
-				$('#calibrateCapacitance').css('background', 'orange');
-				capacitance_offset = calib_data;
-				cap_calibration_done = true;
-			}
-		}
-	});
-}
-
-
-/**
- * Capmeter connected, get its state to initialize GUI
- */
-function init_gui_state()
-{
-	// Request open ended calibration state
-	sendRequest(CMD_OE_CALIB_STATE, null);
+	}
 }
 
 function disable_gui_buttons()
@@ -172,9 +149,6 @@ function start_capacitance_calibration()
 	}
 }
 
-/**
- * Start current calibration
- */
 function start_current_calibration()
 {	
 	if(current_mode == MODE_IDLE)
@@ -217,25 +191,7 @@ function current_caracterization_start(max_voltage)
 	}
 	else if(current_mode == MODE_IDLE)
 	{
-		// Compute intervals and init graphs
-		cur_graph_current_interval = (max_voltage - VBIAS_MIN) / (NB_GRAPH_POINTS_CUR - 1);
-		cur_graph_xlabels = new Array(NB_GRAPH_POINTS_CUR);
-		cur_graph_xvalues = new Array(NB_GRAPH_POINTS_CUR);
-		cur_graph_yvalues = new Array(NB_GRAPH_POINTS_CUR);
-		cur_graph_cap_buffer_store_ind = 0;
-		cur_graph_store_index = 0;
-		for (var i = 0; i < NB_GRAPH_POINTS_CUR; i++)
-		{
-				cur_graph_xlabels[i] = ((VBIAS_MIN + cur_graph_current_interval * i)/1000).toFixed(2) + "V";
-				cur_graph_xvalues[i] = (VBIAS_MIN + cur_graph_current_interval * i);
-				cur_graph_yvalues[i] = 0;
-		}
-		capmeter.graph.changeUnit("A");
-		capmeter.graph.changeYLabel("current");
-		capmeter.graph.changeXLabels(cur_graph_xlabels);
-		capmeter.graph.changeYValues(cur_graph_yvalues);
-		// Set desired voltage		
-		//console.log("Requesting voltage set to " + VBIAS_MIN + "mV");
+		capmeter.graphing.initCurMeasGraphing(max_voltage, capmeter.visualisation._datapoints, carac_averaging);	
 		sendRequest(CMD_SET_VBIAS, [VBIAS_MIN%256, Math.floor(VBIAS_MIN/256)]);		
 		current_mode = MODE_CUR_CARAC_REQ;
 		disable_gui_buttons();
@@ -267,27 +223,9 @@ function capacitance_caracterization_start(max_voltage)
 		sendRequest(CMD_CAP_MES_EXIT, null);
 	}
 	else if(current_mode == MODE_IDLE)
-	{
-		// Compute intervals and init graphs
-		cap_graph_current_interval = (max_voltage - VBIAS_MIN) / (NB_GRAPH_POINTS_CAP - 1);
-		cap_graph_xlabels = new Array(NB_GRAPH_POINTS_CAP);
-		cap_graph_xvalues = new Array(NB_GRAPH_POINTS_CAP);
-		cap_graph_yvalues = new Array(NB_GRAPH_POINTS_CAP);
-		cap_graph_cap_buffer_store_ind = 0;
-		cap_graph_store_index = 0;
-		for (var i = 0; i < NB_GRAPH_POINTS_CAP; i++)
-		{
-				cap_graph_xlabels[i] = ((VBIAS_MIN - V_OSCILLATION + cap_graph_current_interval * i)/1000).toFixed(2) + "V";
-				cap_graph_xvalues[i] = (VBIAS_MIN + cap_graph_current_interval * i);
-				cap_graph_yvalues[i] = 0;
-		}
-		capmeter.graph.changeUnit("F");
-		capmeter.graph.changeYLabel("capacitance");
-		capmeter.graph.changeXLabels(cap_graph_xlabels);
-		capmeter.graph.changeYValues(cap_graph_yvalues);
-		// Set desired voltage		
-		//console.log("Requesting voltage set to " + VBIAS_MIN + "mV");
-		sendRequest(CMD_SET_VBIAS, [VBIAS_MIN%256, Math.floor(VBIAS_MIN/256)]);		
+	{		
+		capmeter.graphing.initCapMeasGraphing(max_voltage, capmeter.visualisation._datapoints, carac_averaging);	
+		sendRequest(CMD_SET_VBIAS, [VBIAS_MIN%256, Math.floor(VBIAS_MIN/256)]);	
 		current_mode = MODE_CAP_CARAC_REQ;
 		disable_gui_buttons();
 	}
@@ -459,20 +397,29 @@ function onDataReceived(reportId, data)
         }
 		
         case CMD_PING:
+		{
             //console.log('.');
             break;
-			
+		}
+		
         case CMD_VERSION:
         {
             version = capmeter.util.arrayToStr(new Uint8Array(data, 2));
             if (!connected) 
 			{
                 console.log('Connected to Capmeter ' + version);
-				init_gui_state();
+				sendRequest(CMD_RESET_STATE, null);
                 connected = true;
             }
             break;
         }
+		
+		case CMD_RESET_STATE:
+		{
+			sendRequest(CMD_OE_CALIB_STATE, null);
+			console.log("Capmeter state reset");
+			break;
+		}
 		
 		case CMD_OE_CALIB_START: 
 		{
@@ -754,87 +701,20 @@ function onDataReceived(reportId, data)
 			
 			if(current_mode == MODE_CAP_CARAC)
 			{
-				// Store capacitance in buffer to do avg
-				cap_graph_cap_values[(cap_graph_cap_buffer_store_ind++)%cap_graph_cap_values.length] = capacitance;
-				cap_standard_deviation = capmeter.util.standardDeviation(cap_graph_cap_values);
-				cap_average = capmeter.util.average(cap_graph_cap_values);
+				var action = capmeter.graphing.newCapValueArrival(capacitance);		
 				
-				// Check if buffer is filled and std is correct
-				if(cap_graph_cap_buffer_store_ind >= cap_graph_cap_values.length)
+				if(action[0] == "finished")
 				{
-					// Only accept if we are within 1%
-					if(cap_average * 0.01 > cap_standard_deviation)
-					{
-						cap_graph_cap_buffer_store_ind = 0;
-						
-						// Store capmeter.util.average in array
-						cap_graph_yvalues[cap_graph_store_index++] = cap_average;
-						
-						// Check if we finished running through the vbias points
-						if(cap_graph_store_index == cap_graph_xvalues.length)
-						{
-							// Leave capacitance measurement mode
-							sendRequest(CMD_CAP_MES_EXIT, null);
-							
-							// Update our graph, find lowest value
-							var lowest_cap = Math.min.apply(null, cap_graph_yvalues);
-							
-							// Update our min graph unit and our vector
-							if(lowest_cap < 1e-12)
-							{
-								capmeter.graph.changeUnit("fF");
-								for(var i = 0; i < cap_graph_yvalues.length; i++)
-								{
-									cap_graph_yvalues[i] = cap_graph_yvalues[i] * 1e15;
-								}
-							}
-							else if(lowest_cap < 1e-9)
-							{
-								capmeter.graph.changeUnit("pF");
-								for(var i = 0; i < cap_graph_yvalues.length; i++)
-								{
-									cap_graph_yvalues[i] = cap_graph_yvalues[i] * 1e12;
-								}
-							}
-							else if(lowest_cap < 1e-6)
-							{
-								capmeter.graph.changeUnit("nF");
-								for(var i = 0; i < cap_graph_yvalues.length; i++)
-								{
-									cap_graph_yvalues[i] = cap_graph_yvalues[i] * 1e9;
-								}
-							}
-							else if(lowest_cap < 1e-3)
-							{
-								capmeter.graph.changeUnit("uF");
-								for(var i = 0; i < cap_graph_yvalues.length; i++)
-								{
-									cap_graph_yvalues[i] = cap_graph_yvalues[i] * 1e6;
-								}
-							}
-							else if(lowest_cap < 1)
-							{
-								capmeter.graph.changeUnit("mF");
-								for(var i = 0; i < cap_graph_yvalues.length; i++)
-								{
-									cap_graph_yvalues[i] = cap_graph_yvalues[i] * 1e3;
-								}
-							}					
-							
-							capmeter.graph.changeYValues(cap_graph_yvalues);
-						}
-						else
-						{
-							// Move to the next voltage
-							//console.log("Requesting voltage set to " + cap_graph_xvalues[cap_graph_store_index] + "mV");
-							sendRequest(CMD_SET_VBIAS, [cap_graph_xvalues[cap_graph_store_index]%256, Math.floor(cap_graph_xvalues[cap_graph_store_index]/256)]);		
-						}
-					}
-					else
-					{
-						console.log("Buffer full but Standard deviation: " + capmeter.util.valueToElectronicString(cap_standard_deviation, "F") + " capmeter.util.average: " + capmeter.util.valueToElectronicString(cap_average, "F"));
-					}
-				}		
+					sendRequest(CMD_CAP_MES_EXIT, null);
+				}
+				else if(action[0] == "change_vbias")
+				{					
+					sendRequest(CMD_SET_VBIAS, [action[1]%256, Math.floor(action[1]/256)]);
+				}
+				else
+				{
+					// We'll receive a new measurement soon
+				}
 			}
 			else if(current_mode == MODE_CAP_CALIB)
 			{
@@ -1227,9 +1107,11 @@ function checkConnection()
 document.body.onload = function() 
 {
 	setInterval(checkConnection, 2000);
+	capmeter.visualisation._datapoints = NB_GRAPH_POINTS;
+	$('#data-points').attr("value", NB_GRAPH_POINTS);
 	$('#voltageCurrent').attr("value", (VBIAS_MIN)/1000);
 	$('#maxVoltage').attr("value", (VBIAS_MIN-V_OSCILLATION)/1000);
 	$('#voltageCapacitance').attr("value", (VBIAS_MIN-V_OSCILLATION)/1000);
-	getSettingsFromStorage();
+	capmeter.prefstorage.getStoredPreferences(capmeter.app.preferencesStorageCallback);
 	disable_gui_buttons();
 }

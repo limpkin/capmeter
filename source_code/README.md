@@ -102,4 +102,10 @@ From Plugin/app: First 2 bytes is the DAC value (will only work if vbias is enab
 
 From Capmeter: The current vbias voltage in mV
 
+0x0F: Reset capmeter state
+--------------------------
+From Plugin/app: Request the capmeter to reset in default state
+
+From Capmeter: 0 on error, 1 on success
+
 

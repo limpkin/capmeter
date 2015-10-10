@@ -76,9 +76,9 @@ capmeter.graph.init = function() {
             tooltip: {
                 formatter: function () {
                     if (this.x) {
-                      return Highcharts.numberFormat(this.y, 2) + " " + capmeter.graph.unit + " at " + this.x;  
+                      return Highcharts.numberFormat(this.y, 2) + "" + capmeter.graph.unit + " at " + this.x;  
                     } else {
-                      return Highcharts.numberFormat(this.y, 2) + " " + capmeter.graph.unit
+                      return Highcharts.numberFormat(this.y, 2) + "" + capmeter.graph.unit
                     }
                     
                 }

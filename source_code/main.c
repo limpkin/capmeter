@@ -355,6 +355,16 @@ int main(void)
                     usb_send_data((uint8_t*)&usb_packet);            
                     break;
                 }
+                case CMD_RESET_STATE:
+                {
+                    disable_capacitance_measurement_mode();
+                    disable_current_measurement_mode();
+                    disable_bias_voltage();
+                    usb_packet.payload[0] = USB_RETURN_OK;
+                    usb_packet.length = 1;
+                    usb_send_data((uint8_t*)&usb_packet);
+                    break;
+                }
                 default: break;
             }
         }
