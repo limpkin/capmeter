@@ -8,8 +8,8 @@ html
     div#wrapper
       .row
         .column.small-3.large-2.xxlarge-1(data-height-equalizer="#content")
-          h5 Capacitance Meter        
-          div.align-bottom.padding-right
+          h5.text-center Capacitance Meter        
+          div
             a#calibrateCurrentX.button.small.expand(data-onclick="capmeter.calibration.calibrateCurrentX") Jump to Bootloader
             a#calibrateCapacitance.button.small.expand(data-onclick="capmeter.calibration.calibrateCapacitance") Calibrate Capacitance
             a#calibratePlatform.button.small.expand(data-onclick="capmeter.calibration.calibratePlatform") Calibrate Platform
@@ -25,7 +25,7 @@ html
         #content.column.small-9.large-10.xxlarge-11
           .row
             .column.small-12 &nbsp;
-          .row.bottom-margin-columns.max-width-40rem
+          .row.bottom-margin-columns.max-width-40rem.center-by-margins
             .column.small-4
               .row.collapse
                 .column.small-6
@@ -36,7 +36,7 @@ html
               a#measureCurrent.button.small.expand.height-37(data-onclick="capmeter.measurement.measureCurrent") Measure Current
             .column.small-4
               #displayCurrent.value.height-37(data-display="capmeter.measurement.get_current")
-          .row.bottom-margin-columns.max-width-40rem
+          .row.bottom-margin-columns.max-width-40rem.center-by-margins
             .column.small-4
               .row.collapse
                 .column.small-6
@@ -52,7 +52,7 @@ html
             .column.small-12.graph-container.text-center 
               h3 Place for graph
 
-          .row.max-width-40rem
+          .row.max-width-40rem.center-by-margins
             .column.small-4
               .row.collapse
                 .column.small-8

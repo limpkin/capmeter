@@ -10237,6 +10237,18 @@ div.value {
   max-width: 40rem !important;
 }
 
+/* line 64, ../scss/_custom.scss */
+.center-by-margins {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* line 69, ../scss/_custom.scss */
+h5 {
+  margin-bottom: 2rem;
+  margin-top: 1rem;
+}
+
 /* line 7, ../scss/_margins.scss */
 .no-padding {
   padding: 0 !important;
