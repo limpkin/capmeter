@@ -121,7 +121,7 @@ int main(void)
 //         }        
 //     }
 //     while(1);
-
+    printf("Hello world");
     uint8_t current_fw_mode = MODE_IDLE;
     while(1)
     {
@@ -357,11 +357,19 @@ int main(void)
                 }
                 case CMD_RESET_STATE:
                 {
-                    disable_capacitance_measurement_mode();
-                    disable_current_measurement_mode();
-                    disable_bias_voltage();
-                    usb_packet.payload[0] = USB_RETURN_OK;
                     usb_packet.length = 1;
+                    current_fw_mode = MODE_IDLE;
+                    if(is_platform_calibrated() == TRUE)
+                    {
+                        disable_capacitance_measurement_mode();
+                        disable_current_measurement_mode();
+                        disable_bias_voltage();
+                        usb_packet.payload[0] = USB_RETURN_OK;                        
+                    }
+                    else
+                    {
+                        usb_packet.payload[0] = USB_RETURN_ERROR;
+                    }
                     usb_send_data((uint8_t*)&usb_packet);
                     break;
                 }
