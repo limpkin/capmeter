@@ -16,7 +16,9 @@
               { "vendorId": 4617, "productId": 56797 }
           ]
       },
-  {"fileSystem": ["write", "retainEntries"]} 
+	   { "fileSystem": ["write"] },
+	   "syncFileSystem",
+	   "storage"
   ],
   "icons": { 
     "256": "images/AppIcon.png"

@@ -1,3 +1,5 @@
+var capmeter = capmeter || {};
+
 // Frontend Javascript
 // This file is loaded in all frontend files of this app.
 var CMD_DEBUG               = 0x00;
@@ -15,6 +17,7 @@ var CMD_CAP_MES_START  		= 0x0B;
 var CMD_CAP_MES_REPORT 		= 0x0C;
 var CMD_CAP_MES_EXIT   		= 0x0D;
 var CMD_SET_VBIAS_DAC		= 0x0E;
+var CMD_BOOTLOADER_JUMP		= 0xFF;
 
 // Current mode
 var MODE_IDLE			= 0
@@ -84,31 +87,6 @@ var max_cur_adc_val_1x = 2047;													// Max adc val for current measuremen
 var debug = false;
 
 
-function standardDeviation(values)
-{
-  var avg = average(values);
-  
-  var squareDiffs = values.map(function(value){
-    var diff = value - avg;
-    var sqrDiff = diff * diff;
-    return sqrDiff;
-  });
-  
-  var avgSquareDiff = average(squareDiffs);
-
-  var stdDev = Math.sqrt(avgSquareDiff);
-  return stdDev;
-}
-
-function average(data)
-{
-  var sum = data.reduce(function(sum, value){
-    return sum + value;
-  }, 0);
-
-  var avg = sum / data.length;
-  return avg;
-}
 
 function saveSettingsToStorage() 
 {
@@ -137,7 +115,7 @@ function getSettingsFromStorage()
 			calib_data = items["calib_data"];
 			if(calib_data != null)
 			{
-				console.log("Loaded capacitance offset: " + valueToElectronicString(calib_data, "F"));
+				console.log("Loaded capacitance offset: " + capmeter.util.valueToElectronicString(calib_data, "F"));
 				$('#calibrateCapacitance').css('background', 'orange');
 				capacitance_offset = calib_data;
 				cap_calibration_done = true;
@@ -146,122 +124,6 @@ function getSettingsFromStorage()
 	});
 }
 
-/**
- * convert a string to a uint8 array
- * @param str the string to convert
- * @returns the uint8 array representing the string with a null terminator
- * @note does not support unicode yet
- */
-function strToArray(str)
-{
-    var buf = new Uint8Array(str.length+1);
-    for (var ind=0; ind<str.length; ind++)
-    {
-        buf[ind] = str.charCodeAt(ind);
-    }
-    buf[ind] = 0;
-    return buf;
-}
-
-/**
- * convert a uint8 array to a string
- * @param buf the array to convert
- * @returns the string representation of the array
- * @note does not support unicode yet
- */
-function arrayToStr(buf)
-{
-    res = '';
-    for (var ind=0; ind<buf.length; ind++)
-    {
-        if (buf[ind] == 0)
-        {
-            return res;
-        } else {
-            res += String.fromCharCode(buf[ind]);
-        }
-    }
-    return res;
-}
-
-/**
- * convert a components value to a normal representable form
- * @param value	The value
- * @returns the string representation 
- */
-function valueToElectronicString(value, unit)
-{
-	if(value < 1e-12)
-	{
-		if(value * 1e15 < 10)
-		{
-			return (value * 1e15).toFixed(2) + "f" + unit;
-		}
-		else
-		{
-			return (value * 1e15).toFixed(1) + "f" + unit;
-		}
-	}
-	else if(value < 1e-9)
-	{
-		if(value * 1e12 < 10)
-		{
-			return (value * 1e12).toFixed(2) + "p" + unit;
-		}
-		else
-		{
-			return (value * 1e12).toFixed(1) + "p" + unit;
-		}
-	}
-	else if(value < 1e-6)
-	{
-		if(value * 1e9 < 10)
-		{
-			return (value * 1e9).toFixed(2) + "n" + unit;
-		}
-		else
-		{
-			return (value * 1e9).toFixed(1) + "n" + unit;
-		}
-	}
-	else if(value < 1e-3)
-	{
-		if(value * 1e6 < 10)
-		{
-			return (value * 1e6).toFixed(2) + "u" + unit;
-		}
-		else
-		{
-			return (value * 1e6).toFixed(1) + "u" + unit;
-		}
-	}
-	else if(value < 1)
-	{
-		if(value * 1e3 < 10)
-		{
-			return (value * 1e3).toFixed(2) + "m" + unit;
-		}
-		else
-		{
-			return (value * 1e3).toFixed(1) + "m" + unit;
-		}
-	}
-	else if(value > 1e3)
-	{
-		if(value * 1e-3 < 10)
-		{
-			return (value * 1e-3).toFixed(2) + "k" + unit;
-		}
-		else
-		{
-			return (value * 1e-3).toFixed(1) + "k" + unit;
-		}
-	}
-	else
-	{
-		return value.toFixed(1) + unit;
-	}
-}
 
 /**
  * Capmeter connected, get its state to initialize GUI
@@ -602,7 +464,7 @@ function onDataReceived(reportId, data)
 			
         case CMD_VERSION:
         {
-            version = arrayToStr(new Uint8Array(data, 2));
+            version = capmeter.util.arrayToStr(new Uint8Array(data, 2));
             if (!connected) 
 			{
                 console.log('Connected to Capmeter ' + version);
@@ -872,14 +734,14 @@ function onDataReceived(reportId, data)
 			{
 				capacitance = 0;
 			}
-			//console.log("Measured capacitance: " + valueToElectronicString(capacitance, "F") + ", osc. freq.: " + counter_val*report_freq  + "Hz (" + resistor_val + "R)");
+			//console.log("Measured capacitance: " + capmeter.util.valueToElectronicString(capacitance, "F") + ", osc. freq.: " + counter_val*report_freq  + "Hz (" + resistor_val + "R)");
 			
-			// Store value in our buffer, compute average and std deviation
+			// Store value in our buffer, compute capmeter.util.average and std deviation
 			cap_last_values[(cap_last_value_ind++)%cap_last_values.length] = capacitance;
-			var cap_standard_deviation = standardDeviation(cap_last_values);
-			var cap_average = average(cap_last_values);
+			var cap_standard_deviation = capmeter.util.standardDeviation(cap_last_values);
+			var cap_average = capmeter.util.average(cap_last_values);
 			
-			// If we switched measured value (new values a lot different than the average)
+			// If we switched measured value (new values a lot different than the capmeter.util.average)
 			if(capacitance > cap_average*1.1 || capacitance < cap_average*0.9)
 			{
 				// set all values to last measured value
@@ -888,14 +750,14 @@ function onDataReceived(reportId, data)
 				cap_average = capacitance;
 				cap_last_value_ind = 0;
 			}
-			capmeter.measurement._capacitance = valueToElectronicString(cap_average, "F") + "(" + valueToElectronicString(counter_val*report_freq, "Hz") + ")";
+			capmeter.measurement._capacitance = capmeter.util.valueToElectronicString(cap_average, "F") + "(" + capmeter.util.valueToElectronicString(counter_val*report_freq, "Hz") + ")";
 			
 			if(current_mode == MODE_CAP_CARAC)
 			{
 				// Store capacitance in buffer to do avg
 				cap_graph_cap_values[(cap_graph_cap_buffer_store_ind++)%cap_graph_cap_values.length] = capacitance;
-				cap_standard_deviation = standardDeviation(cap_graph_cap_values);
-				cap_average = average(cap_graph_cap_values);
+				cap_standard_deviation = capmeter.util.standardDeviation(cap_graph_cap_values);
+				cap_average = capmeter.util.average(cap_graph_cap_values);
 				
 				// Check if buffer is filled and std is correct
 				if(cap_graph_cap_buffer_store_ind >= cap_graph_cap_values.length)
@@ -905,7 +767,7 @@ function onDataReceived(reportId, data)
 					{
 						cap_graph_cap_buffer_store_ind = 0;
 						
-						// Store average in array
+						// Store capmeter.util.average in array
 						cap_graph_yvalues[cap_graph_store_index++] = cap_average;
 						
 						// Check if we finished running through the vbias points
@@ -970,7 +832,7 @@ function onDataReceived(reportId, data)
 					}
 					else
 					{
-						console.log("Buffer full but Standard deviation: " + valueToElectronicString(cap_standard_deviation, "F") + " average: " + valueToElectronicString(cap_average, "F"));
+						console.log("Buffer full but Standard deviation: " + capmeter.util.valueToElectronicString(cap_standard_deviation, "F") + " capmeter.util.average: " + capmeter.util.valueToElectronicString(cap_average, "F"));
 					}
 				}		
 			}
@@ -981,9 +843,9 @@ function onDataReceived(reportId, data)
 				// Check if we have enough values to compute offset
 				if(cap_calib_array_ind >= cap_calib_array.length)
 				{
-					cap_standard_deviation = standardDeviation(cap_calib_array);
-					cap_average = average(cap_calib_array);
-					console.log("Standard deviation: " + valueToElectronicString(cap_standard_deviation, "F") + " average: " + valueToElectronicString(cap_average, "F"));
+					cap_standard_deviation = capmeter.util.standardDeviation(cap_calib_array);
+					cap_average = capmeter.util.average(cap_calib_array);
+					console.log("Standard deviation: " + capmeter.util.valueToElectronicString(cap_standard_deviation, "F") + " capmeter.util.average: " + capmeter.util.valueToElectronicString(cap_average, "F"));
 					// Only accept if we are within 1%
 					if(cap_average * 0.01 > cap_standard_deviation)
 					{
@@ -993,7 +855,7 @@ function onDataReceived(reportId, data)
 						capacitance_offset = cap_average - 1e-12;
 						capacitance_offset = cap_average;
 						sendRequest(CMD_CAP_MES_EXIT, null);
-						console.log("Capacitance offset taken: " + valueToElectronicString(capacitance_offset, "F"));
+						console.log("Capacitance offset taken: " + capmeter.util.valueToElectronicString(capacitance_offset, "F"));
 						saveSettingsToStorage();
 						$('#calibrateCapacitance').css('background', 'orange');
 					}
@@ -1040,7 +902,7 @@ function onDataReceived(reportId, data)
 				if(current_mode == MODE_CUR_MES)
 				{
 					// Start another measurement					
-					var current = valueToElectronicString((((bytes[2] + bytes[3]*256)*1.24)/(0.2047*(1 << current_ampl)))*1e-9, "A");
+					var current = capmeter.util.valueToElectronicString((((bytes[2] + bytes[3]*256)*1.24)/(0.2047*(1 << current_ampl)))*1e-9, "A");
 					console.log("Received ADC current measurement: " + current);
 					capmeter.measurement._current = current;					
 					
@@ -1078,14 +940,14 @@ function onDataReceived(reportId, data)
 				{
 					// Compute current
 					var current = (((bytes[2] + bytes[3]*256)*1.24)/(0.2047*(1 << current_ampl)))*1e-9;
-					var current_string = valueToElectronicString(current, "A");
+					var current_string = capmeter.util.valueToElectronicString(current, "A");
 					// console.log("Received ADC current measurement: " + current_string);
 					capmeter.measurement._current = current_string;	
 					
 					// Store current in buffer to do avg
 					cur_graph_cap_values[(cur_graph_cap_buffer_store_ind++)%cur_graph_cap_values.length] = current;
-					var cur_standard_deviation = standardDeviation(cur_graph_cap_values);
-					var cur_average = average(cur_graph_cap_values);
+					var cur_standard_deviation = capmeter.util.standardDeviation(cur_graph_cap_values);
+					var cur_average = capmeter.util.average(cur_graph_cap_values);
 					
 					// Check if buffer is filled and std is correct
 					if(cur_graph_cap_buffer_store_ind >= cur_graph_cap_values.length)
@@ -1095,7 +957,7 @@ function onDataReceived(reportId, data)
 						{
 							cur_graph_cap_buffer_store_ind = 0;
 							
-							// Store average in array
+							// Store capmeter.util.average in array
 							cur_graph_yvalues[cur_graph_store_index++] = cur_average;
 							
 							// Check if we finished running through the vbias points
@@ -1160,7 +1022,7 @@ function onDataReceived(reportId, data)
 						}
 						else
 						{
-							console.log("Buffer full but Standard deviation: " + valueToElectronicString(cur_standard_deviation, "A") + " average: " + valueToElectronicString(cur_average, "A"));	
+							console.log("Buffer full but Standard deviation: " + capmeter.util.valueToElectronicString(cur_standard_deviation, "A") + " capmeter.util.average: " + capmeter.util.valueToElectronicString(cur_average, "A"));	
 							// Request other sample
 							sendRequest(CMD_CUR_MES_MODE, [current_ampl, current_avg]);		
 						}
@@ -1268,8 +1130,7 @@ function onDeviceFound(devices)
 }
 
 function sendMsg(msg)
-{
-	waitingForAnswer = true;
+{	
     if (debug) 
 	{
         msgUint8 = new Uint8Array(msg);
@@ -1307,6 +1168,11 @@ function sendRequest(type, content)
     msg = new ArrayBuffer(packetSize);
     header = new Uint8Array(msg, 0);
     body = new Uint8Array(msg, 2);
+		
+	if(type != CMD_BOOTLOADER_JUMP)
+	{
+		waitingForAnswer = true;		
+	}
 
     if (content)
     {
@@ -1352,6 +1218,7 @@ function checkConnection()
 	{
 		if (!waitingForAnswer && ping_enabled)
 		{
+			//console.log("pouet");
 			sendPing();
 		}
     }
