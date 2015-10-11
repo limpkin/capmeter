@@ -779,10 +779,14 @@ function onDataReceived(reportId, data)
 					$("#calibrateCurrentY").removeAttr("disabled");					
 				}
 				
+				// Current we received
+				var adc_current = (bytes[2] + bytes[3]*256);
+				var adc_current_corrected = capmeter.currentcalib.correctAdcValue(adc_current);
+				
 				if(current_mode == MODE_CUR_MES)
 				{
 					// Start another measurement					
-					var current = capmeter.util.valueToElectronicString((((bytes[2] + bytes[3]*256)*1.24)/(0.2047*(1 << current_ampl)))*1e-9, "A");
+					var current = capmeter.util.valueToElectronicString(((adc_current_corrected*1.24)/(0.2047*(1 << current_ampl)))*1e-9, "A");
 					console.log("Received ADC current measurement: " + current);
 					capmeter.measurement._current = current;					
 					
@@ -799,20 +803,18 @@ function onDataReceived(reportId, data)
 					}
 				}
 				else if(current_mode == MODE_CUR_CALIB)
-				{
-					var adc_value = (bytes[2] + bytes[3]*256);
-					
+				{					
 					if(cur_calib_state == "start")
 					{
 						cur_calib_state = "running";
 					}
 					else
 					{
-						capmeter.currentcalib.addMeasurement(cur_calib_dacv, cur_calib_vbias, adc_value);
+						capmeter.currentcalib.addMeasurement(cur_calib_dacv, cur_calib_vbias, adc_current);
 					}					
 					
 					// Check if it was the last measurement to perform or if the adc is saturated
-					if(cur_calib_dacv == 0 || max_cur_adc_val_1x == adc_value)
+					if(cur_calib_dacv == 0 || max_cur_adc_val_1x == adc_current)
 					{
 						// Leave current measurement mode
 						cur_calib_state = "completed";
@@ -829,7 +831,7 @@ function onDataReceived(reportId, data)
 				else if(current_mode == MODE_CUR_CARAC)
 				{
 					// Compute current
-					var current = (((bytes[2] + bytes[3]*256)*1.24)/(0.2047*(1 << current_ampl)))*1e-9;
+					var current = ((adc_current_corrected*1.24)/(0.2047*(1 << current_ampl)))*1e-9;
 					var current_string = capmeter.util.valueToElectronicString(current, "A");
 					// console.log("Received ADC current measurement: " + current_string);
 					capmeter.measurement._current = current_string;						
@@ -860,9 +862,13 @@ function onDataReceived(reportId, data)
 			if(bytes[2] != 0 && ((current_mode == MODE_CUR_MES) || (current_mode == MODE_CUR_CARAC) || (current_mode == MODE_CUR_CALIB)))
 			{				
 				// If we were calibrating current, export data
-				if(current_mode == MODE_CUR_CALIB && cur_calib_state == "completed")
+				if(current_mode == MODE_CUR_CALIB)
 				{
-					capmeter.currentcalib.stopCalib();					
+					if(cur_calib_state == "completed")
+					{
+						capmeter.currentcalib.stopCalib();							
+					}
+					capmeter.currentcalib.initCalib();					
 				}	
 				
 				enable_gui_buttons();
@@ -870,8 +876,7 @@ function onDataReceived(reportId, data)
 				capmeter.measurement._current = "nA";
 				sendRequest(CMD_DISABLE_VBIAS, null);
 				$('#current').css('background', '#3ED1D6');
-				$('#measureCurrent').css('background', '#3ED1D6');
-				$('#calibrateCurrentY').css('background', '#3ED1D6');
+				$('#measureCurrent').css('background', '#3ED1D6');				
 				console.log("Current measurement mode excited!");			
 			}
 			break;

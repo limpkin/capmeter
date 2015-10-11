@@ -26,7 +26,6 @@ function Create2DArray(rows)
 	return arr;
 }
 
-
 // File written callback
 capmeter.currentcalib.file_written_callback = function()
 {
@@ -119,6 +118,20 @@ capmeter.currentcalib.adcToIdealAdcSmoothing = function(array)
 	}
 }
 
+// ADC to Ideal ADC conversion
+capmeter.currentcalib.correctAdcValue = function(val)
+{
+	if(capmeter.currentcalib.finalAdcToIdealAdc[val] == null)
+	{
+		return val;
+	}
+	else
+	{
+		//console.log("ADC value " + val + " corrected to " + capmeter.currentcalib.finalAdcToIdealAdc[val]);
+		return capmeter.currentcalib.finalAdcToIdealAdc[val];
+	}
+}
+
 // Initialize current calib
 capmeter.currentcalib.initCalib = function()
 {
@@ -149,16 +162,24 @@ capmeter.currentcalib.initCalib = function()
 		$('#calibrateCurrentY').css('background', 'orange');	
 		
 		// Average our current vector
-		capmeter.currentcalib.adcToIdealAdcSmoothing(temp_array);
-		
-		// Export data FYI?
-		var export_csv = "ADC Val,Mapped ADC Val,Difference\r\n";
-		for(var i = 0; i < capmeter.currentcalib.finalAdcToIdealAdc.length; i++)
-		{
-			export_csv += i + "," + capmeter.currentcalib.finalAdcToIdealAdc[i] + "," + (capmeter.currentcalib.finalAdcToIdealAdc[i]-i) + "\r\n";
-		}
-		capmeter.filehandler.selectAndSaveFileContents("export.txt", new Blob([export_csv], {type: 'text/plain'}), capmeter.currentcalib.file_written_callback);
+		capmeter.currentcalib.adcToIdealAdcSmoothing(temp_array);		
 	}
+	else
+	{
+		$('#calibrateCurrentY').css('background', '#3ED1D6');
+	}
+}
+
+// Export correction data
+capmeter.currentcalib.exportAdcCorrec = function()
+{	
+	// Export data FYI?
+	var export_csv = "ADC Val,Mapped ADC Val,Difference\r\n";
+	for(var i = 0; i < capmeter.currentcalib.finalAdcToIdealAdc.length; i++)
+	{
+		export_csv += i + "," + capmeter.currentcalib.finalAdcToIdealAdc[i] + "," + (capmeter.currentcalib.finalAdcToIdealAdc[i]-i) + "\r\n";
+	}
+	capmeter.filehandler.selectAndSaveFileContents("export.txt", new Blob([export_csv], {type: 'text/plain'}), capmeter.currentcalib.file_written_callback);
 }
 
 // Start calibration procedure
@@ -255,9 +276,9 @@ capmeter.currentcalib.stopCalib = function()
 		}		
 	}
 	
-	// Save mapping ?
+	// Save mapping
 	capmeter.prefstorage.setStoredPreferences(capmeter.app.preferences);
-	capmeter.filehandler.selectAndSaveFileContents("export.txt", new Blob([export_csv], {type: 'text/plain'}), capmeter.currentcalib.file_written_callback);
+	//capmeter.filehandler.selectAndSaveFileContents("export.txt", new Blob([export_csv], {type: 'text/plain'}), capmeter.currentcalib.file_written_callback);
 }
 
 // Add a new measurement
@@ -268,6 +289,7 @@ capmeter.currentcalib.addMeasurement = function(vbias_dacval, vbias, adc_cur)
 	var ideal_current_a = (vbias / capmeter.currentcalib.cur_res) * 1e-3;
 	var ideal_current_na = (vbias / capmeter.currentcalib.cur_res) * 1e6;
 	var ideal_adc_value = Math.round(ideal_current_na * 0.2047 / 1.24);	
+	
 	console.log("DAC: " + vbias_dacval + ", Vbias: " + cur_calib_vbias + "mV, ADC: " + adc_cur + " (should be " + ideal_adc_value + "), current: " + capmeter.util.valueToElectronicString(measured_current, "A") + " (should be " + capmeter.util.valueToElectronicString(ideal_current_a, "A") + ")");
 	
 	// Store values
