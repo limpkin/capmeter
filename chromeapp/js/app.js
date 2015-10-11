@@ -89,19 +89,21 @@ capmeter.app.preferencesStorageCallback = function(items)
 	{		
 		if(items.memmgmtPrefsStored == null)// || true)
 		{
-			//capmeter.prefstorage.clearStoredPreferences();
 			// Empty file, save new preferences
 			console.log("Preferences storage: No preferences stored!");
 			capmeter.prefstorage.setStoredPreferences(capmeter.app.preferences);
 		}
 		else
 		{
+			//capmeter.prefstorage.clearStoredPreferences();
 			capmeter.app.preferences = items;
 			if(capmeter.app.preferences.capCalibDone)
 			{
 				console.log("Loaded capacitance offset: " + capmeter.util.valueToElectronicString(capmeter.app.preferences.capOffset, "F"));		
 				$('#calibrateCapacitance').css('background', 'orange');				
 			}
+			// See if we have a calibrated current measurement
+			capmeter.currentcalib.initCalib();			
 			//console.log(capmeter.app.preferences);
 		}
 	}

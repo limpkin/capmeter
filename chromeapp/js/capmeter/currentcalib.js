@@ -1,6 +1,7 @@
 if (typeof capmeter == 'undefined') capmeter = {};
 capmeter.currentcalib = capmeter.currentcalib || {};
 
+var SMOOTHING_FACTOR = 4;
 // Current resistor value
 capmeter.currentcalib.cur_res = 0;
 // Current amplification
@@ -11,6 +12,7 @@ capmeter.currentcalib.maxVbias = 0;
 // Mapping from actual ADC value to ideal ADC val
 capmeter.currentcalib.adcToIdealAdcAgg = [];
 capmeter.currentcalib.adcToIdealAdcAggNbSamples = [];
+capmeter.currentcalib.finalAdcToIdealAdc = new Array(2048);
 
 
 function Create2DArray(rows) 
@@ -41,6 +43,122 @@ capmeter.currentcalib.getCurrentFromAdcAndAmpl = function(adc_val, current_ampl)
 capmeter.currentcalib.resetCalib = function()
 {
 	//
+}
+
+capmeter.currentcalib.adcToIdealAdcSmoothing = function(array)
+{
+	// Find starting & ending indexes
+	var starting_index = 0;
+	while(array[starting_index] == null){starting_index++;}
+	var ending_index = array.length - 1;
+	while(array[ending_index] == null){ending_index--;}
+	
+	// Smooth our vector
+	for(var index = 0; index < array.length; index++)
+	{
+		if(array[index] != null)
+		{
+			var nb_elements_before = index - starting_index;
+			var nb_elements_after = ending_index - index;
+			if(nb_elements_before < SMOOTHING_FACTOR)
+			{
+				var agg = 0;
+				for(var i = starting_index; i <= index + nb_elements_before; i++)
+				{
+					agg += array[i];
+				}
+				capmeter.currentcalib.finalAdcToIdealAdc[index] = Math.round(agg/(index + nb_elements_before + 1 - starting_index));
+			}
+			else if(nb_elements_after < SMOOTHING_FACTOR)
+			{
+				var agg = 0;
+				for(var i = index - nb_elements_after; i <= ending_index; i++)
+				{
+					agg += array[i];
+				}
+				capmeter.currentcalib.finalAdcToIdealAdc[index] = Math.round(agg/(ending_index - index + nb_elements_after + 1));	
+			}
+			else
+			{
+				var agg = 0;
+				for(var i = index - SMOOTHING_FACTOR; i <= index + SMOOTHING_FACTOR; i++)
+				{
+					agg += array[i];
+				}
+				capmeter.currentcalib.finalAdcToIdealAdc[index] = Math.round(agg/(SMOOTHING_FACTOR*2 + 1));	
+			}			
+		}
+	}
+	
+	// Populate missing values
+	var last_val = 0;
+	for(var i = 1024; i >= 0; i--)
+	{
+		if(array[i] != null)
+		{
+			last_val = array[i] - i;
+		}
+		else
+		{
+			capmeter.currentcalib.finalAdcToIdealAdc[i] = i + last_val;
+		}
+	}
+	
+	// Populate missing values
+	var last_val = 0;
+	for(var i = 1024; i < array.length; i++)
+	{
+		if(array[i] != null)
+		{
+			last_val = array[i] - i;
+		}
+		else
+		{
+			capmeter.currentcalib.finalAdcToIdealAdc[i] = i + last_val;
+		}
+	}
+}
+
+// Initialize current calib
+capmeter.currentcalib.initCalib = function()
+{
+	var current_calibrated = true;
+	var temp_array = new Array(2048);
+	
+	// To know if we're calibrated, check that all values after 10 are set
+	for(var i = 0; i < capmeter.app.preferences["adcMapping1"].length; i++)
+	{
+		if(capmeter.app.preferences["adcMapping1"][i] == null && i > 10)
+		{
+			current_calibrated = false;
+		}
+		temp_array[i] = capmeter.app.preferences["adcMapping1"][i];
+	}
+	for(var i = 0; i < capmeter.app.preferences["adcMapping2"].length; i++)
+	{
+		if(capmeter.app.preferences["adcMapping2"][i] == null && i < 980)
+		{
+			current_calibrated = false;
+		}
+		temp_array[1024+i] = capmeter.app.preferences["adcMapping2"][i];
+	}
+	
+	// Check that we're calibrated
+	if(current_calibrated)
+	{
+		$('#calibrateCurrentY').css('background', 'orange');	
+		
+		// Average our current vector
+		capmeter.currentcalib.adcToIdealAdcSmoothing(temp_array);
+		
+		// Export data FYI?
+		var export_csv = "ADC Val,Mapped ADC Val,Difference\r\n";
+		for(var i = 0; i < capmeter.currentcalib.finalAdcToIdealAdc.length; i++)
+		{
+			export_csv += i + "," + capmeter.currentcalib.finalAdcToIdealAdc[i] + "," + (capmeter.currentcalib.finalAdcToIdealAdc[i]-i) + "\r\n";
+		}
+		capmeter.filehandler.selectAndSaveFileContents("export.txt", new Blob([export_csv], {type: 'text/plain'}), capmeter.currentcalib.file_written_callback);
+	}
 }
 
 // Start calibration procedure
@@ -96,7 +214,7 @@ capmeter.currentcalib.stopCalib = function()
 			}
 			else
 			{
-				capmeter.app.preferences["adcMapping2"][1024-i] = Math.round(capmeter.currentcalib.adcToIdealAdcAgg[i] / capmeter.currentcalib.adcToIdealAdcAggNbSamples[i]);				
+				capmeter.app.preferences["adcMapping2"][i-1024] = Math.round(capmeter.currentcalib.adcToIdealAdcAgg[i] / capmeter.currentcalib.adcToIdealAdcAggNbSamples[i]);				
 			}			
 		}
 		else
@@ -107,7 +225,7 @@ capmeter.currentcalib.stopCalib = function()
 			}
 			else if(i > 1024)
 			{
-				capmeter.app.preferences["adcMapping2"][1024-i] = capmeter.app.preferences["adcMapping2"][1024-i-1];
+				capmeter.app.preferences["adcMapping2"][i-1024] = capmeter.app.preferences["adcMapping2"][i-1024-1];
 			}
 			else
 			{
@@ -130,9 +248,9 @@ capmeter.currentcalib.stopCalib = function()
 		}
 		else
 		{
-			if(capmeter.app.preferences["adcMapping2"][1024-i] != null)
+			if(capmeter.app.preferences["adcMapping2"][i-1024] != null)
 			{
-				export_csv += i + "," + capmeter.app.preferences["adcMapping2"][1024-i] + "," + (capmeter.app.preferences["adcMapping2"][1024-i]-i) + "\r\n";
+				export_csv += i + "," + capmeter.app.preferences["adcMapping2"][i-1024] + "," + (capmeter.app.preferences["adcMapping2"][i-1024]-i) + "\r\n";
 			}			
 		}		
 	}
