@@ -858,7 +858,7 @@ function onDataReceived(reportId, data)
 			if(bytes[2] != 0 && ((current_mode == MODE_CUR_MES) || (current_mode == MODE_CUR_CARAC) || (current_mode == MODE_CUR_CALIB)))
 			{				
 				// If we were calibrating current, export data
-				if(current_mode == MODE_CUR_CALIB) // && cur_calib_state == "completed")
+				if(current_mode == MODE_CUR_CALIB && cur_calib_state == "completed")
 				{
 					capmeter.currentcalib.stopCalib();					
 				}	

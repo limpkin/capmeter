@@ -83,9 +83,6 @@ capmeter.currentcalib.stopCalib = function()
 	}
 	while(!capmeter.currentcalib.adcToIdealAdcAgg[i--])
 	console.log("Min ADC val: " + min_adc_value + ", max ADC val: " + max_adc_value);
-	
-	// Export data
-	var export_csv = "ADC Val,Mapped ADC Val,Difference\r\n";
 
 	// Compute mapping
 	for(i = min_adc_value; i <= max_adc_value; i++)
@@ -121,6 +118,7 @@ capmeter.currentcalib.stopCalib = function()
 	}
 	
 	// Complete mapping export
+	var export_csv = "ADC Val,Mapped ADC Val,Difference\r\n";
 	for(i = 0; i < 2048; i++)
 	{
 		if(i < 1024)
@@ -140,6 +138,7 @@ capmeter.currentcalib.stopCalib = function()
 	}
 	
 	// Save mapping ?
+	capmeter.prefstorage.setStoredPreferences(capmeter.app.preferences);
 	capmeter.filehandler.selectAndSaveFileContents("export.txt", new Blob([export_csv], {type: 'text/plain'}), capmeter.currentcalib.file_written_callback);
 }
 
