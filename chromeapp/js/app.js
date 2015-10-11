@@ -70,9 +70,10 @@ var cur_mes_new_vbias_req = 0;													// contains the new bias voltage requ
 var cur_calib_dacv = 0;															// DAC value for the current calibration vbias start
 var cur_calib_vbias = 0;														// Set voltage value for current calibration start
 var max_cur_adc_val_1x = 2047;													// Max adc val for current measurement mode
+var cur_calib_state = "null";													// Current calibration state
 var debug = false;
 
-capmeter.app.preferences = {"memmgmtPrefsStored": false, "syncFSAllowed": false, "capOffset": 0, "capCalibDone": false};
+capmeter.app.preferences = {"memmgmtPrefsStored": false, "syncFSAllowed": false, "capOffset": 0, "capCalibDone": false, "adcMapping1": new Array(1024), "adcMapping2": new Array(1024)};
 
 
 // Load memory management preferences callback
@@ -88,6 +89,7 @@ capmeter.app.preferencesStorageCallback = function(items)
 	{		
 		if(items.memmgmtPrefsStored == null)// || true)
 		{
+			//capmeter.prefstorage.clearStoredPreferences();
 			// Empty file, save new preferences
 			console.log("Preferences storage: No preferences stored!");
 			capmeter.prefstorage.setStoredPreferences(capmeter.app.preferences);
@@ -148,14 +150,16 @@ function start_current_calibration()
 	if(current_mode == MODE_IDLE)
 	{
 		disable_gui_buttons();
+		cur_calib_state = "start";
 		current_mode = MODE_CUR_CALIB_REQ;
-		capmeter.currentcalib.startCalib(1204600, 0);
 		console.log("Starting Current Calibration...");
+		capmeter.currentcalib.startCalib(capmeter.measurement._calibrationResistance * 1e6, 0);
 		sendRequest(CMD_SET_VBIAS, [VBIAS_CUR_CALIB_ST%256, Math.floor(VBIAS_CUR_CALIB_ST/256)]);
 	}	
 	else if(current_mode == MODE_CUR_CALIB)
 	{		
 		disable_gui_buttons();
+		cur_calib_state = "null";
 		sendRequest(CMD_CUR_MES_MODE_EXIT, null);
 	}
 }
@@ -794,12 +798,22 @@ function onDataReceived(reportId, data)
 				}
 				else if(current_mode == MODE_CUR_CALIB)
 				{
-					capmeter.currentcalib.addMeasurement(cur_calib_dacv, cur_calib_vbias, (bytes[2] + bytes[3]*256));
+					var adc_value = (bytes[2] + bytes[3]*256);
+					
+					if(cur_calib_state == "start")
+					{
+						cur_calib_state = "running";
+					}
+					else
+					{
+						capmeter.currentcalib.addMeasurement(cur_calib_dacv, cur_calib_vbias, adc_value);
+					}					
 					
 					// Check if it was the last measurement to perform or if the adc is saturated
-					if(cur_calib_dacv == 0 || max_cur_adc_val_1x == (bytes[2] + bytes[3]*256))
+					if(cur_calib_dacv == 0 || max_cur_adc_val_1x == adc_value)
 					{
 						// Leave current measurement mode
+						cur_calib_state = "completed";
 						sendRequest(CMD_CUR_MES_MODE_EXIT, null);		
 						$('#calibrateCurrentY').css('background', 'orange');							
 					}	
@@ -844,7 +858,7 @@ function onDataReceived(reportId, data)
 			if(bytes[2] != 0 && ((current_mode == MODE_CUR_MES) || (current_mode == MODE_CUR_CARAC) || (current_mode == MODE_CUR_CALIB)))
 			{				
 				// If we were calibrating current, export data
-				if(current_mode == MODE_CUR_CALIB)
+				if(current_mode == MODE_CUR_CALIB) // && cur_calib_state == "completed")
 				{
 					capmeter.currentcalib.stopCalib();					
 				}	
@@ -1030,6 +1044,7 @@ document.body.onload = function()
 {
 	setInterval(checkConnection, 2000);
 	capmeter.visualisation._datapoints = NB_GRAPH_POINTS;
+	$('#resistance').attr("value", 0);
 	$('#data-points').attr("value", NB_GRAPH_POINTS);
 	$('#voltageCurrent').attr("value", (VBIAS_MIN)/1000);
 	$('#maxVoltage').attr("value", (VBIAS_MIN-V_OSCILLATION)/1000);

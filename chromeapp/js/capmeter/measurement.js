@@ -5,6 +5,7 @@ capmeter.measurement._current = "nA";
 capmeter.measurement._capacitance = "fF";
 capmeter.measurement._capmes_setV = 0;
 capmeter.measurement._currentmes_setV = 0;
+capmeter.measurement._calibrationResistance = 0;
 
 capmeter.measurement.measureCurrent = function($button) 
 {
@@ -36,8 +37,9 @@ capmeter.measurement.voltageCapacitance = function($input)
   //$input.css("background", "orange");
 }
 
-capmeter.measurement.resistance = function($input) {
-    console.log($input.val());
+capmeter.measurement.resistance = function($input) 
+{
+	capmeter.measurement._calibrationResistance = $input.val();
 }
 
 capmeter.measurement.get_current = function($display) {

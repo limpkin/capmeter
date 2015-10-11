@@ -9,7 +9,6 @@ capmeter.currentcalib.cur_ampl = 0;
 capmeter.currentcalib.minVbias = 100;
 capmeter.currentcalib.maxVbias = 0;
 // Mapping from actual ADC value to ideal ADC val
-capmeter.currentcalib.adcToIdealAdc = [];
 capmeter.currentcalib.adcToIdealAdcAgg = [];
 capmeter.currentcalib.adcToIdealAdcAggNbSamples = [];
 
@@ -74,7 +73,7 @@ capmeter.currentcalib.stopCalib = function()
 		}
 	}
 	while(!capmeter.currentcalib.adcToIdealAdcAgg[i++])
-	i = capmeter.currentcalib.adcToIdealAdcAgg.length;
+	i = capmeter.currentcalib.adcToIdealAdcAgg.length - 1;
 	do
 	{
 		if(capmeter.currentcalib.adcToIdealAdcAgg[i])
@@ -94,16 +93,50 @@ capmeter.currentcalib.stopCalib = function()
 		// Check if we actually have a mapping
 		if(capmeter.currentcalib.adcToIdealAdcAgg[i])
 		{
-			capmeter.currentcalib.adcToIdealAdc[i] = Math.round(capmeter.currentcalib.adcToIdealAdcAgg[i] / capmeter.currentcalib.adcToIdealAdcAggNbSamples[i]);
+			if(i < 1024)
+			{
+				capmeter.app.preferences["adcMapping1"][i] = Math.round(capmeter.currentcalib.adcToIdealAdcAgg[i] / capmeter.currentcalib.adcToIdealAdcAggNbSamples[i]);
+			}
+			else
+			{
+				capmeter.app.preferences["adcMapping2"][1024-i] = Math.round(capmeter.currentcalib.adcToIdealAdcAgg[i] / capmeter.currentcalib.adcToIdealAdcAggNbSamples[i]);				
+			}			
 		}
 		else
 		{
-			capmeter.currentcalib.adcToIdealAdc[i] = capmeter.currentcalib.adcToIdealAdc[i-1];
+			if(i == 1024)
+			{
+				capmeter.app.preferences["adcMapping2"][0] = capmeter.app.preferences["adcMapping1"][1023];
+			}
+			else if(i > 1024)
+			{
+				capmeter.app.preferences["adcMapping2"][1024-i] = capmeter.app.preferences["adcMapping2"][1024-i-1];
+			}
+			else
+			{
+				capmeter.app.preferences["adcMapping1"][i] =  capmeter.app.preferences["adcMapping1"][i-1];
+			}
 		}
-		
-		// Add line in csv export
-		//console.log(i + " mapped to " + capmeter.currentcalib.adcToIdealAdc[i]);			
-		export_csv += i + "," + capmeter.currentcalib.adcToIdealAdc[i] + "," + (capmeter.currentcalib.adcToIdealAdc[i]-i) + "\r\n";
+		//console.log(i + " mapped to " + capmeter.app.preferences.adcMapping[i]);			
+	}
+	
+	// Complete mapping export
+	for(i = 0; i < 2048; i++)
+	{
+		if(i < 1024)
+		{
+			if(capmeter.app.preferences["adcMapping1"][i] != null)
+			{
+				export_csv += i + "," + capmeter.app.preferences["adcMapping1"][i] + "," + (capmeter.app.preferences["adcMapping1"][i]-i) + "\r\n";
+			}
+		}
+		else
+		{
+			if(capmeter.app.preferences["adcMapping2"][1024-i] != null)
+			{
+				export_csv += i + "," + capmeter.app.preferences["adcMapping2"][1024-i] + "," + (capmeter.app.preferences["adcMapping2"][1024-i]-i) + "\r\n";
+			}			
+		}		
 	}
 	
 	// Save mapping ?
@@ -115,9 +148,10 @@ capmeter.currentcalib.addMeasurement = function(vbias_dacval, vbias, adc_cur)
 {
 	// Compute (ideal) current
 	var measured_current = capmeter.currentcalib.getCurrentFromAdcAndAmpl(adc_cur, capmeter.currentcalib.cur_ampl);
+	var ideal_current_a = (vbias / capmeter.currentcalib.cur_res) * 1e-3;
 	var ideal_current_na = (vbias / capmeter.currentcalib.cur_res) * 1e6;
 	var ideal_adc_value = Math.round(ideal_current_na * 0.2047 / 1.24);	
-	console.log("DAC: " + vbias_dacval + ", Vbias: " + cur_calib_vbias + "mV, ADC: " + adc_cur + " (should be " + ideal_adc_value + "), current: " + valueToElectronicString(measured_current, "A") + " (should be " + ideal_current_na.toFixed(1) + ")");
+	console.log("DAC: " + vbias_dacval + ", Vbias: " + cur_calib_vbias + "mV, ADC: " + adc_cur + " (should be " + ideal_adc_value + "), current: " + capmeter.util.valueToElectronicString(measured_current, "A") + " (should be " + capmeter.util.valueToElectronicString(ideal_current_a, "A") + ")");
 	
 	// Store values
 	if(!capmeter.currentcalib.adcToIdealAdcAgg[adc_cur])
