@@ -108,4 +108,16 @@ From Plugin/app: Request the capmeter to reset in default state
 
 From Capmeter: 0 on error, 1 on success
 
+0x10: Write values in eeprom
+----------------------------
+From Plugin/app: First two bytes is the address, third byte is the data length (< 59), rest is the data
+
+From Capmeter: 0 on error, 1 on success
+
+0x11: Read values in eeprom
+---------------------------
+From Plugin/app: First two bytes is the address, third byte is the data length (< 62), rest is the data
+
+From Capmeter: 0 on error, the data otherwise
+
 

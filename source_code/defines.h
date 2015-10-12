@@ -12,7 +12,7 @@
 // Val defines
 #define FALSE           0
 #define TRUE            (!FALSE)
-#define CAPMETER_VER    "v1"
+#define CAPMETER_VER    "v0.1"
 
 // enums
 enum fw_mode_t     {MODE_IDLE, MODE_CURRENT_MES, MODE_CAP_MES};

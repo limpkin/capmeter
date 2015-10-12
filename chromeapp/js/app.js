@@ -19,6 +19,8 @@ var CMD_CAP_MES_REPORT 		= 0x0C;
 var CMD_CAP_MES_EXIT   		= 0x0D;
 var CMD_SET_VBIAS_DAC		= 0x0E;
 var CMD_RESET_STATE			= 0x0F;
+var CMD_SET_EEPROM_VALS     = 0x10;
+var CMD_READ_EEPROM_VALS    = 0x11;
 var CMD_BOOTLOADER_JUMP		= 0xFF;
 
 // Current mode
@@ -38,12 +40,14 @@ var MODE_CUR_CALIB_REQ	= 12
 var MODE_CUR_CALIB		= 13
 
 // Platforms mins/maxs
-var V_OSCILLATION			= 850
-var VBIAS_MIN				= 1300
-var VBIAS_MAX				= 15000
-var VBIAS_CUR_CALIB_ST		= 2000
-var NB_GRAPH_POINTS			= 20
-var NB_MS_WAIT_VBIAS_MES	= 100
+var V_OSCILLATION			= 850			// Cap measurement oscillation center
+var VBIAS_MIN				= 1300			// Minimum vbias voltage we allow
+var VBIAS_CUR_CALIB_ST		= 2000			// Vbias at which we start current calibration
+var NB_GRAPH_POINTS			= 20			// Default number of points for our graph
+var NB_MS_WAIT_VBIAS_MES	= 100			// How many milliseconds we wait before measuring vbias
+var EEPROM_STORED_DATA_SIZE = (1024-50)		// How many bytes we can store in our platform
+var EEPROM_READ_NBBYTES 	= 60			// How many bytes we read
+var EEPROM_WRITE_NBBYTES	= 59			// How many bytes we write
 
 var device_info = { "vendorId": 0x1209, "productId": 0xdddd };      			// capmeter
 var version       = 'unknown'; 													// connected capmeter version
@@ -57,6 +61,7 @@ var current_avg = 14;															// current measurement averaging
 var current_calib_avg = 14;														// current measurement averaging during calibration
 var ping_enabled = true;														// know if we send ping requests
 var platform_max_vbias = 10000;													// max vbias the platform can generate
+var capacitance_offset = null;													// Capacitance offset
 var cap_calib_array_ind = 0;													// Index inside the calibration array to store the value
 var cap_calib_array = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];				// Capacitance calibration array
 var cap_last_values = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];				// Last capacitance values
@@ -71,6 +76,12 @@ var cur_calib_dacv = 0;															// DAC value for the current calibration v
 var cur_calib_vbias = 0;														// Set voltage value for current calibration start
 var max_cur_adc_val_1x = 2047;													// Max adc val for current measurement mode
 var cur_calib_state = "null";													// Current calibration state
+var eeprom_calib_data = [];														// EEPROM calib data
+var eeprom_stored_data = [];													// EEPROM stored data
+var eeprom_read_counter = 0;													// EEPROM read counter
+var eeprom_data_to_store = [];													// EEPROM data to store
+var eeprom_write_counter = 0;													// EEPROM write counter
+var eeprom_stored_data_valid = false;											// Is the data we just received valid?
 var debug = false;
 
 capmeter.app.preferences = {"memmgmtPrefsStored": false, "syncFSAllowed": false, "capOffset": 0, "capCalibDone": false, "adcMapping1": new Array(1024), "adcMapping2": new Array(1024)};
@@ -99,7 +110,7 @@ capmeter.app.preferencesStorageCallback = function(items)
 			capmeter.app.preferences = items;
 			if(capmeter.app.preferences.capCalibDone)
 			{
-				console.log("Loaded capacitance offset: " + capmeter.util.valueToElectronicString(capmeter.app.preferences.capOffset, "F"));		
+				//console.log("Loaded capacitance offset: " + capmeter.util.valueToElectronicString(capmeter.app.preferences.capOffset, "F"));		
 				$('#calibrateCapacitance').css('background', 'orange');				
 			}
 			// See if we have a calibrated current measurement
@@ -351,6 +362,14 @@ function reset()
 	current_mode = MODE_IDLE;
 }
 
+// Export raw correction data to capmeter eeprom
+function exportAdvancedCalibDataToEeprom()
+{
+	// Export our correction data
+	eeprom_data_to_store = JSON.stringify({"cap": capacitance_offset, "cur": capmeter.currentcalib.getRawAdcToIdealAdcVector()});
+	eeprom_write_counter = 0;	
+}
+
 /**
  * Handler for receiving new data from the device.
  * Decodes the HID message and updates the HTML message divider with
@@ -408,7 +427,17 @@ function onDataReceived(reportId, data)
             if (!connected) 
 			{
                 console.log('Connected to Capmeter ' + version);
-				sendRequest(CMD_RESET_STATE, null);
+				if(version == "v0.1")
+				{
+					sendRequest(CMD_RESET_STATE, null);
+				}
+				else
+				{
+					sendRequest(CMD_OE_CALIB_STATE, null);
+				}				
+				//
+				//sendRequest(CMD_SET_EEPROM_VALS, [0, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+				//sendRequest(CMD_READ_EEPROM_VALS, [0, 10]);
                 connected = true;
             }
             break;
@@ -416,8 +445,63 @@ function onDataReceived(reportId, data)
 		
 		case CMD_RESET_STATE:
 		{
-			sendRequest(CMD_OE_CALIB_STATE, null);
-			console.log("Capmeter state reset");
+			// Capmeter reset, now we need to read the EEPROM contents for possible json compressed data
+			//console.log("Capmeter State Reset");
+			eeprom_calib_data = [];
+			eeprom_read_counter = 0;
+			eeprom_stored_data_valid = false;
+			eeprom_stored_data = new Uint8Array(EEPROM_STORED_DATA_SIZE);
+			sendRequest(CMD_READ_EEPROM_VALS, [0, 0, EEPROM_READ_NBBYTES]);
+			break;
+		}
+		
+		case CMD_READ_EEPROM_VALS:
+		{
+			//console.log("Received EEPROM data: " + bytes.subarray(2, 2 + bytes[0]));
+			eeprom_stored_data.set(bytes.subarray(2, 2 + bytes[0], eeprom_read_counter), eeprom_read_counter);
+			eeprom_read_counter += bytes[0];
+			
+			// Ask the next packet or stop
+			if(eeprom_read_counter == EEPROM_STORED_DATA_SIZE)
+			{
+				// We received all we could read, try to parse the data
+				eeprom_stored_data[EEPROM_STORED_DATA_SIZE-1] = 0;
+				
+				try
+				{
+					eeprom_calib_data = JSON.parse(capmeter.util.arrayToStr(eeprom_stored_data));
+					console.log("EEPROM calibration data successfully parsed!");
+					eeprom_stored_data_valid = true;
+				}
+				catch(e)
+				{
+					console.log("No advanced EEPROM calibration data in capmeter");
+				}
+				sendRequest(CMD_OE_CALIB_STATE, null);
+			}
+			else
+			{
+				// Still data to read...
+				var nb_bytes_to_read = EEPROM_STORED_DATA_SIZE - eeprom_read_counter;
+				if(nb_bytes_to_read > EEPROM_READ_NBBYTES)
+				{
+					nb_bytes_to_read = EEPROM_READ_NBBYTES;
+				}
+				sendRequest(CMD_READ_EEPROM_VALS, [(eeprom_read_counter%256), Math.floor(eeprom_read_counter/256), nb_bytes_to_read]);
+			}
+			break;
+		}
+		
+		case CMD_SET_EEPROM_VALS:
+		{
+			if(bytes[2] == 0)
+			{
+				console.log("Couldn't set EEPROM vals!");
+			}
+			else
+			{
+				console.log("EEPROM vals set");				
+			}
 			break;
 		}
 		
@@ -454,7 +538,8 @@ function onDataReceived(reportId, data)
 			// Update max adc vals
 			max_cur_adc_val_1x = 2047 - (bytes[2] + bytes[3]*256);
 			
-			console.log("Calibration Data Dated From " + bytes[34] + "/" + bytes[33] + "/" + bytes[32])
+			// Print out debug info
+			console.log("Calibration Data Received, Dated From " + bytes[34] + "/" + bytes[33] + "/" + bytes[32])
 			console.log("Max Voltage: " + (bytes[30] + bytes[31]*256) + "mV")
 			console.log("Single Ended Offset: " + (bytes[26] + bytes[27]*256) + " (" + ((bytes[26] + bytes[27]*256)*1.24/4.095).toFixed(2) + "mV)")
 			console.log("Single Ended Offset For Vbias: " + (bytes[24] + bytes[25]*256) + " (" + ((bytes[24] + bytes[25]*256)*1.24/4.095).toFixed(2) + "mV)")
@@ -463,13 +548,7 @@ function onDataReceived(reportId, data)
 			console.log("First Threshold Down: " + (bytes[18] + bytes[19]*256) + " (" + ((bytes[18] + bytes[19]*256)*1.24/4.095).toFixed(2) + "mV)")
 			console.log("Second Threshold Up: " + (bytes[20] + bytes[21]*256) + " (" + ((bytes[20] + bytes[21]*256)*1.24/4.095).toFixed(2) + "mV)")
 			console.log("Second Threshold Down: " + (bytes[16] + bytes[17]*256) + " (" + ((bytes[16] + bytes[17]*256)*1.24/4.095).toFixed(2) + "mV)")
-			console.log("Current offset for 1x: " + (bytes[2] + bytes[3]*256))
-			console.log("Current offset for 2x: " + (bytes[4] + bytes[5]*256))
-			console.log("Current offset for 4x: " + (bytes[6] + bytes[7]*256))
-			console.log("Current offset for 8x: " + (bytes[8] + bytes[9]*256))
-			console.log("Current offset for 16x: " + (bytes[10] + bytes[11]*256))
-			console.log("Current offset for 32x: " + (bytes[12] + bytes[13]*256))
-			console.log("Current offset for 64x: " + (bytes[14] + bytes[15]*256))
+			console.log("Current offsets for 1/2/4/8/16/32/64x: " + (bytes[2] + bytes[3]*256) + "/" + (bytes[4] + bytes[5]*256) + "/" + (bytes[6] + bytes[7]*256) + "/" + (bytes[8] + bytes[9]*256) + "/" + (bytes[10] + bytes[11]*256) + "/" + (bytes[12] + bytes[13]*256) + "/" + (bytes[14] + bytes[15]*256));
 			break;
 		}
 		
@@ -917,18 +996,18 @@ function onDeviceFound(devices)
 {
     if (devices.length <= 0)
     {
-		console.log('No devices found');
+		//console.log('No devices found');
         return;
     }
 
     var ind = devices.length - 1;
     var devId = devices[ind].deviceId;
-    console.log('Found ' + devices.length + ' device(s):');
+    //console.log('Found ' + devices.length + ' device(s):');
 	for (i=0; i < devices.length; i++)
 	{
-		console.log('- device #' + devices[i].deviceId + ' vendorId ' + devices[i].vendorId + ' productId ' + devices[i].productId);
+		//console.log('- device #' + devices[i].deviceId + ' vendorId ' + devices[i].vendorId + ' productId ' + devices[i].productId);
 	}
-    console.log('Connecting to device #' + devId);
+    //console.log('Connecting to device #' + devId);
     chrome.hid.connect(devId, function(connectInfo)
     {
         if (!chrome.runtime.lastError)
@@ -1057,5 +1136,6 @@ document.body.onload = function()
 	$('#maxVoltage').attr("value", (VBIAS_MIN-V_OSCILLATION)/1000);
 	$('#voltageCapacitance').attr("value", (VBIAS_MIN-V_OSCILLATION)/1000);
 	capmeter.prefstorage.getStoredPreferences(capmeter.app.preferencesStorageCallback);
+	console.log("Looking for devices...")
 	disable_gui_buttons();
 }

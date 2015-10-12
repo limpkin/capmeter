@@ -5,12 +5,14 @@
  *  Author: limpkin
  */
 #include <avr/interrupt.h>
+#include <avr/eeprom.h>
 #include <util/delay.h>
 #include <avr/wdt.h>
 #include <string.h>
 #include <avr/io.h>
 #include <stdio.h>
 #include "automated_testing.h"
+#include "eeprom_addresses.h"
 #include "conversions.h"
 #include "measurement.h"
 #include "calibration.h"
@@ -369,6 +371,40 @@ int main(void)
                     else
                     {
                         usb_packet.payload[0] = USB_RETURN_ERROR;
+                    }
+                    usb_send_data((uint8_t*)&usb_packet);
+                    break;
+                }
+                case CMD_SET_EEPROM_VALS:
+                {
+                    uint16_t* addr = (uint16_t*)usb_packet.payload;
+                    uint16_t size = usb_packet.payload[2];
+                    if(((*addr) + size > APP_STORED_DATA_MAX_SIZE) || (size > (RAWHID_RX_SIZE-5)))
+                    {
+                         usb_packet.payload[0] = USB_RETURN_ERROR;
+                    }
+                    else
+                    {
+                        eeprom_write_block((void*)&usb_packet.payload[3], (void*)(EEP_APP_STORED_DATA + (*addr)), size);
+                        usb_packet.payload[0] = USB_RETURN_OK;
+                    }
+                    usb_packet.length = 1;
+                    usb_send_data((uint8_t*)&usb_packet);
+                    break;
+                }
+                case CMD_READ_EEPROM_VALS:
+                {
+                    uint16_t* addr = (uint16_t*)usb_packet.payload;
+                    uint16_t size = usb_packet.payload[2];
+                    if(((*addr) + size > APP_STORED_DATA_MAX_SIZE) || (size > (RAWHID_TX_SIZE-2)))
+                    {
+                        usb_packet.length = 1;
+                        usb_packet.payload[0] = USB_RETURN_ERROR;
+                    }
+                    else
+                    {
+                        usb_packet.length = size;
+                        eeprom_read_block(usb_packet.payload, (void*)(EEP_APP_STORED_DATA + (*addr)), size);
                     }
                     usb_send_data((uint8_t*)&usb_packet);
                     break;
