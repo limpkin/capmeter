@@ -11,21 +11,10 @@ capmeter.currentcalib.minVbias = 100;
 capmeter.currentcalib.maxVbias = 0;
 // Mapping from actual ADC value to ideal ADC val
 capmeter.currentcalib.adcToIdealAdcAgg = [];
-capmeter.currentcalib.adcToIdealAdcAggSmoothed = [];
 capmeter.currentcalib.adcToIdealAdcAggNbSamples = [];
+capmeter.currentcalib.temp_array = new Array(2048);
 capmeter.currentcalib.finalAdcToIdealAdc = new Array(2048);
 
-
-function Create2DArray(rows) 
-{
-	var arr = [];
-
-	for (var i=0;i<rows;i++) 
-	{
-		arr[i] = [];
-	}
-	return arr;
-}
 
 // File written callback
 capmeter.currentcalib.file_written_callback = function()
@@ -37,93 +26,6 @@ capmeter.currentcalib.file_written_callback = function()
 capmeter.currentcalib.getCurrentFromAdcAndAmpl = function(adc_val, current_ampl)
 {
 	return ((adc_val*1.24)/(0.2047*(1 << current_ampl)))*1e-9;
-}
-
-// Reset calibration states
-capmeter.currentcalib.resetCalib = function()
-{
-	//
-}
-
-// Get raw adc to ideal adc vector
-capmeter.currentcalib.getRawAdcToIdealAdcVector = function()
-{
-	return capmeter.currentcalib.adcToIdealAdcAgg;
-}
-
-// Smooth array and use it for correction
-capmeter.currentcalib.adcToIdealAdcSmoothing = function(array)
-{
-	// Find starting & ending indexes
-	var starting_index = 0;
-	while(array[starting_index] == null){starting_index++;}
-	var ending_index = array.length - 1;
-	while(array[ending_index] == null){ending_index--;}
-	
-	// Smooth our vector
-	for(var index = 0; index < array.length; index++)
-	{
-		if(array[index] != null)
-		{
-			var nb_elements_before = index - starting_index;
-			var nb_elements_after = ending_index - index;
-			if(nb_elements_before < SMOOTHING_FACTOR)
-			{
-				var agg = 0;
-				for(var i = starting_index; i <= index + nb_elements_before; i++)
-				{
-					agg += array[i];
-				}
-				capmeter.currentcalib.finalAdcToIdealAdc[index] = Math.round(agg/(index + nb_elements_before + 1 - starting_index));
-			}
-			else if(nb_elements_after < SMOOTHING_FACTOR)
-			{
-				var agg = 0;
-				for(var i = index - nb_elements_after; i <= ending_index; i++)
-				{
-					agg += array[i];
-				}
-				capmeter.currentcalib.finalAdcToIdealAdc[index] = Math.round(agg/(ending_index - index + nb_elements_after + 1));	
-			}
-			else
-			{
-				var agg = 0;
-				for(var i = index - SMOOTHING_FACTOR; i <= index + SMOOTHING_FACTOR; i++)
-				{
-					agg += array[i];
-				}
-				capmeter.currentcalib.finalAdcToIdealAdc[index] = Math.round(agg/(SMOOTHING_FACTOR*2 + 1));	
-			}			
-		}
-	}
-	
-	// Populate missing values
-	var last_val = 0;
-	for(var i = 1024; i >= 0; i--)
-	{
-		if(array[i] != null)
-		{
-			last_val = array[i] - i;
-		}
-		else
-		{
-			capmeter.currentcalib.finalAdcToIdealAdc[i] = i + last_val;
-		}
-	}
-	
-	// Populate missing values
-	var last_val = 0;
-	for(var i = 1024; i < array.length; i++)
-	{
-		if(array[i] != null)
-		{
-			last_val = array[i] - i;
-		}
-		else
-		{
-			capmeter.currentcalib.finalAdcToIdealAdc[i] = i + last_val;
-		}
-	}
 }
 
 // ADC to Ideal ADC conversion
@@ -140,62 +42,182 @@ capmeter.currentcalib.correctAdcValue = function(val)
 	}
 }
 
-// Initialize current calib
-capmeter.currentcalib.initCalib = function()
-{
-	var current_calibrated = true;
-	var temp_array = new Array(2048);
+// Take raw adc to ideal adc correction data, smooth it, compress it and store it to the eeprom
+capmeter.currentcalib.processCorrectionDataAndStoreToEeprom = function(array)
+{	
+	//console.log("Raw data:");
+	//console.log(array);
+	array = capmeter.util.smoothArray(array, 1);
+	//console.log("Smoothed:");
+	//console.log(array);
 	
-	// To know if we're calibrated, check that all values after 10 are set
-	for(var i = 0; i < capmeter.app.preferences["adcMapping1"].length; i++)
+	// Find starting & ending indexes
+	var values_offset = 0;
+	var min_correction_data = 0;
+	var max_correction_data = 0;
+	var correction_data = new Array(2048);
+	
+	// Store data starting & ending index
+	var starting_index = 0;
+	while(array[starting_index] == null){starting_index++;}
+	var ending_index = array.length - 1;
+	while(array[ending_index] == null){ending_index--;}
+	
+	// Store starting correction
+	var starting_correction = array[starting_index] - starting_index;
+	
+	// Replace null values with a constant
+	for(var i = 0; i < starting_index; i++)
 	{
-		if(capmeter.app.preferences["adcMapping1"][i] == null && i > 10)
-		{
-			current_calibrated = false;
-		}
-		temp_array[i] = capmeter.app.preferences["adcMapping1"][i];
+		correction_data[i] = 10000;
 	}
-	for(var i = 0; i < capmeter.app.preferences["adcMapping2"].length; i++)
+	for(var i = ending_index + 1; i < correction_data.length; i++)
 	{
-		if(capmeter.app.preferences["adcMapping2"][i] == null && i < 980)
-		{
-			current_calibrated = false;
-		}
-		temp_array[1024+i] = capmeter.app.preferences["adcMapping2"][i];
+		correction_data[i] = 10000;
 	}
 	
-	var test = new Uint8Array(temp_array.length);
-	for(var i = 0; i < temp_array.length; i++)
+	// Loop through the known values and store correction data
+	var last_correction = starting_correction;
+	for(var i = starting_index; i <= ending_index; i++)
 	{
-		if(temp_array[i] == null)
+		var current_correction = array[i] - i;
+		correction_data[i] = current_correction - last_correction;
+		if(correction_data[i] < min_correction_data)
 		{
-			test[i] = 0xFF;
+			min_correction_data = correction_data[i];
+		}
+		else if(correction_data[i] > max_correction_data)
+		{
+			max_correction_data = correction_data[i];
+		}
+		last_correction = current_correction;
+	}
+	
+	// Apply offset to all values
+	values_offset = 1 - min_correction_data;
+	for(var i = 0; i < correction_data.length; i++)
+	{
+		if(correction_data[i] == 10000)
+		{
+			correction_data[i] = 0;
 		}
 		else
 		{
-			var diff = 128 + (temp_array[i]-i);
-			test[i] = diff;
+			correction_data[i] = correction_data[i] + values_offset;
 		}
 	}
-	var tata = capmeter.util.arrayToStr(test);
-	console.log("Size of sample is: " + tata.length);
-	var compressed = LZString.compressToUint8Array(tata);
-	console.log("Size of compressed sample is: " + compressed.length);
-	var string = LZString.decompressFromUint8Array(compressed);
-	console.log("Sample is: " + string);
-		
-	// Check that we're calibrated
-	if(current_calibrated)
+	
+	// We encode each difference on 3 bits, check that it fits
+	if(max_correction_data - min_correction_data + 1 > 7)
 	{
-		$('#calibrateCurrentY').css('background', 'orange');	
-		
-		// Average our current vector
-		capmeter.currentcalib.adcToIdealAdcSmoothing(temp_array);		
+		console.log("Can't fit data into platform EEPROM!");
+		console.log("Number of different values: " + (max_correction_data - min_correction_data + 2));
 	}
 	else
 	{
-		$('#calibrateCurrentY').css('background', '#3ED1D6');
+		//console.log("Correction data fits into platform EEPROM");
+		// Move from 3 bits values to 8 bits array
+		var final_compressed_data = new Uint8Array(2048*3/8);
+		for(var i = 0; i < final_compressed_data.length; i++)
+		{
+			var bit_data = 0x00;
+			for(var j = 0; j < 8; j++)
+			{
+				var buffer_index = Math.floor((i*8+j)/3);
+				var bit_index_mask = (1 << ((i*8+j)%3));
+				if(correction_data[buffer_index] & bit_index_mask)
+				{
+					bit_data |= (1 << j);
+				}
+			}
+			final_compressed_data[i] = bit_data;
+		}
+		//console.log("Pre-compressed:");
+		//console.log(correction_data);
+		//console.log("3 bits to 8 bits:");
+		//console.log(final_compressed_data);		
+		
+		// Store data in global vars and trigger save
+		capmeter.app.current_value_offset = values_offset;
+		capmeter.app.raw_calibration_data = final_compressed_data;
+		capmeter.app.current_starting_correction = starting_correction;
+		$('#calibrateCurrentY').css('background', 'orange');	
+		capmeter.app.exportAdvancedCalibDataToEeprom();
 	}
+}
+
+// Parse current calibration data
+capmeter.currentcalib.parseCurrentCorrectionData = function()
+{
+	var buffer = capmeter.app.raw_calibration_data;
+	var values_offset = capmeter.app.current_value_offset;
+	var starting_correction = capmeter.app.current_starting_correction;
+	
+	var decompressed_data = new Uint8Array(2048);
+	for(var i = 0; i < decompressed_data.length; i++)
+	{
+		var bit_data = 0x00;
+		for(var j = 0; j < 3; j++)
+		{
+			var buffer_index = Math.floor((i*3+j)/8);
+			var bit_index_mask = (1 << ((i*3+j)%8));
+			if(buffer[buffer_index] & bit_index_mask)
+			{
+				bit_data |= (1 << j);
+			}
+		}
+		decompressed_data[i] = bit_data;
+	}
+	//console.log("8 bits to 3 bits:");
+	//console.log(decompressed_data);
+	
+	var last_correction = starting_correction;
+	for(var i = 0; i < decompressed_data.length; i++)
+	{
+		if(decompressed_data[i] == 0)
+		{
+			capmeter.currentcalib.finalAdcToIdealAdc[i] = null;
+		}
+		else
+		{
+			var current_correction = last_correction + (decompressed_data[i] - values_offset);
+			capmeter.currentcalib.finalAdcToIdealAdc[i] = i + current_correction;
+			last_correction = current_correction;
+		}
+	}
+	//console.log("Decompressed:");
+	//console.log(capmeter.currentcalib.finalAdcToIdealAdc);
+	
+	// Populate missing values
+	var last_val = 0;
+	for(var i = 1024; i >= 0; i--)
+	{
+		if(capmeter.currentcalib.finalAdcToIdealAdc[i] != null)
+		{
+			last_val = capmeter.currentcalib.finalAdcToIdealAdc[i] - i;
+		}
+		else
+		{
+			capmeter.currentcalib.finalAdcToIdealAdc[i] = i + last_val;
+		}
+	}
+	var last_val = 0;
+	for(var i = 1024; i < capmeter.currentcalib.finalAdcToIdealAdc.length; i++)
+	{
+		if(capmeter.currentcalib.finalAdcToIdealAdc[i] != null)
+		{
+			last_val = capmeter.currentcalib.finalAdcToIdealAdc[i] - i;
+		}
+		else
+		{
+			capmeter.currentcalib.finalAdcToIdealAdc[i] = i + last_val;
+		}
+	}
+	
+	//console.log("Final Correction Vector");
+	//console.log(capmeter.currentcalib.finalAdcToIdealAdc);
+	$('#calibrateCurrentY').css('background', 'orange');	
+	console.log("EEPROM current calibration data parsed");
 }
 
 // Export correction data
@@ -214,7 +236,7 @@ capmeter.currentcalib.exportAdcCorrec = function()
 capmeter.currentcalib.startCalib = function(resistor_val, current_ampl)
 {
 	capmeter.currentcalib.adcToIdealAdcAggNbSamples = new Array(2048);
-	capmeter.currentcalib.adcToIdealAdcAggSmoothed = new Array(2048);
+	capmeter.currentcalib.adcToIdealAdcAgg = new Array(2048);
 	capmeter.currentcalib.cur_ampl = current_ampl;
 	capmeter.currentcalib.cur_res = resistor_val;
 	capmeter.currentcalib.minVbias = 100000;
@@ -234,79 +256,52 @@ capmeter.currentcalib.stopCalib = function()
 	var i = 0;
 	do
 	{
-		if(capmeter.currentcalib.adcToIdealAdcAggSmoothed[i])
+		if(capmeter.currentcalib.adcToIdealAdcAgg[i])
 		{
 			min_adc_value = i;
 		}
 	}
-	while(!capmeter.currentcalib.adcToIdealAdcAggSmoothed[i++])
-	i = capmeter.currentcalib.adcToIdealAdcAggSmoothed.length - 1;
+	while(!capmeter.currentcalib.adcToIdealAdcAgg[i++])
+	i = capmeter.currentcalib.adcToIdealAdcAgg.length - 1;
 	do
 	{
-		if(capmeter.currentcalib.adcToIdealAdcAggSmoothed[i])
+		if(capmeter.currentcalib.adcToIdealAdcAgg[i])
 		{
 			max_adc_value = i;
 		}
 	}
-	while(!capmeter.currentcalib.adcToIdealAdcAggSmoothed[i--])
+	while(!capmeter.currentcalib.adcToIdealAdcAgg[i--])
 	console.log("Min ADC val: " + min_adc_value + ", max ADC val: " + max_adc_value);
 
 	// Compute mapping
 	for(i = min_adc_value; i <= max_adc_value; i++)
 	{
 		// Check if we actually have a mapping
-		if(capmeter.currentcalib.adcToIdealAdcAggSmoothed[i])
+		if(capmeter.currentcalib.adcToIdealAdcAgg[i])
 		{
-			if(i < 1024)
-			{
-				capmeter.app.preferences["adcMapping1"][i] = Math.round(capmeter.currentcalib.adcToIdealAdcAggSmoothed[i] / capmeter.currentcalib.adcToIdealAdcAggNbSamples[i]);
-			}
-			else
-			{
-				capmeter.app.preferences["adcMapping2"][i-1024] = Math.round(capmeter.currentcalib.adcToIdealAdcAggSmoothed[i] / capmeter.currentcalib.adcToIdealAdcAggNbSamples[i]);				
-			}			
+			capmeter.currentcalib.temp_array[i] = Math.round(capmeter.currentcalib.adcToIdealAdcAgg[i] / capmeter.currentcalib.adcToIdealAdcAggNbSamples[i]);	
 		}
 		else
 		{
-			if(i == 1024)
-			{
-				capmeter.app.preferences["adcMapping2"][0] = capmeter.app.preferences["adcMapping1"][1023];
-			}
-			else if(i > 1024)
-			{
-				capmeter.app.preferences["adcMapping2"][i-1024] = capmeter.app.preferences["adcMapping2"][i-1024-1];
-			}
-			else
-			{
-				capmeter.app.preferences["adcMapping1"][i] =  capmeter.app.preferences["adcMapping1"][i-1];
-			}
+			capmeter.currentcalib.temp_array[i] = capmeter.currentcalib.temp_array[i-1];
 		}
 		//console.log(i + " mapped to " + capmeter.app.preferences.adcMapping[i]);			
 	}
 	
-	// Complete mapping export
-	var export_csv = "ADC Val,Mapped ADC Val,Difference\r\n";
-	for(i = 0; i < 2048; i++)
+	// Check if we're calibrated
+	var current_calibrated = true;	
+	for(var i = 20; i < capmeter.currentcalib.temp_array.length - 40; i++)
 	{
-		if(i < 1024)
+		if(capmeter.currentcalib.temp_array[i] == null)
 		{
-			if(capmeter.app.preferences["adcMapping1"][i] != null)
-			{
-				export_csv += i + "," + capmeter.app.preferences["adcMapping1"][i] + "," + (capmeter.app.preferences["adcMapping1"][i]-i) + "\r\n";
-			}
+			current_calibrated = false;
 		}
-		else
-		{
-			if(capmeter.app.preferences["adcMapping2"][i-1024] != null)
-			{
-				export_csv += i + "," + capmeter.app.preferences["adcMapping2"][i-1024] + "," + (capmeter.app.preferences["adcMapping2"][i-1024]-i) + "\r\n";
-			}			
-		}		
 	}
-	
-	// Save mapping
-	capmeter.prefstorage.setStoredPreferences(capmeter.app.preferences);
-	//capmeter.filehandler.selectAndSaveFileContents("export.txt", new Blob([export_csv], {type: 'text/plain'}), capmeter.currentcalib.file_written_callback);
+	if(current_calibrated)
+	{
+		console.log("Current Calibration Done, Storing Data in EEPROM");
+		capmeter.currentcalib.processCorrectionDataAndStoreToEeprom();
+	}
 }
 
 // Add a new measurement
@@ -321,15 +316,15 @@ capmeter.currentcalib.addMeasurement = function(vbias_dacval, vbias, adc_cur)
 	console.log("DAC: " + vbias_dacval + ", Vbias: " + cur_calib_vbias + "mV, ADC: " + adc_cur + " (should be " + ideal_adc_value + "), current: " + capmeter.util.valueToElectronicString(measured_current, "A") + " (should be " + capmeter.util.valueToElectronicString(ideal_current_a, "A") + ")");
 	
 	// Store values
-	if(!capmeter.currentcalib.adcToIdealAdcAggSmoothed[adc_cur])
+	if(!capmeter.currentcalib.adcToIdealAdcAgg[adc_cur])
 	{
-		capmeter.currentcalib.adcToIdealAdcAggSmoothed[adc_cur] = 0;
+		capmeter.currentcalib.adcToIdealAdcAgg[adc_cur] = 0;
 	}
 	if(!capmeter.currentcalib.adcToIdealAdcAggNbSamples[adc_cur])
 	{
 		capmeter.currentcalib.adcToIdealAdcAggNbSamples[adc_cur] = 0;
 	}
-	capmeter.currentcalib.adcToIdealAdcAggSmoothed[adc_cur] += ideal_adc_value;
+	capmeter.currentcalib.adcToIdealAdcAgg[adc_cur] += ideal_adc_value;
 	capmeter.currentcalib.adcToIdealAdcAggNbSamples[adc_cur]++;
 	
 	// Store Min/Max Vbias
