@@ -47,7 +47,7 @@ capmeter.currentcalib.processCorrectionDataAndStoreToEeprom = function(array)
 {	
 	//console.log("Raw data:");
 	//console.log(array);
-	array = capmeter.util.smoothArray(array, 1);
+	array = capmeter.util.smoothArray(array, 2);
 	//console.log("Smoothed:");
 	//console.log(array);
 	
@@ -137,12 +137,13 @@ capmeter.currentcalib.processCorrectionDataAndStoreToEeprom = function(array)
 		//console.log("3 bits to 8 bits:");
 		//console.log(final_compressed_data);		
 		
-		// Store data in global vars and trigger save
+		// Store data in global vars and trigger save, then parse it again to load correction array
 		capmeter.app.current_value_offset = values_offset;
 		capmeter.app.raw_calibration_data = final_compressed_data;
 		capmeter.app.current_starting_correction = starting_correction;
 		$('#calibrateCurrentY').css('background', 'orange');	
 		capmeter.app.exportAdvancedCalibDataToEeprom();
+		capmeter.currentcalib.parseCurrentCorrectionData();
 	}
 }
 
@@ -216,8 +217,23 @@ capmeter.currentcalib.parseCurrentCorrectionData = function()
 	
 	//console.log("Final Correction Vector");
 	//console.log(capmeter.currentcalib.finalAdcToIdealAdc);
-	$('#calibrateCurrentY').css('background', 'orange');	
-	console.log("EEPROM current calibration data parsed");
+	$('#calibrateCurrentY').css('background', 'orange');		
+}
+
+// Print calibration data on the graph
+capmeter.currentcalib.printCalibData = function()
+{
+	var graph_xlabels = new Array(capmeter.currentcalib.finalAdcToIdealAdc.length);
+	var graph_yvalues = new Array(capmeter.currentcalib.finalAdcToIdealAdc.length);
+	for (var i = 0; i < capmeter.currentcalib.finalAdcToIdealAdc.length; i++)
+	{
+			graph_xlabels[i] = i;
+			graph_yvalues[i] = capmeter.currentcalib.finalAdcToIdealAdc[i] - i;
+	}
+	capmeter.graph.changeUnit("LSB");
+	capmeter.graph.changeYLabel("LSB error");
+	capmeter.graph.changeXLabels(graph_xlabels);
+	capmeter.graph.changeYValues(graph_yvalues);		
 }
 
 // Export correction data
@@ -290,7 +306,7 @@ capmeter.currentcalib.stopCalib = function()
 	
 	// Check if we're calibrated
 	var current_calibrated = true;	
-	for(var i = 20; i < capmeter.currentcalib.temp_array.length - 40; i++)
+	for(var i = 30; i < capmeter.currentcalib.temp_array.length - 50; i++)
 	{
 		if(capmeter.currentcalib.temp_array[i] == null)
 		{
@@ -300,7 +316,11 @@ capmeter.currentcalib.stopCalib = function()
 	if(current_calibrated)
 	{
 		console.log("Current Calibration Done, Storing Data in EEPROM");
-		capmeter.currentcalib.processCorrectionDataAndStoreToEeprom();
+		capmeter.currentcalib.processCorrectionDataAndStoreToEeprom(capmeter.currentcalib.temp_array);
+	}
+	else
+	{
+		$('#calibrateCurrentY').css('background', '#3ED1D6');
 	}
 }
 
