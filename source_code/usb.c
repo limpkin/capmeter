@@ -28,6 +28,18 @@ volatile uint8_t usb_configuration = 0;
 volatile uint8_t received_data_flag = FALSE;
 
 
+uint8_t is_usb_enumerated(void)
+{
+    if(usb_configuration != 0)
+    {
+        return TRUE;
+    }
+    else
+    {
+        return FALSE;
+    }
+}
+
 void init_usb_clock(void)
 {	
 	/* When arriving here, we are already running at 32MHz */

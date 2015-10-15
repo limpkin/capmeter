@@ -5,10 +5,12 @@
  *  Author: limpkin
  */ 
 #include <avr/pgmspace.h>
+#include <avr/eeprom.h>
 #include <util/delay.h>
 #include <avr/io.h>
 #include <string.h>
 #include <stdio.h>
+#include "eeprom_addresses.h"
 #include "conversions.h"
 #include "calibration.h"
 #include "measurement.h"
@@ -16,6 +18,7 @@
 #include "utils.h"
 #include "vbias.h"
 #include "tests.h"
+#include "usb.h"
 #include "dac.h"
 #include "adc.h"
 
@@ -24,6 +27,16 @@
  */
 void functional_test(void)
 {
+    if (eeprom_read_byte((uint8_t*)EEP_FUNC_TEST_DONE_BOOL) == EEPROM_BOOL_OK_VAL)
+    {
+        // If functional test has already been done, return
+        return;
+    }        
+    
+    // Start by calibrating the platform
+    testdprintf_P(PSTR("Calibration in progress, please wait...\r\n"));
+    start_openended_calibration(0,0,0);
+    
     testdprintf_P(PSTR("\r\n\r\n\r\n\r\n--------------------------\r\n"));
     testdprintf_P(PSTR("--- FUNCTIONAL TESTING ---\r\n"));
     testdprintf_P(PSTR("-\r\n"));
@@ -47,7 +60,7 @@ void functional_test(void)
     if (check_value_range(get_single_ended_offset(ADC_CHANNEL_VBIAS), 160, 190) == FALSE)
     {
         testdprintf("- PROBLEM OFFSET VBIAS: %u\r\n", get_single_ended_offset(ADC_CHANNEL_VBIAS));
-        testdprintf_P(PSTR("  Likely suspects: bad MCU or defective U5\r\n"));
+        testdprintf_P(PSTR("  Likely suspects: bad MCU or defective U5/R22/R23\r\n"));
         test_passed = FALSE;
     } 
     else
@@ -202,7 +215,35 @@ void functional_test(void)
         testdprintf_P(PSTR("- OK AND GATE & THRESHOLDS\r\n"));
     }
     disable_opampin_dac();
-    set_opampin_low();   
+    set_opampin_low();
+    
+    /*******************************************************************/
+    /*******************************************************************/
+    /************************ COMPOUTS OUTPUTS *************************/
+    /*******************************************************************/
+    /*******************************************************************/
+    _delay_ms(10);
+    uint8_t compouts_test_passed = TRUE;
+    if (((PORTE_IN & (PIN0_bm|PIN1_bm)) != (PIN0_bm)) || ((PORTA_IN & PIN6_bm) == 0))
+    {
+        compouts_test_passed = FALSE;
+    }
+    set_opampin_high();
+    _delay_ms(10);
+    if (((PORTE_IN & (PIN0_bm|PIN1_bm)) != (PIN1_bm)) || ((PORTA_IN & PIN6_bm) != 0))
+    {
+        compouts_test_passed = FALSE;
+    }
+    if(compouts_test_passed != TRUE)
+    {
+        testdprintf_P(PSTR("- PROBLEM COMPOUT outputs: check U6\r\n"));
+        test_passed = FALSE;
+    }
+    else
+    {
+        testdprintf_P(PSTR("- OK COMPOUT OUTPUTS\r\n"));
+    }
+    set_opampin_low();
     
     /*******************************************************************/
     /*******************************************************************/
@@ -247,21 +288,21 @@ void functional_test(void)
     // Val(ADC) = 6552 * 4095 / 10 * avcc * x
     // Val(ADC) = 2683044 / avcc * x
     // Val(ADC) * avcc = 2683044 / x >> x is 0.99 & 1.01 >> 2656479 & 2710146
-    // Avcc error can be 3 LSB, we'll put 5 though as the offset isn't exactly the same between channels!
+    // Avcc error can be 3 LSB, we'll put 10 though as the offset isn't exactly the same between channels!
     delete_single_ended_offset();                                                   // Delete single ended offset as we switch references
     configure_adc_channel(ADC_CHANNEL_GND_EXT_VCCDIV16, 0, FALSE);                  // Select GND pin to measure the new offset
     uint16_t aref_offset = get_averaged_adc_value(13);                              // Measure the offset
     configure_adc_channel(ADC_CHANNEL_AREF, 0, FALSE);                              // Select aref channel
     uint16_t aref = get_averaged_adc_value(13);                                     // Measure aref value
     configure_adc_channel(ADC_CHANNEL_AVCCDIV10_VCCDIV16, 0, FALSE);                // Select avcc/10 channel with VCC/1.6 as reference
-    //uint16_t div10_avccint_ref = get_averaged_adc_value(13);                        // Measure avcc/10
-    uint32_t min_total = ((uint32_t)(aref-aref_offset)-5)*((uint32_t)avcc-5-4);     // Min multiplication
-    uint32_t max_total = ((uint32_t)(aref-aref_offset)+5)*((uint32_t)avcc+5+4);     // Max multiplication value
-    if (((min_total < 265648) && (max_total < 265648)) || ((min_total > 271014) && (max_total > 271014)))
+    //uint16_t div10_avccint_ref = get_averaged_adc_value(13);                      // Measure avcc/10
+    uint32_t min_total = ((uint32_t)(aref-aref_offset)-10)*((uint32_t)avcc-10-5);   // Min multiplication
+    uint32_t max_total = ((uint32_t)(aref-aref_offset)+10)*((uint32_t)avcc+10+5);   // Max multiplication value
+    if ((max_total < 2656479) || (min_total > 2710146))
     {
         testdprintf("- PROBLEM AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
         testdprintf("  min_total = %"PRIu32", max_total = %"PRIu32"\r\n", min_total, max_total);
-        testdprintf_P(PSTR("  Likely suspects: U3 or U8 and passives (contact me though!)\r\n"));
+        testdprintf_P(PSTR("  Likely suspects: U3 or U8 and passives\r\n"));
         test_passed = FALSE;
     }
     else
@@ -409,24 +450,39 @@ void functional_test(void)
     disable_res_mux();
     disable_feedback_mos();    
     
+    /*******************************************************************/
+    /*******************************************************************/
+    /************************ USB COMMS CHECK **************************/
+    /*******************************************************************/
+    /*******************************************************************/
+    if(is_usb_enumerated() != TRUE)
+    {
+        testdprintf_P(PSTR("- PROBLEM USB COMMS: check CON1, U9 & U6\r\n"));
+        test_passed = FALSE;
+    }
+    else
+    {
+        testdprintf_P(PSTR("- OK USB COMMS\r\n"));
+    }
+    
     if (test_passed == TRUE)
     {
-        testdprintf_P(PSTR("--------------------------\r\n"));
+        testdprintf_P(PSTR("\r\n--------------------------\r\n"));
         testdprintf_P(PSTR("--------------------------\r\n"));
         testdprintf_P(PSTR("--------TEST PASSED-------\r\n"));
         testdprintf_P(PSTR("--------------------------\r\n"));
         testdprintf_P(PSTR("--------------------------\r\n"));
+        eeprom_write_byte((uint8_t*)EEP_FUNC_TEST_DONE_BOOL, EEPROM_BOOL_OK_VAL);
     } 
     else
     {
-        testdprintf_P(PSTR("--------------------------\r\n"));
+        testdprintf_P(PSTR("\r\n--------------------------\r\n"));
         testdprintf_P(PSTR("--------------------------\r\n"));
         testdprintf_P(PSTR("--------TEST FAILED-------\r\n"));
         testdprintf_P(PSTR("--------------------------\r\n"));
         testdprintf_P(PSTR("--------------------------\r\n"));
-    }
-    
-    while(1);    
+        while(1);
+    }    
 }
 
 /*

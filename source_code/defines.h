@@ -53,11 +53,13 @@ typedef union usb_message
 #define CONV_PRINTF
 // Automated testing printf
 #define AUTOMATED_TESTS_PRINTF
+// General firmware state printf in main
+#define MAIN_PRINTF
 // USB printf
 //#define USB_PRINTF
 
 // Check if we need to enable printf
-#if defined(USB_PRINTF) || defined(AUTOMATED_TESTS_PRINTF) || defined(CONV_PRINTF) || defined(TESTS_PRINTF) || defined(IO_PRINTF) || defined(VBIAS_PRINTF) || defined(CALIB_PRINTF) || defined(SERIAL_PRINTF) || defined(MEAS_PRINTF) || defined(DAC_PRINTF) || defined(ADC_PRINTF)
+#if defined(MAIN_PRINTF) || defined(USB_PRINTF) || defined(AUTOMATED_TESTS_PRINTF) || defined(CONV_PRINTF) || defined(TESTS_PRINTF) || defined(IO_PRINTF) || defined(VBIAS_PRINTF) || defined(CALIB_PRINTF) || defined(SERIAL_PRINTF) || defined(MEAS_PRINTF) || defined(DAC_PRINTF) || defined(ADC_PRINTF)
     #define PRINTF_ENABLED
 #endif
 

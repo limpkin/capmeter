@@ -11,6 +11,7 @@
 
 /* Function prototypes */
 void init_usb(void);
+uint8_t is_usb_enumerated(void);
 void usb_send_data(uint8_t* data);
 uint8_t usb_receive_data(uint8_t* data);
 
