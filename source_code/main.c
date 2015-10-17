@@ -63,14 +63,25 @@ void switch_to_32MHz_clock(void)
  * Our main
  */
 int main(void)
-{
-    // Check if we need to go to the bootloader
+{    
+    /* Check if the firmware asked to start the bootloader */
     if (bootloader_start_var == 0xBEEF)
     {
         bootloader_start_var = 0x0000;
         wdt_disable();
         start_bootloader();
     }
+    
+    /* Pull PC3 low to enable boot loader */
+    PORTC_DIRCLR = PIN3_bm;                         // PC3 input
+    PORTC.PIN3CTRL = PORT_OPC_PULLUP_gc;            // Pullup PC3
+    _delay_ms(10);                                  // Small delay
+    if((PORTC_IN & PIN3_bm) == 0)                   // Check PC3
+    {
+        start_bootloader();
+    }
+    
+    /* Normal boot */
     switch_to_32MHz_clock();                        // Switch to 32MHz
     _delay_ms(1000);                                // Wait for power to settle
     init_serial_port();                             // Initialize serial port    

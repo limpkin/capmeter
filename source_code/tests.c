@@ -473,6 +473,7 @@ void functional_test(void)
         testdprintf_P(PSTR("--------------------------\r\n"));
         testdprintf_P(PSTR("--------------------------\r\n"));
         eeprom_write_byte((uint8_t*)EEP_FUNC_TEST_DONE_BOOL, EEPROM_BOOL_OK_VAL);
+        init_calibration();
     } 
     else
     {
