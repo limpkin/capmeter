@@ -305,9 +305,9 @@ capmeter.currentcalib.stopCalib = function()
 	}
 	if(current_calibrated)
 	{
-		capmeter.currentcalib.printCalibData();
-		console.log("Current Calibration Done, Storing Data in EEPROM");
 		capmeter.currentcalib.processCorrectionDataAndStoreToEeprom(capmeter.currentcalib.temp_array);
+		console.log("Current Calibration Done, Storing Data in EEPROM");
+		capmeter.currentcalib.printCalibData();
 	}
 	else
 	{
