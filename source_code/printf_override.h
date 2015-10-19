@@ -9,7 +9,7 @@
 #ifndef PRINTF_OVERRIDE_H_
 #define PRINTF_OVERRIDE_H_
 
-//#define PRINTF_OVERRIDE
+#define PRINTF_OVERRIDE
 #ifdef PRINTF_OVERRIDE
     #undef IO_PRINTF
     #undef SERIAL_PRINTF
@@ -18,6 +18,7 @@
     #undef ADC_PRINTF
     #undef CALIB_PRINTF
     #undef VBIAS_PRINTF
+    #undef MAIN_PRINTF
 #endif
 
 // This file was made to facilitate automated testing through uart

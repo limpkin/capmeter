@@ -27,6 +27,56 @@ capmeter.util.standardDeviation = function(values)
 	return stdDev;
 }
 
+capmeter.util.smoothArray = function(array, avg_factor)
+{
+	var return_val = array.slice(0);
+	
+	// Find starting & ending indexes
+	var starting_index = 0;
+	while(array[starting_index] == null){starting_index++;}
+	var ending_index = array.length - 1;
+	while(array[ending_index] == null){ending_index--;}
+	
+	// Smooth our vector
+	for(var index = 0; index < array.length; index++)
+	{
+		if(array[index] != null)
+		{
+			var nb_elements_before = index - starting_index;
+			var nb_elements_after = ending_index - index;
+			if(nb_elements_before < avg_factor)
+			{
+				var agg = 0;
+				for(var i = starting_index; i <= index + nb_elements_before; i++)
+				{
+					agg += array[i];
+				}
+				return_val[index] = Math.round(agg/(index + nb_elements_before + 1 - starting_index));
+			}
+			else if(nb_elements_after < avg_factor)
+			{
+				var agg = 0;
+				for(var i = index - nb_elements_after; i <= ending_index; i++)
+				{
+					agg += array[i];
+				}
+				return_val[index] = Math.round(agg/(ending_index - index + nb_elements_after + 1));	
+			}
+			else
+			{
+				var agg = 0;
+				for(var i = index - avg_factor; i <= index + avg_factor; i++)
+				{
+					agg += array[i];
+				}
+				return_val[index] = Math.round(agg/(avg_factor*2 + 1));	
+			}			
+		}
+	}
+	
+	return return_val.slice(0);
+}
+
 /**
  * convert a string to a uint8 array
  * @param str the string to convert

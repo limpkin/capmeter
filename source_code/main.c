@@ -5,12 +5,15 @@
  *  Author: limpkin
  */
 #include <avr/interrupt.h>
+#include <avr/pgmspace.h>
+#include <avr/eeprom.h>
 #include <util/delay.h>
 #include <avr/wdt.h>
 #include <string.h>
 #include <avr/io.h>
 #include <stdio.h>
 #include "automated_testing.h"
+#include "eeprom_addresses.h"
 #include "conversions.h"
 #include "measurement.h"
 #include "calibration.h"
@@ -20,6 +23,7 @@
 #include "utils.h"
 #include "vbias.h"
 #include "tests.h"
+#include "main.h"
 #include "dac.h"
 #include "adc.h"
 #include "usb.h"
@@ -59,14 +63,25 @@ void switch_to_32MHz_clock(void)
  * Our main
  */
 int main(void)
-{
-    // Check if we need to go to the bootloader
+{    
+    /* Check if the firmware asked to start the bootloader */
     if (bootloader_start_var == 0xBEEF)
     {
         bootloader_start_var = 0x0000;
         wdt_disable();
         start_bootloader();
     }
+    
+    /* Pull PC3 low to enable boot loader */
+    PORTC_DIRCLR = PIN3_bm;                         // PC3 input
+    PORTC.PIN3CTRL = PORT_OPC_PULLUP_gc;            // Pullup PC3
+    _delay_ms(10);                                  // Small delay
+    if((PORTC_IN & PIN3_bm) == 0)                   // Check PC3
+    {
+        start_bootloader();
+    }
+    
+    /* Normal boot */
     switch_to_32MHz_clock();                        // Switch to 32MHz
     _delay_ms(1000);                                // Wait for power to settle
     init_serial_port();                             // Initialize serial port    
@@ -75,62 +90,18 @@ int main(void)
     init_ios();                                     // Init IOs
     init_calibration();                             // Init calibration
     enable_interrupts();                            // Enable interrupts
-    init_usb(); 
-    //enable_bias_voltage(850);while(1);
-    //automated_current_testing();
-    //ramp_bias_voltage_test();
-    //voltage_settling_test();
-    //automated_vbias_testing();
-    //automated_current_testing();
-    //peak_to_peak_adc_noise_measurement_test();
-    //ramp_bias_voltage_test();
-    //printf("blah\r\n");_delay_ms(3333);
-    //ramp_current_test();
-    //functional_test();
-    //while(1);
-    //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
-    //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
-    //calibrate_current_measurement();                // Calibrate the ADC for current measurements
-    
-/*
-    while(1);
-    uint16_t cur_measure = 0;
-    uint16_t dac_val = 1200;
-    enable_bias_voltage(11500);    
-    //update_vbias_dac(--dac_val);while(1);
-    set_current_measurement_ampl(CUR_MES_1X);
-    while ((cur_measure < get_max_value_for_diff_channel(CUR_MES_1X)) && (dac_val >= VBIAS_MAX_DAC_VAL))
-    {
-        update_vbias_dac(--dac_val);
-        _delay_us(20);
-        //cur_measure = get_averaged_stabilized_adc_value(8, 4, TRUE);
-        cur_measure = get_averaged_adc_value(11);
-        measdprintf("Quiescent current: %u, approx %u/%unA\r\n", cur_measure, compute_cur_mes_numerator_from_adc_val(cur_measure), 1 << get_configured_adc_ampl());
-    }
-    while(1);*/
-    
-    // Current mes
-//     _delay_ms(1000);
-//     enable_bias_voltage(4411);
-//     while(1)
-//     {
-//         for (uint8_t i = 0; i <= CUR_MES_4X; i++)
-//         {
-//             set_current_measurement_mode(i);
-//             print_compute_cur_formula(cur_measurement_loop(17));
-//         }        
-//     }
-//     while(1);
-    printf("Hello world");
+    init_usb();                                     // Init USB comms
+    functional_test();                              // Functional test if started for the first time
+
     uint8_t current_fw_mode = MODE_IDLE;
     while(1)
     {
         if (current_fw_mode == MODE_CAP_MES)
         {
-            // If we are in cap measurement mode
+            // If we are in cap measurement mode and have a report to send
             if(cap_measurement_loop(&cap_report) == TRUE)
             {
-                printf("*");
+                maindprintf_P(PSTR("*"));
                 usb_packet.length = sizeof(cap_report);
                 usb_packet.command_id = CMD_CAP_MES_REPORT;
                 memcpy((void*)usb_packet.payload, (void*)&cap_report, sizeof(cap_report));
@@ -141,25 +112,25 @@ int main(void)
         // USB command parser
         if (usb_receive_data((uint8_t*)&usb_packet) == TRUE)
         {
-            //printf("RECEIVED\r\n");
             switch(usb_packet.command_id)
             {
                 case CMD_BOOTLOADER_START:
                 {
+                    maindprintf_P(PSTR("USB- Bootloader start"));
                     bootloader_start_var = 0xBEEF;
                     wdt_enable(WDTO_1S);
                     while(1);
                 }
                 case CMD_PING: 
                 {
-                    printf(".");
+                    maindprintf_P(PSTR("."));
                     // Ping packet, resend the same one
                     usb_send_data((uint8_t*)&usb_packet);
                     break;
                 }
                 case CMD_VERSION:
                 {
-                    printf("version\r\n");
+                    maindprintf_P(PSTR("USB- Version\r\n"));
                     // Version request packet
                     strcpy((char*)usb_packet.payload, CAPMETER_VER);
                     usb_packet.length = sizeof(CAPMETER_VER);
@@ -168,7 +139,7 @@ int main(void)
                 }
                 case CMD_OE_CALIB_STATE:
                 {
-                    printf("calib state\r\n");
+                    maindprintf_P(PSTR("USB- Calib state\r\n"));
                     // Get open ended calibration state.
                     if (is_platform_calibrated() == TRUE)
                     {
@@ -186,7 +157,7 @@ int main(void)
                 }
                 case CMD_OE_CALIB_START:
                 {
-                    printf("calib start\r\n");
+                    maindprintf_P(PSTR("USB- Calib start\r\n"));
                     // Check if we are in idle mode
                     if (current_fw_mode == MODE_IDLE)
                     {
@@ -204,7 +175,7 @@ int main(void)
                 }
                 case CMD_GET_OE_CALIB:
                 {
-                    printf("calib data\r\n");
+                    maindprintf_P(PSTR("USB- Calib data\r\n"));
                     // Get calibration data
                     usb_packet.length = get_openended_calibration_data(usb_packet.payload);
                     usb_send_data((uint8_t*)&usb_packet);    
@@ -357,13 +328,14 @@ int main(void)
                 }
                 case CMD_RESET_STATE:
                 {
+                    maindprintf_P(PSTR("USB- Reset\r\n"));
                     usb_packet.length = 1;
                     current_fw_mode = MODE_IDLE;
                     if(is_platform_calibrated() == TRUE)
                     {
-                        disable_capacitance_measurement_mode();
-                        disable_current_measurement_mode();
                         disable_bias_voltage();
+                        disable_current_measurement_mode();
+                        disable_capacitance_measurement_mode();
                         usb_packet.payload[0] = USB_RETURN_OK;                        
                     }
                     else
@@ -373,44 +345,59 @@ int main(void)
                     usb_send_data((uint8_t*)&usb_packet);
                     break;
                 }
+                case CMD_SET_EEPROM_VALS:
+                {
+                    uint16_t* addr = (uint16_t*)usb_packet.payload;
+                    uint16_t size = usb_packet.payload[2];
+                    if(((*addr) + size > APP_STORED_DATA_MAX_SIZE) || (size > (RAWHID_RX_SIZE-5)))
+                    {
+                         usb_packet.payload[0] = USB_RETURN_ERROR;
+                    }
+                    else
+                    {
+                        eeprom_write_block((void*)&usb_packet.payload[3], (void*)(EEP_APP_STORED_DATA + (*addr)), size);
+                        usb_packet.payload[0] = USB_RETURN_OK;
+                    }
+                    usb_packet.length = 1;
+                    usb_send_data((uint8_t*)&usb_packet);
+                    break;
+                }
+                case CMD_READ_EEPROM_VALS:
+                {
+                    uint16_t* addr = (uint16_t*)usb_packet.payload;
+                    uint16_t size = usb_packet.payload[2];
+                    if(((*addr) + size > APP_STORED_DATA_MAX_SIZE) || (size > (RAWHID_TX_SIZE-2)))
+                    {
+                        usb_packet.length = 1;
+                        usb_packet.payload[0] = USB_RETURN_ERROR;
+                    }
+                    else
+                    {
+                        usb_packet.length = size;
+                        eeprom_read_block(usb_packet.payload, (void*)(EEP_APP_STORED_DATA + (*addr)), size);
+                    }
+                    usb_send_data((uint8_t*)&usb_packet);
+                    break;
+                }
                 default: break;
             }
         }
     }
-
-    /*enable_bias_voltage(4500);
-    set_capacitance_measurement_mode();
-    while(1)
-    {
-        cap_measurement_loop(FALSE);    
-    }
     
-    // Freq mes
-    uint16_t voltage = 1000;
-    uint8_t temp_bool = FALSE;
-    enable_bias_voltage(voltage);
-    set_capacitance_measurement_mode();
-    set_measurement_mode_io(RES_1K);   
-    while(1)
-    {
-        if (cap_measurement_loop(temp_bool) == TRUE)
-        {
-            if (temp_bool == TRUE)
-            {
-                temp_bool = FALSE;
-            } 
-            else
-            {
-                disable_feedback_mos();
-                voltage += 250;
-                update_bias_voltage(voltage);
-                if (voltage >= 15000)
-                {
-                    while(1);
-                }
-                enable_feedback_mos();
-                temp_bool = TRUE;
-            }              
-        } 
-    }*/
+    // Left here for reference
+    //enable_bias_voltage(850);while(1);
+    //automated_current_testing();
+    //ramp_bias_voltage_test();
+    //voltage_settling_test();
+    //automated_vbias_testing();
+    //automated_current_testing();
+    //peak_to_peak_adc_noise_measurement_test();
+    //ramp_bias_voltage_test();
+    //printf("blah\r\n");_delay_ms(3333);
+    //ramp_current_test();
+    //functional_test();
+    //while(1);
+    //calibrate_thresholds();                         // Calibrate vup vlow & thresholds
+    //calibrate_cur_mos_0nA();                        // Calibrate 0nA point and store values in eeprom
+    //calibrate_current_measurement();                // Calibrate the ADC for current measurements
 }

@@ -11,6 +11,7 @@
 
 /* Function prototypes */
 void init_usb(void);
+uint8_t is_usb_enumerated(void);
 void usb_send_data(uint8_t* data);
 uint8_t usb_receive_data(uint8_t* data);
 
@@ -66,6 +67,8 @@ typedef union USB_EP_pair
 #define CMD_CAP_MES_EXIT        0x0D
 #define CMD_SET_VBIAS_DAC       0x0E
 #define CMD_RESET_STATE         0x0F
+#define CMD_SET_EEPROM_VALS     0x10
+#define CMD_READ_EEPROM_VALS    0x11
 
 #define CMD_BOOTLOADER_START    0xFF
 
