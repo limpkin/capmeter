@@ -16,12 +16,6 @@ capmeter.currentcalib.temp_array = new Array(2048);
 capmeter.currentcalib.finalAdcToIdealAdc = new Array(2048);
 
 
-// File written callback
-capmeter.currentcalib.file_written_callback = function()
-{
-	console.log("File written");
-}
-
 // Get current from adc value and ampl
 capmeter.currentcalib.getCurrentFromAdcAndAmpl = function(adc_val, current_ampl)
 {
@@ -223,6 +217,14 @@ capmeter.currentcalib.parseCurrentCorrectionData = function()
 // Print calibration data on the graph
 capmeter.currentcalib.printCalibData = function()
 {
+	// Populate CSV data
+	capmeter.app.export_csv_data = "ADC Val,Mapped ADC Val,Difference\r\n";
+	for(var i = 0; i < capmeter.currentcalib.finalAdcToIdealAdc.length; i++)
+	{
+		capmeter.app.export_csv_data += i + "," + capmeter.currentcalib.finalAdcToIdealAdc[i] + "," + (capmeter.currentcalib.finalAdcToIdealAdc[i]-i) + "\r\n";
+	}
+	
+	// Generate graph
 	var graph_xlabels = new Array(capmeter.currentcalib.finalAdcToIdealAdc.length);
 	var graph_yvalues = new Array(capmeter.currentcalib.finalAdcToIdealAdc.length);
 	for (var i = 0; i < capmeter.currentcalib.finalAdcToIdealAdc.length; i++)
@@ -234,18 +236,6 @@ capmeter.currentcalib.printCalibData = function()
 	capmeter.graph.changeYLabel("LSB error");
 	capmeter.graph.changeXLabels(graph_xlabels);
 	capmeter.graph.changeYValues(graph_yvalues);		
-}
-
-// Export correction data
-capmeter.currentcalib.exportAdcCorrec = function()
-{	
-	// Export data FYI?
-	var export_csv = "ADC Val,Mapped ADC Val,Difference\r\n";
-	for(var i = 0; i < capmeter.currentcalib.finalAdcToIdealAdc.length; i++)
-	{
-		export_csv += i + "," + capmeter.currentcalib.finalAdcToIdealAdc[i] + "," + (capmeter.currentcalib.finalAdcToIdealAdc[i]-i) + "\r\n";
-	}
-	capmeter.filehandler.selectAndSaveFileContents("export.txt", new Blob([export_csv], {type: 'text/plain'}), capmeter.currentcalib.file_written_callback);
 }
 
 // Start calibration procedure
@@ -315,6 +305,7 @@ capmeter.currentcalib.stopCalib = function()
 	}
 	if(current_calibrated)
 	{
+		capmeter.currentcalib.printCalibData();
 		console.log("Current Calibration Done, Storing Data in EEPROM");
 		capmeter.currentcalib.processCorrectionDataAndStoreToEeprom(capmeter.currentcalib.temp_array);
 	}

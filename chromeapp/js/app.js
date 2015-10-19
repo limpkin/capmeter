@@ -83,11 +83,23 @@ var eeprom_write_counter = 0;													// EEPROM write counter
 var eeprom_stored_data_valid = false;											// Is the data we just received valid?
 var debug = false;
 
-capmeter.app.cap_offset = null;
-capmeter.app.raw_calibration_data = [];
-capmeter.app.current_value_offset = null;
-capmeter.app.current_starting_correction = null;
+capmeter.app.cap_offset = null;								                    // Capacitance offset
+capmeter.app.raw_calibration_data = [];								            // Calibration data to/from the capmeter
+capmeter.app.current_value_offset = null;								        // First offset value
+capmeter.app.current_starting_correction = null;								// Index of the first offset value
+capmeter.app.export_csv_data = "";												// CSV data for export
 
+
+// File written callback
+capmeter.app.file_written_callback = function()
+{
+	console.log("File written");
+}
+
+capmeter.app.exportGraphData = function()
+{
+	capmeter.filehandler.selectAndSaveFileContents("export.csv", new Blob([capmeter.app.export_csv_data], {type: 'text/plain'}), capmeter.app.file_written_callback);
+}
 
 function disable_gui_buttons()
 {
@@ -121,8 +133,7 @@ function start_capacitance_calibration()
 		capmeter.app.cap_offset = 0;
 		current_mode = MODE_CAP_CALIB_REQ;	
 		sendRequest(CMD_SET_VBIAS, [VBIAS_MIN%256, Math.floor(VBIAS_MIN/256)]);
-		console.log("Starting Capacitance Calibration...");
-		console.log("Please hold 1pF capacitor between leads...");
+		console.log("Starting Capacitance Zeroing...");
 	}
 }
 
