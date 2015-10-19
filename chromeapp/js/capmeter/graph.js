@@ -30,6 +30,10 @@ capmeter.graph.changeYLabel = function(newYLabel) {
   capmeter.graph.refreshYLabel();  
 }
 
+capmeter.graph.exportGraph = function($button) {
+  $button.css("background", "orange");
+}
+
 /* private functions */
 
 capmeter.graph.refreshYLabel = function() {

@@ -4,7 +4,7 @@ function launch()
 {
 	if(!app_launched)
 	{
-		chrome.app.window.create('html/index.html', {'innerBounds': {'width': 860,'height': 620, "minWidth": 860, "minHeight": 620}});
+		chrome.app.window.create('html/index.html', {'innerBounds': {'width': 860,'height': 675, "minWidth": 860, "minHeight": 675}});
 		app_launched = true;
 	}  
 }

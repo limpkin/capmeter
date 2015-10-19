@@ -42,6 +42,7 @@ capmeter.interface.init = function() {
       function_name = $(this).attr("data-display");
       capmeter.helper.executeFunctionByName(function_name, $(this));
     });
+    $("body").trigger("resize");
   }, 500);
 
   // Init graph

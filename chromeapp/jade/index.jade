@@ -11,16 +11,17 @@ html
           h5.text-center Capacitance Meter        
           div
             a#calibrateCurrentX.button.small.expand(data-onclick="capmeter.calibration.calibrateCurrentX") Jump to Bootloader
-            a#calibrateCapacitance.button.small.expand(data-onclick="capmeter.calibration.calibrateCapacitance") Calibrate Capacitance
+            a#calibrateCapacitance.button.small.expand(data-onclick="capmeter.calibration.calibrateCapacitance") Zero Capacitance
             a#calibratePlatform.button.small.expand(data-onclick="capmeter.calibration.calibratePlatform") Calibrate Platform
             a#calibrateCurrentY.button.small.expand(data-onclick="capmeter.calibration.calibrateCurrentY") Calibrate Current  
-            
+
             .row.collapse
               .column.small-9.end
                 input#resistance(data-input="capmeter.measurement.resistance", type="text")      
               .column.small-3
                 span.postfix MΩ
-            
+
+            a#exportGraph.button.small.expand(data-onclick="ccapmeter.graph.exportGraph") Export Curve            
 
         #content.column.small-9.large-10.xxlarge-11
           .row
