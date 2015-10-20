@@ -858,7 +858,7 @@ function onDataReceived(reportId, data)
 			// Don't allow negative capacitances
 			if(capacitance < 0)
 			{
-				capacitance = 0;
+				//capacitance = 0;
 			}
 			//console.log("Measured capacitance: " + capmeter.util.valueToElectronicString(capacitance, "F") + ", osc. freq.: " + counter_val*report_freq  + "Hz (" + resistor_val + "R)");
 			

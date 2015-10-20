@@ -37,7 +37,7 @@ capmeter.graphing.newCurValueArrival = function(current)
 				capmeter.app.export_csv_data = "Bias Voltage,Current\r\n";
 				for(var i = 0; i < capmeter.graphing.cap_graph_yvalues.length; i++)
 				{
-					capmeter.app.export_csv_data += (capmeter.graphing.cap_graph_xvalues[i]/1000) + "," + capmeter.graphing.cap_graph_yvalues[i] + "\r\n";
+					capmeter.app.export_csv_data += (capmeter.graphing.cap_graph_xvalues[i]/1000) + "," + capmeter.graphing.cap_graph_yvalues[i].toPrecision(5) + "\r\n";
 				}
 				
 				// Leave current measurement mode
@@ -140,7 +140,7 @@ capmeter.graphing.newCapValueArrival = function(capacitance)
 				capmeter.app.export_csv_data = "Bias Voltage,Capacitance\r\n";
 				for(var i = 0; i < capmeter.graphing.cap_graph_yvalues.length; i++)
 				{
-					capmeter.app.export_csv_data += (capmeter.graphing.cap_graph_xvalues[i]/1000) + "," + capmeter.graphing.cap_graph_yvalues[i] + "\r\n";
+					capmeter.app.export_csv_data += ((capmeter.graphing.cap_graph_xvalues[i]-V_OSCILLATION)/1000) + "," + capmeter.graphing.cap_graph_yvalues[i].toPrecision(5) + "\r\n";
 				}
 				
 				// Leave capacitance measurement mode
