@@ -62,10 +62,14 @@ var current_calib_avg = 14;														// current measurement averaging during
 var ping_enabled = true;														// know if we send ping requests
 var platform_max_vbias = 10000;													// max vbias the platform can generate
 var capacitance_offset = null;													// Capacitance offset
+var null_capacitance_offset = 0;												// Null capacitance offset
+var null_current_offset = 0;													// Null current offset
 var cap_calib_array_ind = 0;													// Index inside the calibration array to store the value
 var cap_calib_array = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];				// Capacitance calibration array
 var cap_last_values = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];				// Last capacitance values
 var cap_last_value_ind = 0;														// Index to where to store the latest values
+var current_cap_average = 0;													// Current capacitance average
+var current_current = 0;														// Current current (that's an awesome var name)
 var capacitance_report_freq = 3;												// Capacitance report frequency in bit shift
 var packetSize = 64;    														// number of bytes in an HID packet
 var waitingForAnswer = false;													// boolean indicating if we are waiting for a packet
@@ -99,6 +103,44 @@ capmeter.app.file_written_callback = function()
 capmeter.app.exportGraphData = function()
 {
 	capmeter.filehandler.selectAndSaveFileContents("export.csv", new Blob([capmeter.app.export_csv_data], {type: 'text/plain'}), capmeter.app.file_written_callback);
+}
+
+capmeter.app.nullCapacitance = function()
+{
+	 if(current_mode == MODE_CAP_MES)
+	 {
+		 if(null_capacitance_offset == 0)
+		 {
+			 null_capacitance_offset = current_cap_average;
+			 $('#nullCapacitance').css('background', 'orange');	
+			 console.log("Applying null offset of " + capmeter.util.valueToElectronicString(current_cap_average, "F"));
+		 }
+		 else
+		 {
+			null_capacitance_offset = 0;
+			console.log("Removing null offset");
+			$('#nullCapacitance').css('background', '#3ED1D6');	
+		 }
+	 }
+}
+
+capmeter.app.nullCurrent = function()
+{
+	 if(current_mode == MODE_CUR_MES)
+	 {
+		 if(null_current_offset == 0)
+		 {
+			 null_current_offset = current_current;
+			 $('#nullCurrent').css('background', 'orange');	
+			 console.log("Applying null offset of " + capmeter.util.valueToElectronicString(current_current, "A"));
+		 }
+		 else
+		 {
+			 null_current_offset = 0;
+			console.log("Removing null offset");
+			$('#nullCurrent').css('background', '#3ED1D6');	
+		 }
+	 }	
 }
 
 function disable_gui_buttons()
@@ -453,17 +495,7 @@ function onDataReceived(reportId, data)
             if (!connected) 
 			{
                 console.log('Connected to Capmeter ' + version);
-				if(version == "v0.1")
-				{
-					sendRequest(CMD_RESET_STATE, null);
-				}
-				else
-				{
-					sendRequest(CMD_OE_CALIB_STATE, null);
-				}				
-				//
-				//sendRequest(CMD_SET_EEPROM_VALS, [0, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-				//sendRequest(CMD_READ_EEPROM_VALS, [0, 10]);
+				sendRequest(CMD_RESET_STATE, null);			
                 connected = true;
             }
             break;
@@ -474,6 +506,8 @@ function onDataReceived(reportId, data)
 			// Capmeter reset, now we need to read the EEPROM contents for possible calibration compressed data
 			//console.log("Capmeter State Reset");
 			eeprom_read_counter = 0;
+			null_current_offset = 0;
+			null_capacitance_offset = 0;
 			eeprom_stored_data_valid = false;
 			eeprom_stored_data = new Uint8Array(EEPROM_STORED_DATA_SIZE);
 			sendRequest(CMD_READ_EEPROM_VALS, [0, 0, EEPROM_READ_NBBYTES]);
@@ -768,6 +802,7 @@ function onDataReceived(reportId, data)
 					console.log("Capacitance measurement mode started");
 					$('#measureCapacitance').css('background', 'orange');
 					$("#measureCapacitance").removeAttr("disabled");
+					$("#nullCapacitance").removeAttr("disabled");
 					current_mode = MODE_CAP_MES;
 					ping_enabled = false;
 				}
@@ -800,6 +835,9 @@ function onDataReceived(reportId, data)
 			}
 			else
 			{	
+				null_capacitance_offset = 0;
+				$('#nullCapacitance').css('background', '#3ED1D6');	
+				
 				if(current_mode == MODE_CAP_CALIB)
 				{
 					console.log("Capacitance measurement mode stopped");
@@ -865,18 +903,19 @@ function onDataReceived(reportId, data)
 			// Store value in our buffer, compute capmeter.util.average and std deviation
 			cap_last_values[(cap_last_value_ind++)%cap_last_values.length] = capacitance;
 			var cap_standard_deviation = capmeter.util.standardDeviation(cap_last_values);
-			var cap_average = capmeter.util.average(cap_last_values);
+			current_cap_average = capmeter.util.average(cap_last_values);
 			
 			// If we switched measured value (new values a lot different than the capmeter.util.average)
-			if(capacitance > cap_average*1.1 || capacitance < cap_average*0.9)
+			if(capacitance > current_cap_average*1.1 || capacitance < current_cap_average*0.9)
 			{
 				// set all values to last measured value
 				//console.log("New value measured, resetting last values");
 				for (var i = 0; i < cap_last_values.length; i++) cap_last_values[i] = capacitance;
-				cap_average = capacitance;
+				current_cap_average = capacitance;
 				cap_last_value_ind = 0;
 			}
-			capmeter.measurement._capacitance = capmeter.util.valueToElectronicString(cap_average, "F") + "(" + capmeter.util.valueToElectronicString(counter_val*report_freq, "Hz") + ")";
+			current_cap_average -=  null_capacitance_offset;
+			capmeter.measurement._capacitance = capmeter.util.valueToElectronicString(current_cap_average, "F") + "(" + capmeter.util.valueToElectronicString(counter_val*report_freq, "Hz") + ")";
 			
 			if(current_mode == MODE_CAP_CARAC)
 			{
@@ -903,15 +942,15 @@ function onDataReceived(reportId, data)
 				if(cap_calib_array_ind >= cap_calib_array.length)
 				{
 					cap_standard_deviation = capmeter.util.standardDeviation(cap_calib_array);
-					cap_average = capmeter.util.average(cap_calib_array);
-					console.log("Standard Deviation: " + capmeter.util.valueToElectronicString(cap_standard_deviation, "F") + ", Average: " + capmeter.util.valueToElectronicString(cap_average, "F"));
+					current_cap_average = capmeter.util.average(cap_calib_array);
+					console.log("Standard Deviation: " + capmeter.util.valueToElectronicString(cap_standard_deviation, "F") + ", Average: " + capmeter.util.valueToElectronicString(current_cap_average, "F"));
 					// Only accept if we are within 1%
-					if(cap_average * 0.01 > cap_standard_deviation)
+					if(current_cap_average * 0.01 > cap_standard_deviation)
 					{
 						// Store offset and exit
 						sendRequest(CMD_CAP_MES_EXIT, null);
-						capmeter.app.cap_offset = cap_average - 1e-12;
-						capmeter.app.cap_offset = cap_average;
+						capmeter.app.cap_offset = current_cap_average - 1e-12;
+						capmeter.app.cap_offset = current_cap_average;
 						console.log("Capacitance Offset To Store: " + capmeter.util.valueToElectronicString(capmeter.app.cap_offset, "F"));
 						$('#calibrateCapacitance').css('background', 'orange');
 					}
@@ -940,6 +979,7 @@ function onDataReceived(reportId, data)
 				if(current_mode == MODE_CUR_MES_REQ)
 				{
 					current_mode = MODE_CUR_MES;		
+					$("#nullCurrent").removeAttr("disabled");
 					$("#measureCurrent").removeAttr("disabled");
 					$('#measureCurrent').css('background', 'orange');
 				}
@@ -961,8 +1001,9 @@ function onDataReceived(reportId, data)
 				
 				if(current_mode == MODE_CUR_MES)
 				{
-					// Start another measurement					
-					var current = capmeter.util.valueToElectronicString(((adc_current_corrected*1.24)/(0.2047*(1 << current_ampl)))*1e-9, "A");
+					// Start another measurement	
+					current_current = ((adc_current_corrected*1.24)/(0.2047*(1 << current_ampl)))*1e-9 - null_current_offset;
+					var current = capmeter.util.valueToElectronicString(current_current, "A");
 					//console.log("Received ADC current measurement: " + current);
 					capmeter.measurement._current = current;					
 					
@@ -1035,10 +1076,12 @@ function onDataReceived(reportId, data)
 		case CMD_CUR_MES_MODE_EXIT:
 		{
 			if(bytes[2] != 0 && ((current_mode == MODE_CUR_MES) || (current_mode == MODE_CUR_CARAC) || (current_mode == MODE_CUR_CALIB)))
-			{			
+			{		
+				null_current_offset = 0;
 				capmeter.measurement._current = "nA";
 				sendRequest(CMD_DISABLE_VBIAS, null);
 				$('#current').css('background', '#3ED1D6');
+				$('#nullCurrent').css('background', '#3ED1D6');	
 				$('#measureCurrent').css('background', '#3ED1D6');				
 				console.log("Current measurement mode excited!");			
 			}
@@ -1145,6 +1188,8 @@ function sendMsg(msg)
 				$('#capacitance').css('background', '#3ED1D6');
 				$('#measureCurrent').css('background', '#3ED1D6');	
 				$('#measureCapacitance').css('background', '#3ED1D6');	
+				$('#nullCurrent').css('background', '#3ED1D6');	
+				$('#nullCapacitance').css('background', '#3ED1D6');	
                 reset();
             }
         }
