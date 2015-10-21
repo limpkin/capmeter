@@ -33,6 +33,13 @@ capmeter.graphing.newCurValueArrival = function(current)
 			// Check if we finished running through the vbias points
 			if(capmeter.graphing.cap_graph_store_index == capmeter.graphing.cap_graph_xvalues.length)
 			{
+				// Populate CSV data
+				capmeter.app.export_csv_data = "Bias Voltage,Current\r\n";
+				for(var i = 0; i < capmeter.graphing.cap_graph_yvalues.length; i++)
+				{
+					capmeter.app.export_csv_data += (capmeter.graphing.cap_graph_xvalues[i]/1000) + "," + capmeter.graphing.cap_graph_yvalues[i].toPrecision(5) + "\r\n";
+				}
+				
 				// Leave current measurement mode
 				return_value = ["finished", 0];
 				
@@ -129,6 +136,13 @@ capmeter.graphing.newCapValueArrival = function(capacitance)
 			// Check if we finished running through the vbias points
 			if(capmeter.graphing.cap_graph_store_index == capmeter.graphing.cap_graph_xvalues.length)
 			{
+				// Populate CSV data
+				capmeter.app.export_csv_data = "Bias Voltage,Capacitance\r\n";
+				for(var i = 0; i < capmeter.graphing.cap_graph_yvalues.length; i++)
+				{
+					capmeter.app.export_csv_data += ((capmeter.graphing.cap_graph_xvalues[i]-V_OSCILLATION)/1000) + "," + capmeter.graphing.cap_graph_yvalues[i].toPrecision(5) + "\r\n";
+				}
+				
 				// Leave capacitance measurement mode
 				return_value = ["finished", 0];
 				

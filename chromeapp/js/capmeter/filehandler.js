@@ -66,7 +66,7 @@ capmeter.filehandler.selectAndReadRawContents = function(name, readEndCallBack)
 // Ask the user to select a file and save the provided contents in it
 capmeter.filehandler.selectAndSaveFileContents = function(name, contents, writeEndCallback) 
 {
-	chrome.fileSystem.chooseEntry({type: 'saveFile', suggestedName: name, accepts: new Array({'extensions': new Array("bin")}), acceptsAllTypes: false},	function(writableFileEntry) 
+	chrome.fileSystem.chooseEntry({type: 'saveFile', suggestedName: name, accepts: new Array({'extensions': new Array("csv")}), acceptsAllTypes: false},	function(writableFileEntry) 
 																																							{
 																																								if(chrome.runtime.lastError)
 																																								{
