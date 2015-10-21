@@ -211,7 +211,7 @@ select {
 }
 /* line 238, ../bower_components/foundation/scss/foundation/components/_grid.scss */
 .row .row {
-  margin: 0 -0.9375rem;
+  margin: 0 -0.46875rem;
   max-width: none;
   width: auto;
 }
@@ -243,8 +243,8 @@ select {
 /* line 243, ../bower_components/foundation/scss/foundation/components/_grid.scss */
 .column,
 .columns {
-  padding-left: 0.9375rem;
-  padding-right: 0.9375rem;
+  padding-left: 0.46875rem;
+  padding-right: 0.46875rem;
   width: 100%;
   float: left;
 }
@@ -439,8 +439,8 @@ select {
   .column,
   .columns {
     position: relative;
-    padding-left: 0.9375rem;
-    padding-right: 0.9375rem;
+    padding-left: 0.46875rem;
+    padding-right: 0.46875rem;
     float: left;
   }
 
@@ -621,8 +621,8 @@ select {
   /* line 218, ../bower_components/foundation/scss/foundation/components/_grid.scss */
   .row.small-uncollapse > .column,
   .row.small-uncollapse > .columns {
-    padding-left: 0.9375rem;
-    padding-right: 0.9375rem;
+    padding-left: 0.46875rem;
+    padding-right: 0.46875rem;
     float: left;
   }
 }
@@ -799,8 +799,8 @@ select {
   .column,
   .columns {
     position: relative;
-    padding-left: 0.9375rem;
-    padding-right: 0.9375rem;
+    padding-left: 0.46875rem;
+    padding-right: 0.46875rem;
     float: left;
   }
 
@@ -981,8 +981,8 @@ select {
   /* line 218, ../bower_components/foundation/scss/foundation/components/_grid.scss */
   .row.medium-uncollapse > .column,
   .row.medium-uncollapse > .columns {
-    padding-left: 0.9375rem;
-    padding-right: 0.9375rem;
+    padding-left: 0.46875rem;
+    padding-right: 0.46875rem;
     float: left;
   }
 
@@ -1327,8 +1327,8 @@ select {
   .column,
   .columns {
     position: relative;
-    padding-left: 0.9375rem;
-    padding-right: 0.9375rem;
+    padding-left: 0.46875rem;
+    padding-right: 0.46875rem;
     float: left;
   }
 
@@ -1509,8 +1509,8 @@ select {
   /* line 218, ../bower_components/foundation/scss/foundation/components/_grid.scss */
   .row.large-uncollapse > .column,
   .row.large-uncollapse > .columns {
-    padding-left: 0.9375rem;
-    padding-right: 0.9375rem;
+    padding-left: 0.46875rem;
+    padding-right: 0.46875rem;
     float: left;
   }
 
@@ -1855,8 +1855,8 @@ select {
   .column,
   .columns {
     position: relative;
-    padding-left: 0.9375rem;
-    padding-right: 0.9375rem;
+    padding-left: 0.46875rem;
+    padding-right: 0.46875rem;
     float: left;
   }
 
@@ -2037,8 +2037,8 @@ select {
   /* line 218, ../bower_components/foundation/scss/foundation/components/_grid.scss */
   .row.xlarge-uncollapse > .column,
   .row.xlarge-uncollapse > .columns {
-    padding-left: 0.9375rem;
-    padding-right: 0.9375rem;
+    padding-left: 0.46875rem;
+    padding-right: 0.46875rem;
     float: left;
   }
 }
@@ -2215,8 +2215,8 @@ select {
   .column,
   .columns {
     position: relative;
-    padding-left: 0.9375rem;
-    padding-right: 0.9375rem;
+    padding-left: 0.46875rem;
+    padding-right: 0.46875rem;
     float: left;
   }
 
@@ -2397,8 +2397,8 @@ select {
   /* line 218, ../bower_components/foundation/scss/foundation/components/_grid.scss */
   .row.xxlarge-uncollapse > .column,
   .row.xxlarge-uncollapse > .columns {
-    padding-left: 0.9375rem;
-    padding-right: 0.9375rem;
+    padding-left: 0.46875rem;
+    padding-right: 0.46875rem;
     float: left;
   }
 }
@@ -2440,7 +2440,7 @@ select {
 /* line 146, ../bower_components/foundation/scss/foundation/components/_accordion.scss */
 .accordion .accordion-navigation > .content, .accordion dd > .content {
   display: none;
-  padding: 0.9375rem;
+  padding: 0.46875rem;
 }
 /* line 149, ../bower_components/foundation/scss/foundation/components/_accordion.scss */
 .accordion .accordion-navigation > .content.active, .accordion dd > .content.active {
@@ -7357,7 +7357,7 @@ table tr td {
 .tabs-content > .content {
   display: none;
   float: left;
-  padding: 0.9375rem 0;
+  padding: 0.46875rem 0;
   width: 100%;
 }
 /* line 95, ../bower_components/foundation/scss/foundation/components/_tabs.scss */
@@ -7367,7 +7367,7 @@ table tr td {
 }
 /* line 99, ../bower_components/foundation/scss/foundation/components/_tabs.scss */
 .tabs-content > .content.contained {
-  padding: 0.9375rem;
+  padding: 0.46875rem;
 }
 /* line 104, ../bower_components/foundation/scss/foundation/components/_tabs.scss */
 .tabs-content.vertical {
@@ -7375,7 +7375,7 @@ table tr td {
 }
 /* line 107, ../bower_components/foundation/scss/foundation/components/_tabs.scss */
 .tabs-content.vertical > .content {
-  padding: 0 0.9375rem;
+  padding: 0 0.46875rem;
 }
 
 @media only screen and (min-width: 40.0625em) {
@@ -10244,9 +10244,14 @@ div.value {
 }
 
 /* line 69, ../scss/_custom.scss */
+.margin-bottom {
+  margin-bottom: 1rem !important;
+}
+
+/* line 71, ../scss/_custom.scss */
 h5 {
-  margin-bottom: 2rem;
-  margin-top: 1rem;
+  margin-bottom: 1.7rem;
+  margin-top: 1.8rem;
 }
 
 /* line 7, ../scss/_margins.scss */

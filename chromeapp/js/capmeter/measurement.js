@@ -14,11 +14,19 @@ capmeter.measurement.measureCurrent = function($button)
 	//$button.css("background", "orange");
 }
 
+capmeter.measurement.nullCurrent = function($button) {
+    $button.css("background", "orange");
+}
+
 capmeter.measurement.measureCapacitance = function($button) 
 {
 	static_capacitance_measurement_start(capmeter.measurement._capmes_setV);
 	//console.log("capmeter.measurement.voltageCurrent");
   //$button.css("background", "orange");
+}
+
+capmeter.measurement.nullCapacitance = function($button) {
+    $button.css("background", "orange");
 }
 
 capmeter.measurement.voltageCurrent = function($input) 

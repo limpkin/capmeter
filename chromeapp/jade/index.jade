@@ -10,10 +10,10 @@ html
         .column.small-3.large-2.xxlarge-1(data-height-equalizer="#content")
           h5.text-center Capacitance Meter        
           div
-            a#calibrateCurrentX.button.small.expand(data-onclick="capmeter.calibration.calibrateCurrentX") Jump to Bootloader
-            a#calibrateCapacitance.button.small.expand(data-onclick="capmeter.calibration.calibrateCapacitance") Zero Capacitance
-            a#calibratePlatform.button.small.expand(data-onclick="capmeter.calibration.calibratePlatform") Calibrate Platform
-            a#calibrateCurrentY.button.small.expand(data-onclick="capmeter.calibration.calibrateCurrentY") Calibrate Current  
+            a#calibrateCurrentX.button.small.height-37.margin-bottom.expand(data-onclick="capmeter.calibration.calibrateCurrentX") Jump to Bootloader
+            a#calibrateCapacitance.button.small.height-37.margin-bottom.expand(data-onclick="capmeter.calibration.calibrateCapacitance") Zero Capacitance
+            a#calibratePlatform.button.small.height-37.margin-bottom.expand(data-onclick="capmeter.calibration.calibratePlatform") Calibrate Platform
+            a#calibrateCurrentY.button.small.height-37.margin-bottom.expand(data-onclick="capmeter.calibration.calibrateCurrentY") Calibrate Current  
 
             .row.collapse
               .column.small-9.end
@@ -21,33 +21,37 @@ html
               .column.small-3
                 span.postfix MΩ
 
-            a#exportGraph.button.small.expand(data-onclick="capmeter.graph.exportGraph") Export Curve            
+            a#exportGraph.button.small.height-37.margin-bottom.expand(data-onclick="capmeter.graph.exportGraph") Export Curve            
 
         #content.column.small-9.large-10.xxlarge-11
           .row
             .column.small-12 &nbsp;
           .row.bottom-margin-columns.max-width-40rem.center-by-margins
-            .column.small-4
+            .column.small-3
               .row.collapse
                 .column.small-6
                   span.prefix Voltage [V]
                 .column.small-5.end
                   input#voltageCurrent(data-input="capmeter.measurement.voltageCurrent", type="text")
-            .column.small-4
+            .column.small-3
               a#measureCurrent.button.small.expand.height-37(data-onclick="capmeter.measurement.measureCurrent") Measure Current
             .column.small-4
               #displayCurrent.value.height-37(data-display="capmeter.measurement.get_current")
+            .column.small-2
+              a#nullCurrent.button.small.expand.height-37(data-onclick="capmeter.measurement.nullCurrent") NULL
           .row.bottom-margin-columns.max-width-40rem.center-by-margins
-            .column.small-4
+            .column.small-3
               .row.collapse
                 .column.small-6
                   span.prefix Voltage [V]
                 .column.small-5.end
                   input#voltageCapacitance(data-input="capmeter.measurement.voltageCapacitance", type="text")
-            .column.small-4
+            .column.small-3
               a#measureCapacitance.button.small.expand.height-37(data-onclick="capmeter.measurement.measureCapacitance") Measure Capacitance
             .column.small-4
               #displayCapacitance.value.height-37(data-display="capmeter.measurement.get_capacitance")
+            .column.small-2
+              a#nullCapacitance.button.small.expand.height-37(data-onclick="capmeter.measurement.nullCapacitance") NULL
 
           .row
             .column.small-12.graph-container.text-center 
