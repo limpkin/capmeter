@@ -26,8 +26,9 @@ html
         #content.column.small-9.large-10.xxlarge-11
           .row
             .column.small-12 &nbsp;
+
           .row.bottom-margin-columns.max-width-40rem.center-by-margins
-            .column.small-3
+            .column.small-4
               .row.collapse
                 .column.small-6
                   span.prefix Voltage [V]
@@ -35,12 +36,13 @@ html
                   input#voltageCurrent(data-input="capmeter.measurement.voltageCurrent", type="text")
             .column.small-3
               a#measureCurrent.button.small.expand.height-37(data-onclick="capmeter.measurement.measureCurrent") Measure Current
-            .column.small-4
+            .column.small-3
               #displayCurrent.value.height-37(data-display="capmeter.measurement.get_current")
             .column.small-2
               a#nullCurrent.button.small.expand.height-37(data-onclick="capmeter.measurement.nullCurrent") NULL
+          
           .row.bottom-margin-columns.max-width-40rem.center-by-margins
-            .column.small-3
+            .column.small-4
               .row.collapse
                 .column.small-6
                   span.prefix Voltage [V]
@@ -48,7 +50,7 @@ html
                   input#voltageCapacitance(data-input="capmeter.measurement.voltageCapacitance", type="text")
             .column.small-3
               a#measureCapacitance.button.small.expand.height-37(data-onclick="capmeter.measurement.measureCapacitance") Measure Capacitance
-            .column.small-4
+            .column.small-3
               #displayCapacitance.value.height-37(data-display="capmeter.measurement.get_capacitance")
             .column.small-2
               a#nullCapacitance.button.small.expand.height-37(data-onclick="capmeter.measurement.nullCapacitance") NULL
