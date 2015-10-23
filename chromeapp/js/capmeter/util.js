@@ -124,70 +124,77 @@ capmeter.util.arrayToStr = function(buf)
  */
 capmeter.util.valueToElectronicString = function(value, unit)
 {
+	var mult_sign = 1;
+	if(value < 0)
+	{
+		value = -value;
+		mult_sign = -1;
+	}
+		
 	if(value < 1e-12)
 	{
 		if(value * 1e15 < 10)
 		{
-			return (value * 1e15).toFixed(2) + "f" + unit;
+			return (mult_sign * value * 1e15).toFixed(2) + "f" + unit;
 		}
 		else
 		{
-			return (value * 1e15).toFixed(1) + "f" + unit;
+			return (mult_sign * value * 1e15).toFixed(1) + "f" + unit;
 		}
 	}
 	else if(value < 1e-9)
 	{
 		if(value * 1e12 < 10)
 		{
-			return (value * 1e12).toFixed(2) + "p" + unit;
+			return (mult_sign * value * 1e12).toFixed(2) + "p" + unit;
 		}
 		else
 		{
-			return (value * 1e12).toFixed(1) + "p" + unit;
+			return (mult_sign * value * 1e12).toFixed(1) + "p" + unit;
 		}
 	}
 	else if(value < 1e-6)
 	{
 		if(value * 1e9 < 10)
 		{
-			return (value * 1e9).toFixed(2) + "n" + unit;
+			return (mult_sign * value * 1e9).toFixed(2) + "n" + unit;
 		}
 		else
 		{
-			return (value * 1e9).toFixed(1) + "n" + unit;
+			return (mult_sign * value * 1e9).toFixed(1) + "n" + unit;
 		}
 	}
 	else if(value < 1e-3)
 	{
 		if(value * 1e6 < 10)
 		{
-			return (value * 1e6).toFixed(2) + "u" + unit;
+			return (mult_sign * value * 1e6).toFixed(2) + "u" + unit;
 		}
 		else
 		{
-			return (value * 1e6).toFixed(1) + "u" + unit;
+			return (mult_sign * value * 1e6).toFixed(1) + "u" + unit;
 		}
 	}
 	else if(value < 1)
 	{
 		if(value * 1e3 < 10)
 		{
-			return (value * 1e3).toFixed(2) + "m" + unit;
+			return (mult_sign * value * 1e3).toFixed(2) + "m" + unit;
 		}
 		else
 		{
-			return (value * 1e3).toFixed(1) + "m" + unit;
+			return (mult_sign * value * 1e3).toFixed(1) + "m" + unit;
 		}
 	}
 	else if(value > 1e3)
 	{
 		if(value * 1e-3 < 10)
 		{
-			return (value * 1e-3).toFixed(2) + "k" + unit;
+			return (mult_sign * value * 1e-3).toFixed(2) + "k" + unit;
 		}
 		else
 		{
-			return (value * 1e-3).toFixed(1) + "k" + unit;
+			return (mult_sign * value * 1e-3).toFixed(1) + "k" + unit;
 		}
 	}
 	else

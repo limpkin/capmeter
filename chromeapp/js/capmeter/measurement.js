@@ -14,8 +14,9 @@ capmeter.measurement.measureCurrent = function($button)
 	//$button.css("background", "orange");
 }
 
-capmeter.measurement.nullCurrent = function($button) {
-    $button.css("background", "orange");
+capmeter.measurement.nullCurrent = function($button)
+{
+    capmeter.app.nullCurrent();
 }
 
 capmeter.measurement.measureCapacitance = function($button) 
@@ -25,8 +26,9 @@ capmeter.measurement.measureCapacitance = function($button)
   //$button.css("background", "orange");
 }
 
-capmeter.measurement.nullCapacitance = function($button) {
-    $button.css("background", "orange");
+capmeter.measurement.nullCapacitance = function($button) 
+{
+    capmeter.app.nullCapacitance();
 }
 
 capmeter.measurement.voltageCurrent = function($input) 
