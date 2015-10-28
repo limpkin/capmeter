@@ -305,10 +305,10 @@ function static_current_measurement_start(voltage)
 	}
 	else if(current_mode == MODE_IDLE)
 	{		
+		disable_gui_buttons();
+		current_mode = MODE_CUR_MES_REQ;
 		console.log("Requesting voltage set to " + voltage + "mV");
 		sendRequest(CMD_SET_VBIAS, [voltage%256, Math.floor(voltage/256)]);		
-		current_mode = MODE_CUR_MES_REQ;
-		disable_gui_buttons();
 	}	
 }
 
@@ -347,10 +347,10 @@ function static_capacitance_measurement_start(voltage)
 	else if(current_mode == MODE_IDLE)
 	{
 		// Set desired voltage		
+		disable_gui_buttons();
+		current_mode = MODE_CAP_MES_REQ;
 		console.log("Requesting voltage set to " + voltage + "mV");
 		sendRequest(CMD_SET_VBIAS, [voltage%256, Math.floor(voltage/256)]);		
-		current_mode = MODE_CAP_MES_REQ;
-		disable_gui_buttons();
 	}
 }
 
@@ -464,7 +464,7 @@ function onDataReceived(reportId, data)
 	waitingForAnswer = false;
     var len = bytes[0]
     var cmd = bytes[1]
-
+	
     if (debug && (cmd != CMD_PING) && (cmd != CMD_DEBUG))
     {
         console.log('Received CMD ' + cmd + ', len ' + len + ' ' + JSON.stringify(msg));
@@ -750,10 +750,12 @@ function onDataReceived(reportId, data)
 			else if(current_mode == MODE_CAP_MES)
 			{
 				current_mode = MODE_IDLE;
+				enable_gui_buttons();	
 			}
 			else if(current_mode == MODE_CAP_CALIB)
 			{
 				current_mode = MODE_IDLE;
+				enable_gui_buttons();	
 				capmeter.app.exportAdvancedCalibDataToEeprom();
 			}
 			else if((current_mode == MODE_CUR_MES) || (current_mode == MODE_CUR_CARAC))
@@ -799,12 +801,12 @@ function onDataReceived(reportId, data)
 			{	
 				if(current_mode == MODE_CAP_MES_REQ)
 				{
+					ping_enabled = false;
+					current_mode = MODE_CAP_MES;
+					$("#nullCapacitance").removeAttr("disabled");
+					$("#measureCapacitance").removeAttr("disabled");
 					console.log("Capacitance measurement mode started");
 					$('#measureCapacitance').css('background', 'orange');
-					$("#measureCapacitance").removeAttr("disabled");
-					$("#nullCapacitance").removeAttr("disabled");
-					current_mode = MODE_CAP_MES;
-					ping_enabled = false;
 				}
 				if(current_mode == MODE_CAP_CARAC_REQ)
 				{
@@ -851,7 +853,6 @@ function onDataReceived(reportId, data)
 					$('#measureCapacitance').css('background', '#3ED1D6');
 					capmeter.measurement._capacitance = "fF";
 					sendRequest(CMD_DISABLE_VBIAS, null);
-					enable_gui_buttons();			
 					ping_enabled = true;
 				}
 				else if(current_mode == MODE_CAP_CARAC)
@@ -861,7 +862,6 @@ function onDataReceived(reportId, data)
 					capmeter.measurement._capacitance = "fF";
 					sendRequest(CMD_DISABLE_VBIAS, null);
 					current_mode = MODE_IDLE;		
-					enable_gui_buttons();			
 					ping_enabled = true;					
 				}
 			}
