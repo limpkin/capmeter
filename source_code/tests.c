@@ -296,8 +296,8 @@ void functional_test(void)
     uint16_t aref = get_averaged_adc_value(13);                                     // Measure aref value
     configure_adc_channel(ADC_CHANNEL_AVCCDIV10_VCCDIV16, 0, FALSE);                // Select avcc/10 channel with VCC/1.6 as reference
     //uint16_t div10_avccint_ref = get_averaged_adc_value(13);                      // Measure avcc/10
-    uint32_t min_total = ((uint32_t)(aref-aref_offset)-10)*((uint32_t)avcc-10-5);   // Min multiplication
-    uint32_t max_total = ((uint32_t)(aref-aref_offset)+10)*((uint32_t)avcc+10+5);   // Max multiplication value
+    uint32_t min_total = ((uint32_t)(aref-aref_offset)-11)*((uint32_t)avcc-11-5);   // Min multiplication
+    uint32_t max_total = ((uint32_t)(aref-aref_offset)+11)*((uint32_t)avcc+11+5);   // Max multiplication value
     if ((max_total < 2656479) || (min_total > 2710146))
     {
         testdprintf("- PROBLEM AREF: %u (~%umV)\r\n", aref-aref_offset, compute_voltage_from_se_adc_val_with_avcc_div16_ref(aref-aref_offset));
