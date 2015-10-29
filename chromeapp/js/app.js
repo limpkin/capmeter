@@ -752,6 +752,11 @@ function onDataReceived(reportId, data)
 				current_mode = MODE_IDLE;
 				enable_gui_buttons();	
 			}
+			else if(current_mode == MODE_CAP_CARAC)
+			{
+				current_mode = MODE_IDLE;
+				enable_gui_buttons();	
+			}
 			else if(current_mode == MODE_CAP_CALIB)
 			{
 				current_mode = MODE_IDLE;
@@ -861,7 +866,6 @@ function onDataReceived(reportId, data)
 					$('#capacitance').css('background', '#3ED1D6');
 					capmeter.measurement._capacitance = "fF";
 					sendRequest(CMD_DISABLE_VBIAS, null);
-					current_mode = MODE_IDLE;		
 					ping_enabled = true;					
 				}
 			}
