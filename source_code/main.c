@@ -30,7 +30,7 @@
 // Define the bootloader function
 bootloader_f_ptr_type start_bootloader = (bootloader_f_ptr_type)(BOOT_SECTION_START/2);
 // Bootloader start key variable
-volatile uint16_t bootloader_start_var __attribute__ ((section (".noinit")));
+uint16_t bootloader_start_var __attribute__ ((section (".noinit")));
 // RC Calibration values
 #define RCOSC32M_offset  0x03
 #define RCOSC32MA_offset 0x04
@@ -67,7 +67,6 @@ int main(void)
     /* Check if the firmware asked to start the bootloader */
     if (bootloader_start_var == 0xBEEF)
     {
-        bootloader_start_var = 0x0000;
         wdt_disable();
         start_bootloader();
     }
