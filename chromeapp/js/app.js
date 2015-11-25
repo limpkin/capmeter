@@ -882,10 +882,14 @@ function onDataReceived(reportId, data)
 			var resistor_val = 2 * ((msg[12]<<8) + msg[11]);
 			var second_threshold = (msg[14]<<8) + msg[13];
 			var first_threshold = (msg[16]<<8) + msg[15];
+			var aggregate_rise = (msg[20]<<8) + (msg[19]<<16) + (msg[18]<<8) + msg[17];
 			
-			//console.log("Capacitance report - counter_divider: " + counter_divider + " aggregate_fall: " + aggregate_fall + " counter_val: " + counter_val + " report freq: " + report_freq + "Hz resistor: " + resistor_val + "Ohms second threshold: " + second_threshold + " first threshold: " + first_threshold);
+			console.log("Capacitance report - counter_divider: " + counter_divider + " aggregate_fall: " + aggregate_fall +  " aggregate_rise: " + aggregate_rise + " counter_val: " + counter_val + " report freq: " + report_freq + "Hz resistor: " + resistor_val + "Ohms second threshold: " + second_threshold + " first threshold: " + first_threshold);
 			// C =  - counter divider * aggregate / 32M * counter * 2 * half_r * ln(Vt2/Vt1)
 			var capacitance = 0;
+			
+			// Tests
+			//console.log(capmeter.util.valueToElectronicString(-1*((counter_divider * aggregate_rise) / (32000000 * counter_val * resistor_val * Math.log((3.3-second_threshold)/(3.3-first_threshold)))), "F"));
 			
 			// If capacitance calibration has been done, remove offset
 			if(capmeter.app.cap_offset != null)

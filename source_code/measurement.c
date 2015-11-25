@@ -171,7 +171,7 @@ ISR(TCC0_CCA_vect)
     }
     else
     {
-        current_counter_rise += cur_pulse_width;
+        current_agg_rise += cur_pulse_width;
         current_counter_rise++;
     }        
 }
@@ -432,6 +432,7 @@ uint8_t cap_measurement_loop(capacitance_report_t* cap_report)
         cap_report->first_thres = get_calib_first_thres_up();
         cap_report->counter_value = cur_freq_counter_val;
         cap_report->aggregate_fall = last_agg_fall;
+        cap_report->aggregate_rise = last_agg_rise;
         
         // Necessary to change the resistor...
         cap_measurement_logic();

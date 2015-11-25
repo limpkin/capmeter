@@ -36,6 +36,7 @@ typedef struct capacitance_report_struct
     uint16_t half_res;                          // Resistor value / 2
     uint16_t second_thres;                      // Second comparison threshold
     uint16_t first_thres;                       // First comparison threshold
+    uint32_t aggregate_rise;                    // Rise aggregate
 } capacitance_report_t;
 
 // enums
