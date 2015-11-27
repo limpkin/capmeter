@@ -433,6 +433,9 @@ uint8_t cap_measurement_loop(capacitance_report_t* cap_report)
         cap_report->counter_value = cur_freq_counter_val;
         cap_report->aggregate_fall = last_agg_fall;
         cap_report->aggregate_rise = last_agg_rise;
+        cap_report->counter_rise = last_counter_rise;
+        cap_report->counter_fall = last_counter_fall;
+        cap_report->vosc_low = get_calib_osc_low_v();
         
         // Necessary to change the resistor...
         cap_measurement_logic();

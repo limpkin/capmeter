@@ -883,13 +883,13 @@ function onDataReceived(reportId, data)
 			var second_threshold = (msg[14]<<8) + msg[13];
 			var first_threshold = (msg[16]<<8) + msg[15];
 			var aggregate_rise = (msg[20]<<8) + (msg[19]<<16) + (msg[18]<<8) + msg[17];
+			var counter_rise = (msg[24]<<8) + (msg[23]<<16) + (msg[22]<<8) + msg[21];
+			var counter_fall = (msg[28]<<8) + (msg[27]<<16) + (msg[26]<<8) + msg[25];
+			var osc_lowvoltagemv = ((msg[30]<<8) + msg[29])*1.24/4.095;
 			
-			console.log("Capacitance report - counter_divider: " + counter_divider + " aggregate_fall: " + aggregate_fall +  " aggregate_rise: " + aggregate_rise + " counter_val: " + counter_val + " report freq: " + report_freq + "Hz resistor: " + resistor_val + "Ohms second threshold: " + second_threshold + " first threshold: " + first_threshold);
+			//console.log("Capacitance report - counter_divider: " + counter_divider + " aggregate_fall: " + aggregate_fall +  " aggregate_rise: " + aggregate_rise + " counter_val: " + counter_val + " report freq: " + report_freq + "Hz resistor: " + resistor_val + "Ohms second threshold: " + second_threshold + " first threshold: " + first_threshold);
 			// C =  - counter divider * aggregate / 32M * counter * 2 * half_r * ln(Vt2/Vt1)
 			var capacitance = 0;
-			
-			// Tests
-			//console.log(capmeter.util.valueToElectronicString(-1*((counter_divider * aggregate_rise) / (32000000 * counter_val * resistor_val * Math.log((3.3-second_threshold)/(3.3-first_threshold)))), "F"));
 			
 			// If capacitance calibration has been done, remove offset
 			if(capmeter.app.cap_offset != null)
@@ -906,7 +906,24 @@ function onDataReceived(reportId, data)
 			{
 				//capacitance = 0;
 			}
+			
+			// Log
 			//console.log("Measured capacitance: " + capmeter.util.valueToElectronicString(capacitance, "F") + ", osc. freq.: " + counter_val*report_freq  + "Hz (" + resistor_val + "R)");
+			//console.log("Counter: " + counter_val + ", Counter fall: " + counter_fall + ", Counter rise: " + counter_rise);
+			//console.log("Aggregate fall: " + aggregate_fall + ", Aggregate rise: " + aggregate_rise);
+			
+			// ESR calculation			
+			var capacitance_rise = -1*((counter_divider * aggregate_rise) / (32000000 * counter_val * resistor_val * Math.log((3300-(first_threshold*1.24/4.095))/(3300-(second_threshold*1.24/4.095)))));
+			//console.log("Capacitance (rise): " + capmeter.util.valueToElectronicString(capacitance_rise, "F"));
+			var time_rise = (counter_divider*aggregate_rise)/(32000000*counter_rise);
+			//console.log("Rise time: " + capmeter.util.valueToElectronicString(time_rise, "s"));
+			// Vesr = -1 * ( (3.3V - Vthres1) / exp(-t/RC) - 3.3)
+			var esr_voltage = -1*(((3300-(first_threshold*1.24/4.095))/(Math.exp(-(time_rise)/(resistor_val*capacitance)))) - 3300);
+			//console.log("Vesr: " + esr_voltage);
+			// ESR = (Vesr - Vosclow) * R / (3.3-Vosclow)
+			var esr = ((esr_voltage - osc_lowvoltagemv) * resistor_val / (3300 - osc_lowvoltagemv))/1000;
+			//console.log("ESR: " + capmeter.util.valueToElectronicString(esr, "mOhms"));
+						
 			
 			// Store value in our buffer, compute capmeter.util.average and std deviation
 			cap_last_values[(cap_last_value_ind++)%cap_last_values.length] = capacitance;

@@ -37,6 +37,9 @@ typedef struct capacitance_report_struct
     uint16_t second_thres;                      // Second comparison threshold
     uint16_t first_thres;                       // First comparison threshold
     uint32_t aggregate_rise;                    // Rise aggregate
+    uint32_t counter_rise;                      // Rise counter
+    uint32_t counter_fall;                      // Fall counter
+    uint16_t vosc_low;                          // Oscillator low voltage
 } capacitance_report_t;
 
 // enums
